@@ -1,47 +1,27 @@
 from pathlib import Path
-from typing import Optional
+from typing import Dict, List, Optional
 
 from PySide6.QtCore import Qt
 from PySide6.QtWidgets import (
-    QWidget,
-    QVBoxLayout,
-    QHBoxLayout,
-    QLabel,
-    QPushButton,
-    QFrame,
-    QFileDialog,
-    QTableWidget,
-    QTableWidgetItem,
-    QMessageBox,
-    QProgressBar,
-    QComboBox,
+    QWidget, QVBoxLayout, QHBoxLayout, QLabel, QPushButton, QFrame,
+    QFileDialog, QTableWidget, QTableWidgetItem, QMessageBox, QProgressBar,
 )
 
-from core.coretax_reader import (
-    CoretaxReader,
-    CoretaxFileInfo,
-    CoretaxReadResult,
-    CoretaxReaderError,
-    EmptyFileError,
-    EmptySheetError,
-    UnsupportedFileFormatError,
-    CorruptedFileError,
-)
+from core.coretax_reader import CoretaxReader, CoretaxReaderError
+from core.validation.batch import CoretaxBatchImporter
+from core.validation.models import BatchImportResult
+from core.validation.rules import CATEGORIES
 
 
 class ImportCoretaxPage(QWidget):
-    """
-    Halaman UI untuk mengimpor dan mem-preview data hasil ekspor Coretax (Stage 3A).
-    """
+    """UI impor Coretax enam kategori, Stage 3B."""
 
     def __init__(self, parent=None):
         super().__init__(parent)
-
         self.reader = CoretaxReader()
-        self.selected_file: Optional[Path] = None
-        self.current_file_info: Optional[CoretaxFileInfo] = None
-        self.current_result: Optional[CoretaxReadResult] = None
-
+        self.batch_importer = CoretaxBatchImporter(reader=self.reader)
+        self.selected_files: List[Path] = []
+        self.last_result: Optional[BatchImportResult] = None
         self._build_ui()
 
     def _build_ui(self):
@@ -51,267 +31,223 @@ class ImportCoretaxPage(QWidget):
 
         title = QLabel("Impor Coretax")
         title.setObjectName("pageTitle")
-
         subtitle = QLabel(
-            "Impor data hasil ekspor Coretax untuk diproses ke Lampiran L-1."
+            "Pilih folder atau beberapa file Coretax. Sistem akan mengenali kategori secara otomatis."
         )
         subtitle.setObjectName("pageSubTitle")
-
         layout.addWidget(title)
         layout.addWidget(subtitle)
 
-        # ---------------------------------------------------------
-        # Card 1: Pilih File & Sheet
-        # ---------------------------------------------------------
-        file_card = QFrame()
-        file_card.setObjectName("card")
+        source_card = QFrame()
+        source_card.setObjectName("card")
+        source_layout = QVBoxLayout(source_card)
+        source_layout.setContentsMargins(24, 24, 24, 24)
+        source_layout.setSpacing(14)
 
-        file_layout = QVBoxLayout(file_card)
-        file_layout.setContentsMargins(24, 24, 24, 24)
-        file_layout.setSpacing(14)
-
-        file_title = QLabel("1. Pilih File Coretax")
-        file_title.setObjectName("sectionTitle")
-
+        source_title = QLabel("1. Pilih Sumber Coretax")
+        source_title.setObjectName("sectionTitle")
         self.file_label = QLabel("Belum ada file yang dipilih")
         self.file_label.setObjectName("mutedLabel")
         self.file_label.setWordWrap(True)
 
-        # Sheet selection container (tampil dinamis jika Excel)
-        self.sheet_container = QWidget()
-        sheet_layout = QHBoxLayout(self.sheet_container)
-        sheet_layout.setContentsMargins(0, 0, 0, 0)
-        sheet_layout.setSpacing(12)
+        buttons = QHBoxLayout()
+        folder_button = QPushButton("📁 Pilih Folder")
+        folder_button.setObjectName("primaryButton")
+        folder_button.clicked.connect(self.choose_folder)
+        file_button = QPushButton("📄 Pilih File")
+        file_button.setObjectName("primaryButton")
+        file_button.clicked.connect(self.choose_files)
+        clear_button = QPushButton("Bersihkan")
+        clear_button.clicked.connect(self.clear_selection)
+        self.validate_button = QPushButton("Validasi Semua")
+        self.validate_button.setObjectName("primaryButton")
+        self.validate_button.setEnabled(False)
+        self.validate_button.clicked.connect(self.validate_all)
+        buttons.addWidget(folder_button)
+        buttons.addWidget(file_button)
+        buttons.addWidget(clear_button)
+        buttons.addStretch()
+        buttons.addWidget(self.validate_button)
 
-        sheet_title = QLabel("Pilih Lembar (Sheet):")
-        sheet_title.setObjectName("mutedLabel")
-        sheet_title.setFixedWidth(140)
+        source_layout.addWidget(source_title)
+        source_layout.addWidget(self.file_label)
+        source_layout.addLayout(buttons)
+        layout.addWidget(source_card)
 
-        self.sheet_combo = QComboBox()
-        self.sheet_combo.setMinimumWidth(220)
+        category_card = QFrame()
+        category_card.setObjectName("card")
+        category_layout = QVBoxLayout(category_card)
+        category_layout.setContentsMargins(24, 24, 24, 24)
+        category_layout.setSpacing(8)
+        category_title = QLabel("2. Kategori Coretax")
+        category_title.setObjectName("sectionTitle")
+        category_layout.addWidget(category_title)
+        self.category_labels: Dict[str, QLabel] = {}
+        for category in CATEGORIES:
+            label = QLabel(f"— {category}")
+            label.setObjectName("mutedLabel")
+            self.category_labels[category] = label
+            category_layout.addWidget(label)
+        self.count_label = QLabel("0 / 6 kategori")
+        self.count_label.setObjectName("sectionTitle")
+        category_layout.addWidget(self.count_label)
+        layout.addWidget(category_card)
 
-        sheet_layout.addWidget(sheet_title)
-        sheet_layout.addWidget(self.sheet_combo)
-        sheet_layout.addStretch()
-        self.sheet_container.setVisible(False)
-
-        # Buttons
-        button_layout = QHBoxLayout()
-        button_layout.setSpacing(12)
-
-        choose_button = QPushButton("Pilih File")
-        choose_button.setObjectName("primaryButton")
-        choose_button.setCursor(Qt.PointingHandCursor)
-        choose_button.clicked.connect(self.choose_file)
-
-        self.import_button = QPushButton("Validasi & Impor")
-        self.import_button.setObjectName("primaryButton")
-        self.import_button.setCursor(Qt.PointingHandCursor)
-        self.import_button.setEnabled(False)
-        self.import_button.clicked.connect(self.validate_import)
-
-        button_layout.addWidget(choose_button)
-        button_layout.addWidget(self.import_button)
-        button_layout.addStretch()
-
-        file_layout.addWidget(file_title)
-        file_layout.addWidget(self.file_label)
-        file_layout.addWidget(self.sheet_container)
-        file_layout.addLayout(button_layout)
-
-        layout.addWidget(file_card)
-
-        # ---------------------------------------------------------
-        # Card 2: Status Proses
-        # ---------------------------------------------------------
         progress_card = QFrame()
         progress_card.setObjectName("card")
-
         progress_layout = QVBoxLayout(progress_card)
         progress_layout.setContentsMargins(24, 20, 24, 20)
         progress_layout.setSpacing(10)
-
-        progress_title = QLabel("2. Status Proses")
+        progress_title = QLabel("3. Status Proses")
         progress_title.setObjectName("sectionTitle")
-
-        self.status_label = QLabel("Menunggu file...")
+        self.status_label = QLabel("Menunggu sumber data...")
         self.status_label.setObjectName("mutedLabel")
-
         self.progress = QProgressBar()
         self.progress.setRange(0, 100)
         self.progress.setValue(0)
         self.progress.setVisible(False)
-
         progress_layout.addWidget(progress_title)
         progress_layout.addWidget(self.status_label)
         progress_layout.addWidget(self.progress)
-
         layout.addWidget(progress_card)
 
-        # ---------------------------------------------------------
-        # Card 3: Dynamic Preview Table
-        # ---------------------------------------------------------
         preview_card = QFrame()
         preview_card.setObjectName("card")
-
         preview_layout = QVBoxLayout(preview_card)
         preview_layout.setContentsMargins(24, 24, 24, 24)
-        preview_layout.setSpacing(14)
-
-        preview_header_layout = QHBoxLayout()
-        preview_title = QLabel("3. Preview Data")
+        preview_layout.setSpacing(12)
+        header = QHBoxLayout()
+        preview_title = QLabel("4. Hasil Validasi")
         preview_title.setObjectName("sectionTitle")
-
-        self.preview_info_label = QLabel("Belum ada data untuk ditampilkan")
-        self.preview_info_label.setObjectName("mutedLabel")
-
-        preview_header_layout.addWidget(preview_title)
-        preview_header_layout.addStretch()
-        preview_header_layout.addWidget(self.preview_info_label)
-
+        self.preview_info = QLabel("Belum ada hasil validasi")
+        self.preview_info.setObjectName("mutedLabel")
+        header.addWidget(preview_title)
+        header.addStretch()
+        header.addWidget(self.preview_info)
         self.table = QTableWidget()
-        self.table.setColumnCount(0)
-        self.table.setRowCount(0)
+        self.table.setColumnCount(5)
+        self.table.setHorizontalHeaderLabels(["Kategori", "File", "Status", "Baris", "Pesan"])
         self.table.setEditTriggers(QTableWidget.NoEditTriggers)
         self.table.setSelectionBehavior(QTableWidget.SelectRows)
         self.table.setAlternatingRowColors(True)
         self.table.horizontalHeader().setStretchLastSection(True)
-
-        preview_layout.addLayout(preview_header_layout)
+        preview_layout.addLayout(header)
         preview_layout.addWidget(self.table)
-
         layout.addWidget(preview_card, 1)
 
-    def choose_file(self):
-        file_path, _ = QFileDialog.getOpenFileName(
+    def choose_folder(self):
+        folder = QFileDialog.getExistingDirectory(self, "Pilih Folder Coretax")
+        if not folder:
+            return
+        try:
+            files = self.batch_importer.discover_files(Path(folder))
+            # A folder may contain unrelated spreadsheets. Only six recognized
+            # categories count toward the six-file limit.
+            recognized = [p for p in files if self.batch_importer.detect_category(p)]
+            if len(recognized) > 6:
+                QMessageBox.warning(self, "Terlalu Banyak File", "Folder mengandung lebih dari 6 file Coretax yang dikenali.")
+                return
+            self.set_files(recognized)
+            self.status_label.setText(f"Folder dipindai: {len(recognized)} file Coretax dikenali.")
+        except Exception as exc:
+            QMessageBox.warning(self, "Folder Tidak Valid", str(exc))
+
+    def choose_files(self):
+        files, _ = QFileDialog.getOpenFileNames(
             self,
-            "Pilih File Coretax",
+            "Pilih File Coretax (maksimal 6)",
             "",
-            "File Excel / CSV (*.xlsx *.xls *.csv);;File Excel (*.xlsx *.xls);;File CSV (*.csv);;Semua File (*.*)",
+            "File Excel / CSV (*.xlsx *.xls *.csv);;Semua File (*.*)",
         )
-
-        if not file_path:
+        if not files:
             return
+        if len(files) > 6:
+            QMessageBox.warning(self, "Batas File", "Maksimal 6 file dapat dipilih sekaligus.")
+            return
+        self.set_files([Path(p) for p in files])
 
-        self.load_file(file_path)
+    def set_files(self, files: List[Path]):
+        self.selected_files = list(dict.fromkeys(Path(p).resolve() for p in files))
+        self.last_result = None
+        self.validate_button.setEnabled(bool(self.selected_files))
+        self.file_label.setText("\n".join(p.name for p in self.selected_files) or "Belum ada file yang dipilih")
+        self._reset_result_ui()
+        self._show_classification()
 
-    def load_file(self, file_path):
-        """
-        Memeriksa dan memuat file yang dipilih pengguna ke state UI.
-        """
-        try:
-            info = self.reader.inspect_file(file_path)
-            self.selected_file = info.file_path
-            self.current_file_info = info
-
-            # Update UI info
-            if info.is_excel:
-                self.file_label.setText(
-                    f"File: {info.file_path} ({len(info.sheets)} sheet terdeteksi)"
-                )
-                self.sheet_combo.clear()
-                self.sheet_combo.addItems(info.sheets)
-                self.sheet_container.setVisible(len(info.sheets) > 1)
+    def _show_classification(self):
+        classified = {category: [] for category in CATEGORIES}
+        for path in self.selected_files:
+            category = self.batch_importer.detect_category(path)
+            if category:
+                classified[category].append(path)
+        found = 0
+        for category in CATEGORIES:
+            paths = classified[category]
+            if len(paths) == 1:
+                self.category_labels[category].setText(f"✓ {category} — {paths[0].name}")
+                found += 1
+            elif len(paths) > 1:
+                self.category_labels[category].setText(f"⚠ {category} — {len(paths)} file (duplikat)")
             else:
-                self.file_label.setText(f"File: {info.file_path} (CSV)")
-                self.sheet_container.setVisible(False)
+                self.category_labels[category].setText(f"— {category} — belum dipilih")
+        self.count_label.setText(f"{found} / 6 kategori")
 
-            self.status_label.setText(f"File '{info.file_name}' siap dibaca.")
-            self.import_button.setEnabled(True)
-
-            # Reset preview
-            self.table.clear()
-            self.table.setRowCount(0)
-            self.table.setColumnCount(0)
-            self.preview_info_label.setText("Klik 'Validasi & Impor' untuk memuat preview")
-            self.progress.setVisible(False)
-            self.progress.setValue(0)
-
-        except (
-            UnsupportedFileFormatError,
-            EmptyFileError,
-            CorruptedFileError,
-            FileNotFoundError,
-            CoretaxReaderError,
-        ) as err:
-            self.selected_file = None
-            self.current_file_info = None
-            self.import_button.setEnabled(False)
-            self.sheet_container.setVisible(False)
-            self.file_label.setText("File tidak valid atau tidak dapat dibuka.")
-            self.status_label.setText(f"Gagal memeriksa file: {err}")
-            QMessageBox.warning(self, "Peringatan File", str(err))
-        except Exception as err:
-            self.selected_file = None
-            self.current_file_info = None
-            self.import_button.setEnabled(False)
-            self.sheet_container.setVisible(False)
-            self.file_label.setText("Terjadi kesalahan saat memeriksa file.")
-            self.status_label.setText(f"Error tidak terduga: {err}")
-            QMessageBox.critical(self, "Error Tidak Terduga", f"Gagal memeriksa file:\n{err}")
-
-    def validate_import(self):
-        if not self.selected_file or not self.current_file_info:
+    def validate_all(self):
+        if not self.selected_files:
             return
-
         self.progress.setVisible(True)
-        self.progress.setValue(20)
-        self.status_label.setText("Membaca data file Coretax...")
-
+        self.progress.setValue(10)
+        self.status_label.setText("Mendeteksi kategori dan membaca file Coretax...")
         try:
-            # Tentukan sheet yang akan dibaca jika Excel
-            selected_sheet = None
-            if self.current_file_info.is_excel and self.sheet_combo.count() > 0:
-                selected_sheet = self.sheet_combo.currentText()
-
-            self.progress.setValue(50)
-            result = self.reader.read(self.selected_file, sheet_name=selected_sheet)
-            self.current_result = result
-
-            self.progress.setValue(80)
-
-            # Render data secara dinamis ke QTableWidget
-            self.table.clear()
-            self.table.setColumnCount(result.total_columns)
-            self.table.setHorizontalHeaderLabels(result.headers)
-            self.table.setRowCount(result.total_rows)
-
-            for row_idx, row_data in enumerate(result.rows):
-                for col_idx, cell_value in enumerate(row_data):
-                    item = QTableWidgetItem(str(cell_value))
-                    self.table.setItem(row_idx, col_idx, item)
-
-            self.table.resizeColumnsToContents()
-
+            result = self.batch_importer.validate(self.selected_files)
+            self.last_result = result
             self.progress.setValue(100)
-
-            # Update informasi preview dan status
-            sheet_info = f" [Sheet: {result.sheet_name}]" if result.sheet_name else ""
-            self.preview_info_label.setText(
-                f"{result.total_rows} baris • {result.total_columns} kolom"
-            )
-            self.status_label.setText(
-                f"Selesai: Membaca '{result.file_name}'{sheet_info} ({result.total_rows} baris, {result.total_columns} kolom)."
-            )
-
-            QMessageBox.information(
-                self,
-                "Pembacaan Berhasil",
-                f"File '{result.file_name}'{sheet_info} berhasil dibaca.\n"
-                f"Ditemukan {result.total_rows} baris dan {result.total_columns} kolom data.",
-            )
-
-        except (
-            EmptySheetError,
-            EmptyFileError,
-            CorruptedFileError,
-            UnsupportedFileFormatError,
-            CoretaxReaderError,
-        ) as err:
+            self._render_result(result)
+            if result.is_valid:
+                self.status_label.setText("Validasi selesai. Tidak ada error validasi.")
+            else:
+                self.status_label.setText(f"Validasi selesai dengan {len(result.errors)} error.")
+        except Exception as exc:
             self.progress.setVisible(False)
-            self.status_label.setText(f"Gagal membaca file: {err}")
-            QMessageBox.warning(self, "Peringatan Pembacaan", str(err))
-        except Exception as err:
-            self.progress.setVisible(False)
-            self.status_label.setText(f"Error tidak terduga saat membaca file: {err}")
-            QMessageBox.critical(self, "Error Tidak Terduga", f"Terjadi kesalahan:\n{err}")
+            self.status_label.setText(f"Gagal melakukan validasi: {exc}")
+            QMessageBox.critical(self, "Error Validasi", str(exc))
+
+    def _render_result(self, result: BatchImportResult):
+        self.table.clearContents()
+        rows = []
+        for category in CATEGORIES:
+            item = result.category_results.get(category)
+            if not item or item.status == "MISSING":
+                continue
+            filename = item.file_path.name if item.file_path else "-"
+            row_count = item.read_result.total_rows if item.read_result else 0
+            message = item.message or ("Valid" if item.status == "VALID" else "")
+            rows.append((category, filename, item.status, str(row_count), message))
+        self.table.setRowCount(len(rows))
+        for r, values in enumerate(rows):
+            for c, value in enumerate(values):
+                self.table.setItem(r, c, QTableWidgetItem(value))
+        self.table.resizeColumnsToContents()
+        self.preview_info.setText(
+            f"{result.found_count}/6 kategori • {result.total_rows} baris • "
+            f"{len(result.errors)} error • {len(result.warnings)} warning"
+        )
+        self._show_classification()
+
+    def _reset_result_ui(self):
+        self.table.clearContents()
+        self.table.setRowCount(0)
+        self.preview_info.setText("Belum ada hasil validasi")
+        self.progress.setVisible(False)
+        self.progress.setValue(0)
+
+    def clear_selection(self):
+        self.selected_files = []
+        self.last_result = None
+        self.file_label.setText("Belum ada file yang dipilih")
+        self.status_label.setText("Menunggu sumber data...")
+        self.validate_button.setEnabled(False)
+        for category in CATEGORIES:
+            self.category_labels[category].setText(f"— {category} — belum dipilih")
+        self.count_label.setText("0 / 6 kategori")
+        self._reset_result_ui()
