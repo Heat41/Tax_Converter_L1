@@ -15,6 +15,7 @@ from PySide6.QtWidgets import (
 from config.database import get_db_connection
 from config.settings import APP_NAME, APP_VERSION
 from ui.theme import APP_FONT, STYLESHEET
+from ui.pages.import_coretax_page import ImportCoretaxPage
 
 
 class MainWindow(QMainWindow):
@@ -77,11 +78,8 @@ class MainWindow(QMainWindow):
 
         self.stack = QStackedWidget()
         self.pages["dashboard"] = self._build_dashboard_page()
-        self.pages["import"] = self._build_placeholder_page(
-            "Impor Coretax",
-            "Halaman impor data Coretax akan digunakan pada Stage 2.",
-            "Tahap berikutnya akan menambahkan pemilihan file, pembacaan data, validasi, dan preview hasil impor.",
-        )
+        self.pages["import"] = ImportCoretaxPage()
+
         self.pages["worksheet"] = self._build_placeholder_page(
             "Worksheet",
             "Halaman worksheet akan digunakan untuk pemeriksaan dan koreksi data.",
