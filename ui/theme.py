@@ -21,6 +21,28 @@ QLabel#brandSub {
     color: #B9C7D6;
     font-size: 11px;
 }
+QPushButton {
+    background: #FFFFFF;
+    color: #1976D2;
+    border: 1px solid #90CAF9;
+    border-radius: 8px;
+    padding: 9px 17px;
+    font-weight: 600;
+}
+QPushButton:hover {
+    background: #EAF4FD;
+    border-color: #1976D2;
+}
+QPushButton:pressed {
+    background: #DCEEFF;
+    border-color: #1565C0;
+    color: #1565C0;
+}
+QPushButton:disabled {
+    background: #F5F7FA;
+    color: #9AA5B1;
+    border-color: #D9E2EC;
+}
 QPushButton#navButton {
     color: #D9E2EC;
     background: transparent;
