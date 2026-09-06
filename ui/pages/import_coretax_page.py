@@ -32,8 +32,6 @@ class ImportCoretaxPage(QWidget):
         self._build_ui()
 
     def _build_ui(self):
-        # Halaman dibuat scrollable agar semua card tidak dipaksa mengecil pada
-        # layar 1366x768 / window yang belum dimaksimalkan.
         root_layout = QVBoxLayout(self)
         root_layout.setContentsMargins(0, 0, 0, 0)
         root_layout.setSpacing(0)
@@ -152,7 +150,6 @@ class ImportCoretaxPage(QWidget):
 
         validation_card = QFrame()
         validation_card.setObjectName("card")
-        validation_card.setMinimumHeight(280)
         validation_card.setSizePolicy(QSizePolicy.Expanding, QSizePolicy.Minimum)
         validation_layout = QVBoxLayout(validation_card)
         validation_layout.setContentsMargins(24, 20, 24, 20)
@@ -165,19 +162,26 @@ class ImportCoretaxPage(QWidget):
         validation_header.addWidget(validation_title)
         validation_header.addStretch()
         validation_header.addWidget(self.preview_info)
+
         self.table = QTableWidget()
-        self.table.setMinimumHeight(190)
         self.table.setColumnCount(5)
-        self.table.setHorizontalHeaderLabels(["Kategori", "File", "Status", "Baris", "Pesan"])
+        self.table.setHorizontalHeaderLabels(
+            ["Kategori", "File", "Status", "Baris", "Pesan"]
+        )
         self.table.setEditTriggers(QTableWidget.NoEditTriggers)
         self.table.setSelectionBehavior(QTableWidget.SelectRows)
         self.table.setAlternatingRowColors(True)
         self.table.verticalHeader().setVisible(False)
+        self.table.verticalHeader().setDefaultSectionSize(36)
+        self.table.horizontalHeader().setMinimumHeight(42)
         self.table.horizontalHeader().setSectionResizeMode(QHeaderView.ResizeToContents)
         self.table.horizontalHeader().setSectionResizeMode(4, QHeaderView.Stretch)
+        self.table.setVerticalScrollBarPolicy(Qt.ScrollBarAlwaysOff)
+        self.table.setSizePolicy(QSizePolicy.Expanding, QSizePolicy.Fixed)
         validation_layout.addLayout(validation_header)
         validation_layout.addWidget(self.table)
         layout.addWidget(validation_card)
+        self._fit_validation_table_height()
 
         worksheet_card = QFrame()
         worksheet_card.setObjectName("card")
@@ -231,7 +235,9 @@ class ImportCoretaxPage(QWidget):
         self.worksheet_table.setSelectionBehavior(QTableWidget.SelectRows)
         self.worksheet_table.setAlternatingRowColors(True)
         self.worksheet_table.verticalHeader().setVisible(False)
-        self.worksheet_table.horizontalHeader().setSectionResizeMode(QHeaderView.ResizeToContents)
+        self.worksheet_table.horizontalHeader().setSectionResizeMode(
+            QHeaderView.ResizeToContents
+        )
         self.worksheet_table.horizontalHeader().setMinimumSectionSize(80)
 
         worksheet_layout.addLayout(worksheet_header)
@@ -243,6 +249,16 @@ class ImportCoretaxPage(QWidget):
         scroll.setWidget(content)
         root_layout.addWidget(scroll)
         self.scroll_area = scroll
+
+    def _fit_validation_table_height(self):
+        """Sesuaikan tinggi tabel validasi agar semua file tampil tanpa scroll."""
+        row_count = self.table.rowCount()
+        header_height = max(self.table.horizontalHeader().height(), 42)
+        row_height = self.table.verticalHeader().defaultSectionSize()
+        visible_rows = max(row_count, 1)
+        frame = self.table.frameWidth() * 2
+        height = header_height + (visible_rows * row_height) + frame + 4
+        self.table.setFixedHeight(height)
 
     def choose_folder(self):
         folder = QFileDialog.getExistingDirectory(self, "Pilih Folder Coretax")
@@ -480,10 +496,13 @@ class ImportCoretaxPage(QWidget):
             row_count = item.read_result.total_rows if item.read_result else 0
             message = item.message or ("Valid" if item.status == "VALID" else "")
             rows.append((category, filename, item.status, str(row_count), message))
+
         self.table.setRowCount(len(rows))
         for r, values in enumerate(rows):
             for c, value in enumerate(values):
                 self.table.setItem(r, c, QTableWidgetItem(value))
+
+        self._fit_validation_table_height()
         self.preview_info.setText(
             f"{result.found_count}/6 kategori • {result.total_rows} baris • "
             f"{len(result.errors)} error • {len(result.warnings)} warning"
@@ -515,7 +534,8 @@ class ImportCoretaxPage(QWidget):
 
         if result.errors:
             self.worksheet_info.setText(
-                f"{len(result.errors)} error mapping • {result.mapping.skipped_rows} baris dilewati"
+                f"{len(result.errors)} error mapping • "
+                f"{result.mapping.skipped_rows} baris dilewati"
             )
         else:
             year = result.current_year or "-"
@@ -541,6 +561,7 @@ class ImportCoretaxPage(QWidget):
     def _reset_result_ui(self):
         self.table.clearContents()
         self.table.setRowCount(0)
+        self._fit_validation_table_height()
         self.preview_info.setText("Belum ada hasil validasi")
         self.progress.setVisible(False)
         self.progress.setValue(0)
