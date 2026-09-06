@@ -1,4 +1,5 @@
 from dataclasses import dataclass
+from decimal import Decimal, InvalidOperation
 from typing import Iterable, List, Optional
 
 from config.constants import KategoriL1
@@ -69,6 +70,22 @@ class Legacy1770IVMapper:
         clean = [str(value).strip() for value in parts if value is not None and str(value).strip()]
         return separator.join(clean)
 
+    @staticmethod
+    def _format_number(value: object) -> str:
+        """Format angka tanpa scientific notation dan tanpa .0 yang tidak perlu."""
+        if value is None or value == "":
+            return ""
+        try:
+            number = Decimal(str(value))
+        except (InvalidOperation, ValueError, TypeError):
+            return str(value)
+
+        if number == number.to_integral_value():
+            return format(number.quantize(Decimal("1")), "f")
+
+        text = format(number.normalize(), "f")
+        return text.rstrip("0").rstrip(".") if "." in text else text
+
     def _build_asset_name(self, item: HartaL1Item) -> str:
         if item.kategori_l1 == KategoriL1.KAS:
             name = self._join((item.nama_bank_institusi, item.nomor_akun))
@@ -107,13 +124,17 @@ class Legacy1770IVMapper:
             if item.nomor_identitas_pihak_ketiga:
                 details.append(f"Identitas: {item.nomor_identitas_pihak_ketiga}")
             if item.nilai_piutang_current:
-                details.append(f"Nilai piutang: {item.nilai_piutang_current:g}")
+                details.append(
+                    f"Nilai piutang: {self._format_number(item.nilai_piutang_current)}"
+                )
             if item.lokasi_negara:
                 details.append(f"Lokasi: {item.lokasi_negara}")
 
         elif item.kategori_l1 == KategoriL1.INVESTASI:
             if item.nilai_saat_ini_current:
-                details.append(f"Nilai saat ini: {item.nilai_saat_ini_current:g}")
+                details.append(
+                    f"Nilai saat ini: {self._format_number(item.nilai_saat_ini_current)}"
+                )
             if item.lokasi_negara:
                 details.append(f"Lokasi: {item.lokasi_negara}")
 
@@ -125,7 +146,9 @@ class Legacy1770IVMapper:
             if item.jenis_kepemilikan:
                 details.append(f"Kepemilikan: {item.jenis_kepemilikan.value}")
             if item.nilai_saat_ini_current:
-                details.append(f"Nilai saat ini: {item.nilai_saat_ini_current:g}")
+                details.append(
+                    f"Nilai saat ini: {self._format_number(item.nilai_saat_ini_current)}"
+                )
 
         elif item.kategori_l1 == KategoriL1.HTB:
             if item.luas_tanah:
@@ -137,13 +160,17 @@ class Legacy1770IVMapper:
             if item.sumber_kepemilikan:
                 details.append(f"Sumber: {item.sumber_kepemilikan}")
             if item.nilai_saat_ini_current:
-                details.append(f"Nilai saat ini: {item.nilai_saat_ini_current:g}")
+                details.append(
+                    f"Nilai saat ini: {self._format_number(item.nilai_saat_ini_current)}"
+                )
 
         elif item.kategori_l1 == KategoriL1.LAINNYA:
             if item.nomor_akun_bukti:
                 details.append(f"Bukti/Nomor akun: {item.nomor_akun_bukti}")
             if item.nilai_saat_ini_current:
-                details.append(f"Nilai saat ini: {item.nilai_saat_ini_current:g}")
+                details.append(
+                    f"Nilai saat ini: {self._format_number(item.nilai_saat_ini_current)}"
+                )
 
         if item.keterangan_pps:
             details.append(f"PPS: {item.keterangan_pps}")
