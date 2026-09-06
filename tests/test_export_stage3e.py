@@ -105,7 +105,7 @@ class TestLegacy1770IVExcelWriterStage3E(unittest.TestCase):
         self.assertEqual(ws["B7"].value, "0501")
         self.assertEqual(ws["C7"].value, "RUMAH PONTIANAK")
         self.assertEqual(ws["D8"].value, "TOTAL")
-        self.assertEqual(ws["E8"].value, "=SUM(E5:E6)")
+        self.assertEqual(ws["E8"].value, "=SUM(E5:E7)")
 
     def test_inserted_row_inherits_template_style(self):
         self.writer.write(self.template, self.output, self._rows(3))
