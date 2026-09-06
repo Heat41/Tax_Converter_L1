@@ -1,10 +1,11 @@
 from pathlib import Path
 from typing import Dict, List, Optional
 
+from PySide6.QtCore import Qt
 from PySide6.QtWidgets import (
     QWidget, QVBoxLayout, QHBoxLayout, QLabel, QPushButton, QFrame,
     QFileDialog, QTableWidget, QTableWidgetItem, QMessageBox, QProgressBar,
-    QInputDialog,
+    QInputDialog, QScrollArea, QSizePolicy, QHeaderView,
 )
 
 from core.coretax_reader import CoretaxReader
@@ -31,8 +32,22 @@ class ImportCoretaxPage(QWidget):
         self._build_ui()
 
     def _build_ui(self):
-        layout = QVBoxLayout(self)
-        layout.setContentsMargins(40, 32, 40, 32)
+        # Halaman dibuat scrollable agar semua card tidak dipaksa mengecil pada
+        # layar 1366x768 / window yang belum dimaksimalkan.
+        root_layout = QVBoxLayout(self)
+        root_layout.setContentsMargins(0, 0, 0, 0)
+        root_layout.setSpacing(0)
+
+        scroll = QScrollArea()
+        scroll.setWidgetResizable(True)
+        scroll.setFrameShape(QFrame.NoFrame)
+        scroll.setHorizontalScrollBarPolicy(Qt.ScrollBarAlwaysOff)
+        scroll.setVerticalScrollBarPolicy(Qt.ScrollBarAsNeeded)
+
+        content = QWidget()
+        content.setSizePolicy(QSizePolicy.Expanding, QSizePolicy.Minimum)
+        layout = QVBoxLayout(content)
+        layout.setContentsMargins(40, 32, 40, 40)
         layout.setSpacing(20)
 
         title = QLabel("Impor Coretax")
@@ -42,32 +57,41 @@ class ImportCoretaxPage(QWidget):
             "memetakan, lalu menampilkan preview kertas kerja SIMULASI I."
         )
         subtitle.setObjectName("pageSubTitle")
+        subtitle.setWordWrap(True)
         layout.addWidget(title)
         layout.addWidget(subtitle)
 
         source_card = QFrame()
         source_card.setObjectName("card")
+        source_card.setMinimumHeight(150)
+        source_card.setSizePolicy(QSizePolicy.Expanding, QSizePolicy.Minimum)
         source_layout = QVBoxLayout(source_card)
-        source_layout.setContentsMargins(24, 24, 24, 24)
-        source_layout.setSpacing(14)
+        source_layout.setContentsMargins(24, 20, 24, 20)
+        source_layout.setSpacing(12)
 
         source_title = QLabel("1. Pilih Sumber Coretax")
         source_title.setObjectName("sectionTitle")
         self.file_label = QLabel("Belum ada file yang dipilih")
         self.file_label.setObjectName("mutedLabel")
         self.file_label.setWordWrap(True)
+        self.file_label.setMinimumHeight(24)
 
         buttons = QHBoxLayout()
+        buttons.setSpacing(10)
         folder_button = QPushButton("📁 Pilih Folder")
         folder_button.setObjectName("primaryButton")
+        folder_button.setMinimumHeight(36)
         folder_button.clicked.connect(self.choose_folder)
         file_button = QPushButton("📄 Pilih File")
         file_button.setObjectName("primaryButton")
+        file_button.setMinimumHeight(36)
         file_button.clicked.connect(self.choose_files)
         clear_button = QPushButton("Bersihkan")
+        clear_button.setMinimumHeight(36)
         clear_button.clicked.connect(self.clear_selection)
         self.validate_button = QPushButton("Validasi Semua")
         self.validate_button.setObjectName("primaryButton")
+        self.validate_button.setMinimumHeight(36)
         self.validate_button.setEnabled(False)
         self.validate_button.clicked.connect(self.validate_all)
         buttons.addWidget(folder_button)
@@ -83,9 +107,11 @@ class ImportCoretaxPage(QWidget):
 
         category_card = QFrame()
         category_card.setObjectName("card")
+        category_card.setMinimumHeight(265)
+        category_card.setSizePolicy(QSizePolicy.Expanding, QSizePolicy.Minimum)
         category_layout = QVBoxLayout(category_card)
-        category_layout.setContentsMargins(24, 24, 24, 24)
-        category_layout.setSpacing(8)
+        category_layout.setContentsMargins(24, 20, 24, 20)
+        category_layout.setSpacing(7)
         category_title = QLabel("2. Kategori Coretax")
         category_title.setObjectName("sectionTitle")
         category_layout.addWidget(category_title)
@@ -93,26 +119,32 @@ class ImportCoretaxPage(QWidget):
         for category in CATEGORIES:
             label = QLabel(f"— {category}")
             label.setObjectName("mutedLabel")
+            label.setMinimumHeight(22)
             self.category_labels[category] = label
             category_layout.addWidget(label)
         self.count_label = QLabel("0 / 6 kategori")
         self.count_label.setObjectName("sectionTitle")
+        self.count_label.setMinimumHeight(24)
         category_layout.addWidget(self.count_label)
         layout.addWidget(category_card)
 
         progress_card = QFrame()
         progress_card.setObjectName("card")
+        progress_card.setMinimumHeight(120)
+        progress_card.setSizePolicy(QSizePolicy.Expanding, QSizePolicy.Minimum)
         progress_layout = QVBoxLayout(progress_card)
-        progress_layout.setContentsMargins(24, 20, 24, 20)
-        progress_layout.setSpacing(10)
+        progress_layout.setContentsMargins(24, 18, 24, 18)
+        progress_layout.setSpacing(8)
         progress_title = QLabel("3. Status Proses")
         progress_title.setObjectName("sectionTitle")
         self.status_label = QLabel("Menunggu sumber data...")
         self.status_label.setObjectName("mutedLabel")
+        self.status_label.setWordWrap(True)
         self.progress = QProgressBar()
         self.progress.setRange(0, 100)
         self.progress.setValue(0)
         self.progress.setVisible(False)
+        self.progress.setMinimumHeight(18)
         progress_layout.addWidget(progress_title)
         progress_layout.addWidget(self.status_label)
         progress_layout.addWidget(self.progress)
@@ -120,8 +152,10 @@ class ImportCoretaxPage(QWidget):
 
         validation_card = QFrame()
         validation_card.setObjectName("card")
+        validation_card.setMinimumHeight(280)
+        validation_card.setSizePolicy(QSizePolicy.Expanding, QSizePolicy.Minimum)
         validation_layout = QVBoxLayout(validation_card)
-        validation_layout.setContentsMargins(24, 24, 24, 24)
+        validation_layout.setContentsMargins(24, 20, 24, 20)
         validation_layout.setSpacing(12)
         validation_header = QHBoxLayout()
         validation_title = QLabel("4. Hasil Validasi")
@@ -132,20 +166,25 @@ class ImportCoretaxPage(QWidget):
         validation_header.addStretch()
         validation_header.addWidget(self.preview_info)
         self.table = QTableWidget()
+        self.table.setMinimumHeight(190)
         self.table.setColumnCount(5)
         self.table.setHorizontalHeaderLabels(["Kategori", "File", "Status", "Baris", "Pesan"])
         self.table.setEditTriggers(QTableWidget.NoEditTriggers)
         self.table.setSelectionBehavior(QTableWidget.SelectRows)
         self.table.setAlternatingRowColors(True)
-        self.table.horizontalHeader().setStretchLastSection(True)
+        self.table.verticalHeader().setVisible(False)
+        self.table.horizontalHeader().setSectionResizeMode(QHeaderView.ResizeToContents)
+        self.table.horizontalHeader().setSectionResizeMode(4, QHeaderView.Stretch)
         validation_layout.addLayout(validation_header)
         validation_layout.addWidget(self.table)
         layout.addWidget(validation_card)
 
         worksheet_card = QFrame()
         worksheet_card.setObjectName("card")
+        worksheet_card.setMinimumHeight(390)
+        worksheet_card.setSizePolicy(QSizePolicy.Expanding, QSizePolicy.Minimum)
         worksheet_layout = QVBoxLayout(worksheet_card)
-        worksheet_layout.setContentsMargins(24, 24, 24, 24)
+        worksheet_layout.setContentsMargins(24, 20, 24, 20)
         worksheet_layout.setSpacing(12)
 
         worksheet_header = QHBoxLayout()
@@ -158,12 +197,15 @@ class ImportCoretaxPage(QWidget):
         worksheet_header.addWidget(self.worksheet_info)
 
         worksheet_buttons = QHBoxLayout()
+        worksheet_buttons.setSpacing(10)
         self.preview_button = QPushButton("Buat Preview Kertas Kerja")
         self.preview_button.setObjectName("primaryButton")
+        self.preview_button.setMinimumHeight(36)
         self.preview_button.setEnabled(False)
         self.preview_button.clicked.connect(self.build_worksheet_preview)
         self.export_button = QPushButton("Export ke Kertas Kerja")
         self.export_button.setObjectName("primaryButton")
+        self.export_button.setMinimumHeight(36)
         self.export_button.setEnabled(False)
         self.export_button.clicked.connect(self.export_worksheet)
         worksheet_buttons.addStretch()
@@ -171,6 +213,7 @@ class ImportCoretaxPage(QWidget):
         worksheet_buttons.addWidget(self.export_button)
 
         self.worksheet_table = QTableWidget()
+        self.worksheet_table.setMinimumHeight(270)
         self.worksheet_table.setColumnCount(10)
         self.worksheet_table.setHorizontalHeaderLabels([
             "NO",
@@ -187,12 +230,19 @@ class ImportCoretaxPage(QWidget):
         self.worksheet_table.setEditTriggers(QTableWidget.NoEditTriggers)
         self.worksheet_table.setSelectionBehavior(QTableWidget.SelectRows)
         self.worksheet_table.setAlternatingRowColors(True)
-        self.worksheet_table.horizontalHeader().setStretchLastSection(True)
+        self.worksheet_table.verticalHeader().setVisible(False)
+        self.worksheet_table.horizontalHeader().setSectionResizeMode(QHeaderView.ResizeToContents)
+        self.worksheet_table.horizontalHeader().setMinimumSectionSize(80)
 
         worksheet_layout.addLayout(worksheet_header)
         worksheet_layout.addLayout(worksheet_buttons)
         worksheet_layout.addWidget(self.worksheet_table)
-        layout.addWidget(worksheet_card, 1)
+        layout.addWidget(worksheet_card)
+        layout.addStretch(1)
+
+        scroll.setWidget(content)
+        root_layout.addWidget(scroll)
+        self.scroll_area = scroll
 
     def choose_folder(self):
         folder = QFileDialog.getExistingDirectory(self, "Pilih Folder Coretax")
@@ -434,7 +484,6 @@ class ImportCoretaxPage(QWidget):
         for r, values in enumerate(rows):
             for c, value in enumerate(values):
                 self.table.setItem(r, c, QTableWidgetItem(value))
-        self.table.resizeColumnsToContents()
         self.preview_info.setText(
             f"{result.found_count}/6 kategori • {result.total_rows} baris • "
             f"{len(result.errors)} error • {len(result.warnings)} warning"
@@ -463,7 +512,6 @@ class ImportCoretaxPage(QWidget):
                     self._format_preview_value(value, numeric=c in (8, 9))
                 )
                 self.worksheet_table.setItem(r, c, table_item)
-        self.worksheet_table.resizeColumnsToContents()
 
         if result.errors:
             self.worksheet_info.setText(
