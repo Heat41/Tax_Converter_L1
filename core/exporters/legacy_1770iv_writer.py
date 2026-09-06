@@ -1,3 +1,4 @@
+import re
 from copy import copy
 from dataclasses import dataclass
 from pathlib import Path
@@ -5,6 +6,7 @@ from typing import Dict, Iterable, List, Optional, Sequence, Tuple
 
 from openpyxl import load_workbook
 from openpyxl.cell.cell import Cell
+from openpyxl.utils import get_column_letter
 from openpyxl.worksheet.worksheet import Worksheet
 
 from core.mapping.legacy_1770iv import Legacy1770IVRow
@@ -21,12 +23,7 @@ class Legacy1770IVWriteResult:
 
 
 class Legacy1770IVExcelWriter:
-    """Write canonical 1770-IV rows into an Excel template safely.
-
-    The writer locates the legacy asset table from its headers instead of
-    depending on hard-coded Excel coordinates. Existing workbook styles,
-    formulas, merged cells and unrelated sheets are preserved by openpyxl.
-    """
+    """Write canonical 1770-IV rows into an Excel template safely."""
 
     REQUIRED_HEADERS = {
         "Kode Harta": ("kode harta", "kode"),
@@ -74,9 +71,14 @@ class Legacy1770IVExcelWriter:
                     count=missing_rows,
                     columns=columns,
                 )
+                footer_row += missing_rows
+                self._extend_footer_sum_formulas(
+                    worksheet,
+                    footer_row=footer_row,
+                    start_row=start_row,
+                    end_row=footer_row - 1,
+                )
         elif normalized_rows:
-            # Ensure rows beyond current max_row inherit the first available
-            # data-row style when a footer/table boundary cannot be identified.
             last_needed = start_row + len(normalized_rows) - 1
             if last_needed > worksheet.max_row:
                 self._copy_template_row_style(
@@ -174,16 +176,15 @@ class Legacy1770IVExcelWriter:
             if not any(value not in (None, "") for value in values):
                 continue
 
-            if self._looks_like_data_row(values):
-                continue
-
-            # Formula or label rows below the table are considered footer.
             if any(self._is_formula(value) for value in values):
                 return row_idx
 
             joined = " ".join(self._normalize(v) for v in values if v not in (None, ""))
             if any(marker in joined for marker in ("jumlah", "total", "subtotal")):
                 return row_idx
+
+            if self._looks_like_data_row(values):
+                continue
 
         return None
 
@@ -195,6 +196,33 @@ class Legacy1770IVExcelWriter:
     @staticmethod
     def _is_formula(value: object) -> bool:
         return isinstance(value, str) and value.startswith("=")
+
+    def _extend_footer_sum_formulas(
+        self,
+        ws: Worksheet,
+        *,
+        footer_row: int,
+        start_row: int,
+        end_row: int,
+    ) -> None:
+        for cell in ws[footer_row]:
+            value = cell.value
+            if not self._is_formula(value):
+                continue
+
+            match = re.fullmatch(
+                r"=SUM\(\$?([A-Z]+)\$?\d+:\$?\1\$?\d+\)",
+                value.strip(),
+                flags=re.IGNORECASE,
+            )
+            if not match:
+                continue
+
+            col_letter = get_column_letter(cell.column)
+            if match.group(1).upper() != col_letter.upper():
+                continue
+
+            cell.value = f"=SUM({col_letter}{start_row}:{col_letter}{end_row})"
 
     def _clear_existing_table_values(
         self,
