@@ -163,6 +163,39 @@ QHeaderView::section {
     border-right: 1px solid #E2E8F0;
 }
 
+/* Worksheet tabs */
+QTabWidget#worksheetTabs::pane {
+    background: #FFFFFF;
+    border: 1px solid #D9E2EC;
+    border-radius: 10px;
+    top: -1px;
+}
+QTabBar::tab {
+    background: #EAF0F6;
+    color: #486581;
+    border: 1px solid #D9E2EC;
+    border-bottom: none;
+    padding: 10px 18px;
+    margin-right: 4px;
+    min-width: 150px;
+    font-weight: 600;
+}
+QTabBar::tab:first {
+    border-top-left-radius: 8px;
+}
+QTabBar::tab:last {
+    border-top-right-radius: 8px;
+}
+QTabBar::tab:selected {
+    background: #FFFFFF;
+    color: #1976D2;
+    border-color: #90CAF9;
+}
+QTabBar::tab:hover:!selected {
+    background: #DDEAF5;
+    color: #334E68;
+}
+
 /* Scrollbar utama halaman dan tabel */
 QScrollBar:vertical {
     background: #EEF3F8;
