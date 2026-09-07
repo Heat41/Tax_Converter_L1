@@ -79,8 +79,15 @@ class MainWindow(QMainWindow):
 
         self.stack = QStackedWidget()
         self.pages["dashboard"] = self._build_dashboard_page()
-        self.pages["import"] = ImportCoretaxPage()
-        self.pages["worksheet"] = WorksheetPage()
+
+        import_page = ImportCoretaxPage()
+        worksheet_page = WorksheetPage()
+        import_page.harta_preview_changed.connect(
+            worksheet_page.load_harta_preview
+        )
+
+        self.pages["import"] = import_page
+        self.pages["worksheet"] = worksheet_page
 
         self.pages["finalisasi"] = self._build_placeholder_page(
             "Finalisasi",
