@@ -8,6 +8,11 @@ from .rules import get_rules
 class ValidationEngine:
     """Declarative validator for populated Coretax category rows."""
 
+    HEADER_ALIASES = {
+        "nama pemotong pajak": {"nama pemilik"},
+        "nama pemilik": {"nama pemotong pajak"},
+    }
+
     def __init__(self, references: Optional[Mapping[str, Iterable[str]]] = None):
         self.references: Dict[str, Set[str]] = {
             key: {str(value).strip() for value in values if str(value).strip()}
@@ -19,14 +24,24 @@ class ValidationEngine:
         return "" if value is None else str(value).strip()
 
     @staticmethod
-    def _header_candidates(name: str) -> Set[str]:
+    def _header_key(name: str) -> str:
+        return re.sub(r"\s+", " ", name.strip().rstrip("*")).lower()
+
+    @classmethod
+    def _header_candidates(cls, name: str) -> Set[str]:
         normalized = re.sub(r"\s+", " ", name.strip().rstrip("*"))
-        return {name, normalized, normalized.lower()}
+        key = normalized.lower()
+        candidates = {name, normalized, key}
+        candidates.update(cls.HEADER_ALIASES.get(key, set()))
+        return candidates
 
     def _find_value(self, row: Mapping[str, object], excel_name: str) -> object:
-        candidates = self._header_candidates(excel_name)
+        candidates = {self._header_key(value) for value in self._header_candidates(excel_name)}
         for key, value in row.items():
-            key_candidates = self._header_candidates(str(key))
+            key_candidates = {
+                self._header_key(candidate)
+                for candidate in self._header_candidates(str(key))
+            }
             if candidates & key_candidates:
                 return value
         return ""
