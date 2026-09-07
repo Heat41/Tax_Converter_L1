@@ -16,6 +16,7 @@ from config.database import get_db_connection
 from config.settings import APP_NAME, APP_VERSION
 from ui.theme import APP_FONT, STYLESHEET
 from ui.pages.import_coretax_page_view import ImportCoretaxPage
+from ui.pages.worksheet_page import WorksheetPage
 
 
 class MainWindow(QMainWindow):
@@ -79,12 +80,8 @@ class MainWindow(QMainWindow):
         self.stack = QStackedWidget()
         self.pages["dashboard"] = self._build_dashboard_page()
         self.pages["import"] = ImportCoretaxPage()
+        self.pages["worksheet"] = WorksheetPage()
 
-        self.pages["worksheet"] = self._build_placeholder_page(
-            "Worksheet",
-            "Halaman worksheet akan digunakan untuk pemeriksaan dan koreksi data.",
-            "Fitur tabel editable, validasi, audit trail, dan filter kategori akan ditambahkan pada Stage 3.",
-        )
         self.pages["finalisasi"] = self._build_placeholder_page(
             "Finalisasi",
             "Halaman finalisasi akan digunakan untuk mengunci hasil dan membuat XML.",
