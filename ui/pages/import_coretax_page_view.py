@@ -1,10 +1,18 @@
+from PySide6.QtCore import Signal
 from PySide6.QtWidgets import QMessageBox
 
 from ui.pages.import_coretax_page import ImportCoretaxPage as BaseImportCoretaxPage
 
 
 class ImportCoretaxPage(BaseImportCoretaxPage):
-    """Presentation wrapper untuk state halaman Impor Coretax."""
+    """Presentation wrapper untuk state halaman Impor Coretax.
+
+    Selain styling state, halaman ini memancarkan hasil preview Harta agar
+    halaman Worksheet dapat memakai hasil pipeline yang sama tanpa menghitung
+    ulang data Coretax.
+    """
+
+    harta_preview_changed = Signal(object)
 
     @staticmethod
     def _set_info_emphasis(label, active: bool) -> None:
@@ -12,7 +20,18 @@ class ImportCoretaxPage(BaseImportCoretaxPage):
         font.setBold(bool(active))
         label.setFont(font)
 
+    def set_files(self, files):
+        super().set_files(files)
+        # Pemilihan sumber baru membuat preview lama tidak lagi relevan.
+        self.harta_preview_changed.emit(None)
+
+    def clear_selection(self):
+        super().clear_selection()
+        self.harta_preview_changed.emit(None)
+
     def validate_all(self):
+        # Saat validasi ulang dimulai, kosongkan sinkronisasi preview lama.
+        self.harta_preview_changed.emit(None)
         super().validate_all()
 
         result = self.last_result
@@ -39,6 +58,7 @@ class ImportCoretaxPage(BaseImportCoretaxPage):
             self.status_label.setText(
                 "Preview tidak dibuat karena file yang dipilih tidak memiliki baris data harta."
             )
+            self.harta_preview_changed.emit(None)
             QMessageBox.information(
                 self,
                 "Data Harta Kosong",
@@ -48,6 +68,16 @@ class ImportCoretaxPage(BaseImportCoretaxPage):
             return
 
         super().build_worksheet_preview()
+
+        pipeline_result = self.last_pipeline_result
+        if (
+            pipeline_result is not None
+            and not pipeline_result.errors
+            and pipeline_result.worksheet_rows
+        ):
+            self.harta_preview_changed.emit(pipeline_result)
+        else:
+            self.harta_preview_changed.emit(None)
 
     def _render_result(self, result):
         super()._render_result(result)
