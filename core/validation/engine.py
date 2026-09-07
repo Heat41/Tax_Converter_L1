@@ -25,11 +25,16 @@ class ValidationEngine:
 
     @staticmethod
     def _header_key(name: str) -> str:
-        return re.sub(r"\s+", " ", name.strip().rstrip("*")).lower()
+        # Beberapa header Coretax memakai spasi sebelum '*', mis. "Nama Pemilik *".
+        # Strip ulang setelah asterisk dihapus supaya alias tidak gagal hanya karena
+        # whitespace sisa di ujung nama kolom.
+        cleaned = name.strip().rstrip("*").strip()
+        return re.sub(r"\s+", " ", cleaned).lower()
 
     @classmethod
     def _header_candidates(cls, name: str) -> Set[str]:
-        normalized = re.sub(r"\s+", " ", name.strip().rstrip("*"))
+        cleaned = name.strip().rstrip("*").strip()
+        normalized = re.sub(r"\s+", " ", cleaned)
         key = normalized.lower()
         candidates = {name, normalized, key}
         candidates.update(cls.HEADER_ALIASES.get(key, set()))
