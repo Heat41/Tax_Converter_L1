@@ -2,6 +2,7 @@ from PySide6.QtCore import Qt
 from PySide6.QtWidgets import (
     QFrame,
     QHBoxLayout,
+    QHeaderView,
     QLabel,
     QPushButton,
     QTabWidget,
@@ -15,13 +16,16 @@ from PySide6.QtWidgets import (
 class WorksheetPage(QWidget):
     """Halaman worksheet utama.
 
-    Pipeline Harta/SIMULASI I tetap terpisah dari worksheet Penghasilan & PPh.
-    Tab 2025 disiapkan sebagai input manual Bupot/penghasilan dengan kalkulasi
-    yang akan dihubungkan pada tahap berikutnya.
+    Tab Harta menerima hasil pipeline SIMULASI I dari halaman Impor Coretax.
+    Tab Penghasilan & PPh tetap terpisah dan disiapkan untuk input manual.
     """
 
     def __init__(self, parent=None):
         super().__init__(parent)
+        self.harta_pipeline_result = None
+        self.harta_original_rows = []
+        self.harta_current_rows = []
+        self.harta_mode = "original"
         self._build_ui()
 
     def _build_ui(self):
@@ -65,14 +69,20 @@ class WorksheetPage(QWidget):
         heading = QLabel("Worksheet Harta — SIMULASI I")
         heading.setObjectName("sectionTitle")
         description = QLabel(
-            "Data pada bagian ini berasal dari pipeline 6 kategori L-1 Coretax. "
-            "Tahap berikutnya akan menghubungkan hasil import dengan mode Original dan Edited/Current."
+            "Data Harta pada bagian ini berasal langsung dari preview hasil import Coretax. "
+            "Original Import menyimpan hasil awal pipeline; Edited / Current akan menjadi "
+            "area koreksi pada tahap editor berikutnya."
         )
         description.setObjectName("pageSubTitle")
         description.setWordWrap(True)
 
+        self.harta_status = QLabel("Belum ada preview Harta dari halaman Impor Coretax.")
+        self.harta_status.setObjectName("mutedLabel")
+        self.harta_status.setWordWrap(True)
+
         info_layout.addWidget(heading)
         info_layout.addWidget(description)
+        info_layout.addWidget(self.harta_status)
         layout.addWidget(info_card)
 
         toolbar = QHBoxLayout()
@@ -83,6 +93,13 @@ class WorksheetPage(QWidget):
         self.save_harta_button = QPushButton("Simpan Perubahan")
         self.save_harta_button.setObjectName("primaryButton")
         self.save_harta_button.setEnabled(False)
+
+        self.original_button.clicked.connect(
+            lambda: self._show_harta_mode("original")
+        )
+        self.current_button.clicked.connect(
+            lambda: self._show_harta_mode("current")
+        )
 
         toolbar.addWidget(self.original_button)
         toolbar.addWidget(self.current_button)
@@ -106,9 +123,111 @@ class WorksheetPage(QWidget):
         self.harta_table.setAlternatingRowColors(True)
         self.harta_table.verticalHeader().setVisible(False)
         self.harta_table.setSelectionBehavior(QTableWidget.SelectRows)
+        self.harta_table.setEditTriggers(QTableWidget.NoEditTriggers)
+        self.harta_table.horizontalHeader().setSectionResizeMode(
+            QHeaderView.ResizeToContents
+        )
+        self.harta_table.horizontalHeader().setMinimumSectionSize(80)
         layout.addWidget(self.harta_table, 1)
 
         return page
+
+    def load_harta_preview(self, pipeline_result):
+        """Terima hasil preview dari halaman Impor Coretax."""
+        if pipeline_result is None or not getattr(
+            pipeline_result, "worksheet_rows", None
+        ):
+            self.clear_harta_preview()
+            return
+
+        self.harta_pipeline_result = pipeline_result
+        self.harta_original_rows = list(pipeline_result.worksheet_rows)
+        # Untuk saat ini Current dimulai identik dengan Original. Pada tahap
+        # editor berikutnya daftar ini akan menjadi state koreksi tersendiri.
+        self.harta_current_rows = list(pipeline_result.worksheet_rows)
+        self.harta_mode = "original"
+
+        year = pipeline_result.current_year or "-"
+        skipped = getattr(pipeline_result.mapping, "skipped_rows", 0)
+        self.harta_status.setText(
+            f"{len(self.harta_original_rows)} baris Harta tersambung • "
+            f"Tahun {year} • {skipped} baris dilewati"
+        )
+        self._render_harta_rows(self.harta_original_rows)
+
+    def clear_harta_preview(self):
+        self.harta_pipeline_result = None
+        self.harta_original_rows = []
+        self.harta_current_rows = []
+        self.harta_mode = "original"
+        self.harta_table.clearContents()
+        self.harta_table.setRowCount(0)
+        self.harta_status.setText(
+            "Belum ada preview Harta dari halaman Impor Coretax."
+        )
+        self.save_harta_button.setEnabled(False)
+
+    def _show_harta_mode(self, mode: str):
+        if mode not in {"original", "current"}:
+            return
+        self.harta_mode = mode
+        rows = (
+            self.harta_original_rows
+            if mode == "original"
+            else self.harta_current_rows
+        )
+        self._render_harta_rows(rows)
+
+        if self.harta_pipeline_result is not None:
+            label = "Original Import" if mode == "original" else "Edited / Current"
+            year = self.harta_pipeline_result.current_year or "-"
+            self.harta_status.setText(
+                f"Mode {label} • {len(rows)} baris Harta • Tahun {year}"
+            )
+
+    def _render_harta_rows(self, rows):
+        self.harta_table.clearContents()
+        self.harta_table.setRowCount(len(rows))
+
+        for row_index, item in enumerate(rows):
+            values = [
+                item.nomor,
+                item.kode_eform,
+                item.kode_ct,
+                item.nama_harta,
+                item.nomor_akun_keterangan,
+                item.atas_nama,
+                item.nama_bank,
+                item.tahun_perolehan,
+                item.nilai_tahun_sebelumnya,
+                item.nilai_tahun_berjalan,
+            ]
+            for column_index, value in enumerate(values):
+                table_item = QTableWidgetItem(
+                    self._format_harta_value(
+                        value,
+                        numeric=column_index in (8, 9),
+                    )
+                )
+                self.harta_table.setItem(
+                    row_index,
+                    column_index,
+                    table_item,
+                )
+
+    @staticmethod
+    def _format_harta_value(value, *, numeric: bool = False) -> str:
+        if value is None:
+            return ""
+        if numeric:
+            try:
+                number = float(value)
+                if number == 0:
+                    return "0"
+                return f"{number:,.0f}".replace(",", ".")
+            except (TypeError, ValueError):
+                pass
+        return str(value)
 
     def _build_pph_tab(self):
         page = QWidget()
