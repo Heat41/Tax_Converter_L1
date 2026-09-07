@@ -2,6 +2,7 @@ from pathlib import Path
 from typing import Dict, Iterable, List, Optional, Sequence, Tuple
 import re
 
+from core.coretax_data_adapter import CoretaxDataSheetAdapter
 from core.coretax_reader import CoretaxReader, CoretaxReaderError
 from .engine import ValidationEngine
 from .models import BatchImportResult, FileCategoryResult, ValidationIssue, ValidationSeverity
@@ -37,10 +38,15 @@ class CoretaxBatchImporter:
     def __init__(self, reader: Optional[CoretaxReader] = None, validator: Optional[ValidationEngine] = None):
         self.reader = reader or CoretaxReader()
         self.validator = validator or ValidationEngine()
+        self.data_sheet_adapter = CoretaxDataSheetAdapter()
 
     @staticmethod
     def _normalized_filename(path: Path) -> str:
         return re.sub(r"[_\-]+", " ", path.stem.lower())
+
+    @staticmethod
+    def _normalized_sheet_name(name: str) -> str:
+        return re.sub(r"\s+", " ", name.strip().upper())
 
     def detect_category(self, file_path: Path) -> Optional[str]:
         name = self._normalized_filename(file_path)
@@ -51,7 +57,7 @@ class CoretaxBatchImporter:
         # Filename is the primary signal. Workbook structure is the fallback.
         try:
             info = self.reader.inspect_file(file_path)
-            normalized_sheets = {re.sub(r"\s+", " ", s.strip().upper()) for s in info.sheets}
+            normalized_sheets = {self._normalized_sheet_name(s) for s in info.sheets}
             for category in CATEGORIES:
                 expected = self.SHEET_NAMES[category]
                 if expected in normalized_sheets:
@@ -148,8 +154,24 @@ class CoretaxBatchImporter:
             read_result = self.reader.read(path)
             return read_result, False, read_result.total_rows == 0, None
 
+        # File produksi Coretax yang sebenarnya memiliki sheet DATA terpisah.
+        # Sheet kategori pada workbook yang sama dapat tetap berisi spesifikasi
+        # template, jadi DATA harus selalu diprioritaskan ketika tersedia.
+        data_sheets = [
+            sheet for sheet in info.sheets
+            if self._normalized_sheet_name(sheet) == "DATA"
+        ]
+        if data_sheets:
+            candidate = self.data_sheet_adapter.read(info, sheet_name=data_sheets[0])
+            if candidate.total_rows > 0:
+                return candidate, False, False, None
+            return candidate, False, True, "Sheet DATA valid tetapi tidak memiliki baris harta."
+
         category_sheet = self.SHEET_NAMES[category]
-        matching = [s for s in info.sheets if re.sub(r"\s+", " ", s.strip().upper()) == category_sheet]
+        matching = [
+            s for s in info.sheets
+            if self._normalized_sheet_name(s) == category_sheet
+        ]
         if not matching:
             # A populated export may not use the specification sheet name.
             # Fall back to the first sheet only when it resembles a data table.
