@@ -74,7 +74,7 @@ class TestRealCoretaxDataSheet(unittest.TestCase):
             self.assertEqual(item.status, "VALID")
             self.assertEqual(item.read_result.total_rows, 3)
             self.assertEqual(result.total_rows, 3)
-            self.assertIn("Nama Pemotong Pajak *", item.read_result.headers)
+            self.assertIn("Nama Pemilik *", item.read_result.headers)
 
 
 if __name__ == "__main__":
