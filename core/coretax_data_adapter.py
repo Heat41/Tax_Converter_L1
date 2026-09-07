@@ -18,6 +18,10 @@ class CoretaxDataSheetAdapter:
 
     Adapter menormalkan layout tersebut menjadi bentuk tabular yang sudah
     dipakai pipeline lama: NPWP dan Tahun Pajak diulang pada setiap baris.
+
+    Nama header asli dari file produksi tetap dipertahankan. Variasi nama
+    kolom, misalnya "Nama Pemilik *" versus "Nama Pemotong Pajak *", ditangani
+    oleh alias pada validator/mapper, bukan dengan mengubah header sumber.
     """
 
     @staticmethod
@@ -39,19 +43,10 @@ class CoretaxDataSheetAdapter:
             "Sheet DATA ditemukan, tetapi baris header tabel harta tidak dapat dikenali."
         )
 
-    @classmethod
-    def _normalize_table_header(cls, value: object) -> str:
-        """Samakan variasi header file produksi dengan nama field pipeline lama."""
-        text = "" if value is None else str(value).strip()
-        normalized = cls._normalize(text)
-
-        # File Coretax produksi Harta Bergerak memakai "Nama Pemilik *",
-        # sedangkan specification/rule awal memakai "Nama Pemotong Pajak *".
-        # Keduanya bermakna OwnershipName pada struktur XML yang sama.
-        if normalized == "nama pemilik":
-            return "Nama Pemotong Pajak *"
-
-        return text
+    @staticmethod
+    def _normalize_table_header(value: object) -> str:
+        """Rapikan whitespace tanpa mengubah nama header produksi."""
+        return "" if value is None else str(value).strip()
 
     def read(self, info: CoretaxFileInfo, sheet_name: str = "DATA") -> CoretaxReadResult:
         path = Path(info.file_path)
