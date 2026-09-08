@@ -25,6 +25,10 @@ class WorksheetPage(BaseWorksheetPage):
             "background:#E8F5E9; color:#1B5E20; border:1px solid #A5D6A7; "
             "border-radius:7px; padding:8px 12px; font-weight:600;"
         ),
+        "error": (
+            "background:#FFEBEE; color:#B71C1C; border:1px solid #EF9A9A; "
+            "border-radius:7px; padding:8px 12px; font-weight:600;"
+        ),
     }
 
     HARTA_COLUMN_WIDTHS = {
@@ -71,26 +75,21 @@ class WorksheetPage(BaseWorksheetPage):
         header = table.horizontalHeader()
         vertical = table.verticalHeader()
 
-        # ResizeToContents mengukur ulang isi sel ketika viewport berubah.
-        # Interactive + lebar stabil jauh lebih ringan untuk grid worksheet.
         header.setSectionResizeMode(QHeaderView.Interactive)
         header.setStretchLastSection(False)
         header.setMinimumSectionSize(48)
         for column, width in self.HARTA_COLUMN_WIDTHS.items():
             table.setColumnWidth(column, width)
 
-        # Tinggi baris tetap mencegah geometry recalculation selama scrolling.
         vertical.setSectionResizeMode(QHeaderView.Fixed)
         vertical.setDefaultSectionSize(34)
         vertical.setMinimumSectionSize(34)
 
-        # Scroll per-pixel menghindari kesan meloncat/patah per baris atau kolom.
         table.setHorizontalScrollMode(QAbstractItemView.ScrollPerPixel)
         table.setVerticalScrollMode(QAbstractItemView.ScrollPerPixel)
         table.horizontalScrollBar().setSingleStep(18)
         table.verticalScrollBar().setSingleStep(18)
 
-        # Grid tidak membutuhkan wrap; elide menjaga render sel tetap ringan.
         table.setWordWrap(False)
         table.setTextElideMode(Qt.ElideRight)
         table.setCornerButtonEnabled(False)
@@ -116,10 +115,21 @@ class WorksheetPage(BaseWorksheetPage):
     def load_harta_preview(self, pipeline_result):
         super().load_harta_preview(pipeline_result)
         if pipeline_result is not None and getattr(pipeline_result, "worksheet_rows", None):
-            self._show_notice(
-                "✓ Data Harta berhasil tersambung. Mode Original Import aktif dan data hanya dapat dilihat.",
-                "info",
-            )
+            if self.harta_restored_from_db:
+                self._show_notice(
+                    "✓ Data Harta tersambung. Draft Edited / Current yang sebelumnya tersimpan di database ditemukan dan telah dipulihkan.",
+                    "success",
+                )
+            elif self.last_harta_save_error:
+                self._show_notice(
+                    f"⚠ Data Harta tersambung, tetapi draft database tidak dapat dibaca: {self.last_harta_save_error}",
+                    "warning",
+                )
+            else:
+                self._show_notice(
+                    "✓ Data Harta berhasil tersambung. Mode Original Import aktif dan data hanya dapat dilihat.",
+                    "info",
+                )
         else:
             self._hide_notice()
 
@@ -143,6 +153,11 @@ class WorksheetPage(BaseWorksheetPage):
                 self._show_notice(
                     f"⚠ MODE EDITED / CURRENT — {self._change_summary()} dan belum disimpan.",
                     "warning",
+                )
+            elif self.harta_restored_from_db and self._has_any_harta_changes():
+                self._show_notice(
+                    f"✓ MODE EDITED / CURRENT — draft database dipulihkan. {self._change_summary()} terhadap Original Import.",
+                    "success",
                 )
             else:
                 self._show_notice(
@@ -210,12 +225,31 @@ class WorksheetPage(BaseWorksheetPage):
 
     def save_harta_changes(self):
         had_unsaved = self._has_unsaved_harta_changes()
-        super().save_harta_changes()
-        if had_unsaved:
+        result = super().save_harta_changes()
+        if not had_unsaved:
+            return result
+
+        if self.last_harta_save_error:
+            self._show_notice(
+                f"✕ Perubahan belum tersimpan ke database: {self.last_harta_save_error}",
+                "error",
+            )
+            return result
+
+        if result is not None and getattr(result, "persisted", False):
+            self._show_notice(
+                "✓ Perubahan tersimpan ke database. "
+                f"Audit baru: {result.audit_count} catatan "
+                f"({result.add_count} ADD, {result.edit_count} EDIT, {result.delete_count} DELETE). "
+                f"{self._change_summary()} tetap ditandai terhadap Original Import.",
+                "success",
+            )
+        else:
             self._show_notice(
                 f"✓ Perubahan tersimpan pada sesi worksheet. {self._change_summary()} tetap ditandai terhadap Original Import.",
                 "success",
             )
+        return result
 
     def _confirm_reset_harta_to_import(self):
         if not self.harta_original_rows or not self._has_any_harta_changes():
@@ -235,6 +269,6 @@ class WorksheetPage(BaseWorksheetPage):
     def reset_harta_to_import(self):
         super().reset_harta_to_import()
         self._show_notice(
-            "✓ Edited / Current berhasil dikembalikan ke Original Import. Semua koreksi, penambahan, dan penghapusan telah dibatalkan.",
+            "✓ Edited / Current sudah dikembalikan ke Original Import pada layar. Klik Simpan Perubahan untuk menyimpan reset ini ke database.",
             "success",
         )
