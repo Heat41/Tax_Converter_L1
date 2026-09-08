@@ -20,6 +20,13 @@ class TestUiReadability(unittest.TestCase):
         self.assertIn("font-size: 18px;", STYLESHEET)
         self.assertIn("font-weight: 700;", STYLESHEET)
 
+    def test_worksheet_status_labels_are_bold(self):
+        start = STYLESHEET.index("QLabel#mutedLabel")
+        end = STYLESHEET.index("QLabel#sectionTitle", start)
+        muted_block = STYLESHEET[start:end]
+        self.assertIn("font-size: 13px;", muted_block)
+        self.assertIn("font-weight: 700;", muted_block)
+
     def test_toast_popup_is_large_enough_to_read(self):
         toast = ToastNotification()
         try:
