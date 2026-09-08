@@ -83,6 +83,10 @@ class TestHartaPreviewPipelineStage3G(unittest.TestCase):
         result = self.pipeline.build_from_batch(self._valid_batch(), wp_id=0)
         self.assertEqual(result.npwp, "0123456789012345")
 
+    def test_pipeline_infers_consistent_wp_name_from_owner_as_fallback(self):
+        result = self.pipeline.build_from_batch(self._valid_batch(), wp_id=0)
+        self.assertEqual(result.nama_wp, "LISA VINATALIA")
+
     def test_pipeline_keeps_previous_year_zero_without_previous_import(self):
         result = self.pipeline.build_from_batch(self._valid_batch(), wp_id=0)
         self.assertEqual(result.worksheet_rows[0].nilai_tahun_sebelumnya, 0.0)
