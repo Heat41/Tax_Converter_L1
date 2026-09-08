@@ -263,11 +263,23 @@ class WorksheetPage(BaseWorksheetPage):
         suffix = ""
         if self.harta_mode == "current":
             if saved:
-                suffix = " • perubahan tersimpan"
+                if (
+                    self.last_harta_save_result is not None
+                    and getattr(self.last_harta_save_result, "persisted", False)
+                ):
+                    suffix = " • ✓ TERSIMPAN KE DATABASE"
+                else:
+                    suffix = " • perubahan tersimpan pada sesi worksheet"
             elif self._has_unsaved_harta_changes():
                 suffix = " • ada perubahan belum disimpan"
             elif self._has_any_harta_changes():
-                suffix = " • draft koreksi tersimpan"
+                if self.harta_restored_from_db or (
+                    self.last_harta_save_result is not None
+                    and getattr(self.last_harta_save_result, "persisted", False)
+                ):
+                    suffix = " • draft koreksi tersimpan di database"
+                else:
+                    suffix = " • draft koreksi tersimpan pada sesi worksheet"
 
         self.harta_status.setText(
             f"Mode {label} • {visible_count} baris Harta • "
