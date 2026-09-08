@@ -16,7 +16,7 @@ from config.database import get_db_connection
 from config.settings import APP_NAME, APP_VERSION
 from ui.theme import APP_FONT, STYLESHEET
 from ui.pages.import_coretax_page_view import ImportCoretaxPage
-from ui.pages.worksheet_pph_stage7 import WorksheetPage
+from ui.pages.worksheet_pph_stage7_fix import WorksheetPage
 
 
 class MainWindow(QMainWindow):
@@ -84,11 +84,6 @@ class MainWindow(QMainWindow):
         worksheet_page = WorksheetPage()
         import_page.harta_preview_changed.connect(
             worksheet_page.load_harta_preview
-        )
-        worksheet_page.tabs.currentChanged.connect(
-            lambda _index: worksheet_page._render_reconciliation()
-            if hasattr(worksheet_page, "_render_reconciliation")
-            else None
         )
 
         self.pages["import"] = import_page
