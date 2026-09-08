@@ -124,7 +124,7 @@ QPushButton#secondaryButton:disabled {
 QLabel#mutedLabel {
     color: #526D82;
     font-size: 13px;
-    font-weight: 500;
+    font-weight: 700;
 }
 QLabel#sectionTitle {
     color: #102A43;
