@@ -1,0 +1,141 @@
+from PySide6.QtWidgets import QLabel, QMessageBox
+
+from ui.pages.worksheet_page import WorksheetPage as BaseWorksheetPage
+
+
+class WorksheetPage(BaseWorksheetPage):
+    """Presentation wrapper untuk memperjelas mode dan notifikasi Worksheet Harta."""
+
+    NOTICE_STYLES = {
+        "info": (
+            "background:#EAF4FD; color:#0D47A1; border:1px solid #90CAF9; "
+            "border-radius:7px; padding:8px 12px; font-weight:600;"
+        ),
+        "warning": (
+            "background:#FFF8E1; color:#8A5A00; border:1px solid #FFE082; "
+            "border-radius:7px; padding:8px 12px; font-weight:600;"
+        ),
+        "success": (
+            "background:#E8F5E9; color:#1B5E20; border:1px solid #A5D6A7; "
+            "border-radius:7px; padding:8px 12px; font-weight:600;"
+        ),
+    }
+
+    def __init__(self, parent=None):
+        super().__init__(parent)
+        self._install_harta_feedback()
+
+    def _install_harta_feedback(self):
+        status_font = self.harta_status.font()
+        status_font.setBold(True)
+        self.harta_status.setFont(status_font)
+        self.harta_status.setStyleSheet("color:#102A43; font-weight:700;")
+
+        self.harta_notice = QLabel()
+        self.harta_notice.setWordWrap(True)
+        self.harta_notice.setVisible(False)
+
+        info_card = self.harta_status.parentWidget()
+        if info_card is not None and info_card.layout() is not None:
+            info_card.layout().addWidget(self.harta_notice)
+
+        try:
+            self.reset_harta_button.clicked.disconnect()
+        except (TypeError, RuntimeError):
+            pass
+        self.reset_harta_button.clicked.connect(self._confirm_reset_harta_to_import)
+
+    def _show_notice(self, message: str, level: str = "info"):
+        self.harta_notice.setText(message)
+        self.harta_notice.setStyleSheet(
+            self.NOTICE_STYLES.get(level, self.NOTICE_STYLES["info"])
+        )
+        self.harta_notice.setVisible(True)
+
+    def _hide_notice(self):
+        self.harta_notice.clear()
+        self.harta_notice.setVisible(False)
+
+    def load_harta_preview(self, pipeline_result):
+        super().load_harta_preview(pipeline_result)
+        if pipeline_result is not None and getattr(pipeline_result, "worksheet_rows", None):
+            self._show_notice(
+                "✓ Data Harta berhasil tersambung. Mode Original Import aktif dan data hanya dapat dilihat.",
+                "info",
+            )
+        else:
+            self._hide_notice()
+
+    def clear_harta_preview(self):
+        super().clear_harta_preview()
+        if hasattr(self, "harta_notice"):
+            self._hide_notice()
+
+    def _show_harta_mode(self, mode: str):
+        super()._show_harta_mode(mode)
+        if not self.harta_current_rows:
+            return
+
+        if mode == "original":
+            self._show_notice(
+                "MODE ORIGINAL IMPORT — data asli hasil Coretax, read-only dan tidak dapat dikoreksi.",
+                "info",
+            )
+        elif mode == "current":
+            if self._has_unsaved_harta_changes():
+                self._show_notice(
+                    "⚠ MODE EDITED / CURRENT — ada perubahan yang belum disimpan.",
+                    "warning",
+                )
+            else:
+                self._show_notice(
+                    "MODE EDITED / CURRENT — klik dua kali pada sel untuk melakukan koreksi manual.",
+                    "info",
+                )
+
+    def _on_harta_item_changed(self, item):
+        before = self._has_unsaved_harta_changes()
+        super()._on_harta_item_changed(item)
+        after = self._has_unsaved_harta_changes()
+
+        if self.harta_mode == "current" and after:
+            self._show_notice(
+                f"⚠ Ada {self._count_changed_cells()} sel yang berbeda dari Original Import dan belum disimpan.",
+                "warning",
+            )
+        elif before and not after:
+            self._show_notice(
+                "MODE EDITED / CURRENT — tidak ada perubahan yang belum disimpan.",
+                "info",
+            )
+
+    def save_harta_changes(self):
+        had_unsaved = self._has_unsaved_harta_changes()
+        super().save_harta_changes()
+        if had_unsaved:
+            self._show_notice(
+                f"✓ Perubahan tersimpan pada sesi worksheet. {self._count_changed_cells()} sel tetap ditandai karena berbeda dari Original Import.",
+                "success",
+            )
+
+    def _confirm_reset_harta_to_import(self):
+        if not self.harta_original_rows or self._count_changed_cells() == 0:
+            return
+
+        answer = QMessageBox.question(
+            self,
+            "Reset ke Original Import",
+            "Semua koreksi pada Edited / Current akan dibatalkan dan dikembalikan persis ke hasil import Coretax.\n\n"
+            "Original Import tidak akan berubah. Lanjutkan reset?",
+            QMessageBox.Yes | QMessageBox.No,
+            QMessageBox.No,
+        )
+        if answer == QMessageBox.Yes:
+            self.reset_harta_to_import()
+
+    def reset_harta_to_import(self):
+        super().reset_harta_to_import()
+        self._show_notice(
+            "✓ Edited / Current berhasil dikembalikan ke Original Import. Semua koreksi telah dibatalkan.",
+            "success",
+        )
