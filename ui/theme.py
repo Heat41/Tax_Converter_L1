@@ -14,12 +14,13 @@ QFrame#sidebar {
 }
 QLabel#brand {
     color: white;
-    font-size: 20px;
+    font-size: 21px;
     font-weight: 700;
 }
 QLabel#brandSub {
     color: #B9C7D6;
-    font-size: 11px;
+    font-size: 12px;
+    font-weight: 600;
 }
 QPushButton {
     background: #FFFFFF;
@@ -48,19 +49,24 @@ QPushButton#navButton {
     background: transparent;
     border: none;
     border-radius: 8px;
-    padding: 11px 14px;
+    padding: 13px 14px;
     text-align: left;
+    font-size: 14px;
+    font-weight: 700;
 }
 QPushButton#navButton:hover, QPushButton#navButton[active="true"] {
     background: #1F486A;
     color: white;
 }
 QLabel#pageTitle {
-    font-size: 26px;
-    font-weight: 700;
+    color: #102A43;
+    font-size: 29px;
+    font-weight: 800;
 }
 QLabel#pageSubTitle {
-    color: #627D98;
+    color: #526D82;
+    font-size: 14px;
+    font-weight: 500;
 }
 QFrame#card {
     background: white;
@@ -68,8 +74,9 @@ QFrame#card {
     border-radius: 12px;
 }
 QLabel#cardTitle {
-    color: #627D98;
-    font-size: 12px;
+    color: #526D82;
+    font-size: 13px;
+    font-weight: 600;
 }
 QLabel#cardValue {
     color: #102A43;
@@ -82,7 +89,8 @@ QPushButton#primaryButton {
     border: none;
     border-radius: 8px;
     padding: 10px 18px;
-    font-weight: 600;
+    font-size: 13px;
+    font-weight: 700;
 }
 QPushButton#primaryButton:hover { background: #1565C0; }
 QPushButton#primaryButton:pressed { background: #0D47A1; }
@@ -96,7 +104,8 @@ QPushButton#secondaryButton {
     border: 1px solid #90CAF9;
     border-radius: 8px;
     padding: 9px 17px;
-    font-weight: 600;
+    font-size: 13px;
+    font-weight: 700;
 }
 QPushButton#secondaryButton:hover {
     background: #EAF4FD;
@@ -113,13 +122,14 @@ QPushButton#secondaryButton:disabled {
     border-color: #D9E2EC;
 }
 QLabel#mutedLabel {
-    color: #627D98;
+    color: #526D82;
     font-size: 13px;
+    font-weight: 500;
 }
 QLabel#sectionTitle {
     color: #102A43;
-    font-size: 16px;
-    font-weight: 600;
+    font-size: 18px;
+    font-weight: 700;
 }
 QComboBox {
     background: white;
@@ -156,7 +166,8 @@ QTableWidget {
 QHeaderView::section {
     background-color: #F0F4F8;
     color: #334E68;
-    font-weight: 600;
+    font-size: 13px;
+    font-weight: 700;
     padding: 8px 12px;
     border: none;
     border-bottom: 1px solid #D9E2EC;
@@ -175,10 +186,11 @@ QTabBar::tab {
     color: #486581;
     border: 1px solid #D9E2EC;
     border-bottom: none;
-    padding: 10px 18px;
+    padding: 11px 18px;
     margin-right: 4px;
     min-width: 150px;
-    font-weight: 600;
+    font-size: 14px;
+    font-weight: 700;
 }
 QTabBar::tab:first {
     border-top-left-radius: 8px;
