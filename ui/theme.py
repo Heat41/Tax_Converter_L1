@@ -15,6 +15,12 @@ QFrame#sidebar {
     background: #102A43;
     border: none;
 }
+/* Semua label di sidebar wajib transparan. Tanpa rule ini QLabel dapat
+   mewarisi background QWidget global pada Light Mode. */
+QFrame#sidebar QLabel {
+    background: transparent;
+    border: none;
+}
 QLabel#brandLogo {
     background: transparent;
     border: none;
@@ -22,23 +28,27 @@ QLabel#brandLogo {
 QLabel#brand,
 QLabel#brandMain {
     color: #FFFFFF;
-    font-size: 18px;
+    font-size: 16px;
     font-weight: 800;
+    background: transparent;
 }
 QLabel#brandAccent {
     color: #2CC55E;
-    font-size: 18px;
+    font-size: 16px;
     font-weight: 800;
+    background: transparent;
 }
 QLabel#brandSub {
     color: #B9C7D6;
     font-size: 12px;
     font-weight: 600;
+    background: transparent;
 }
 QLabel#sidebarCaption {
     color: #93AFC8;
     font-size: 11px;
     font-weight: 600;
+    background: transparent;
 }
 QPushButton {
     background: #FFFFFF;
@@ -325,6 +335,10 @@ QWidget#mainContent {
 }
 QFrame#sidebar {
     background: #081426;
+}
+QFrame#sidebar QLabel {
+    background: transparent;
+    border: none;
 }
 QLabel#brandMain,
 QLabel#brand {
