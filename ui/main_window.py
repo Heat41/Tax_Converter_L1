@@ -16,7 +16,7 @@ from config.database import get_db_connection
 from config.settings import APP_NAME, APP_VERSION
 from ui.theme import APP_FONT, STYLESHEET
 from ui.pages.import_coretax_page_view import ImportCoretaxPage
-from ui.pages.worksheet_page_view import WorksheetPage
+from ui.pages.worksheet_audit_identity import WorksheetPage
 
 
 class MainWindow(QMainWindow):
