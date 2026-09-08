@@ -20,7 +20,7 @@ PTKP_BY_STATUS: Dict[str, float] = {
     "K/I/3": 126_000_000.0,
 }
 
-# Batas progresif yang dipakai pada sheet 2025 kertas kerja produksi.
+# Batas progresif yang dipakai pada sheet 2025 kertas kerja EVY BACHTIAR.
 PPh_BRACKETS: Tuple[Tuple[float | None, float], ...] = (
     (60_000_000.0, 0.05),
     (250_000_000.0, 0.15),
@@ -104,7 +104,10 @@ def calculate_annual_pph(
     status = normalize_ptkp_status(status_ptkp)
     ptkp = ptkp_value(status)
 
-    # Sheet produksi menggunakan ROUNDDOWN(H20 + F39, -3) sebelum pengurang neto.
+    # Acuan EVY sheet 2025:
+    # F73 = ROUNDDOWN(H34 + F53, -3) - F64
+    # H34 = Total NETTO Bupot, F53 = Penghasilan Dalam Negeri Lainnya,
+    # F64 = Zakat/Pengurang Penghasilan Neto.
     neto_sebelum_pengurang = round_down_thousand(
         float(total_netto_bupot) + float(penghasilan_neto_lainnya)
     )
@@ -113,7 +116,7 @@ def calculate_annual_pph(
     pph_terutang = progressive_pph(pkp)
     kurang_lebih = pph_terutang - float(kredit_pajak) - float(pph25)
 
-    # Sheet produksi membulatkan nilai akhir dengan ROUND(...,-2).
+    # Acuan EVY membulatkan nilai akhir dengan ROUND(...,-2).
     kurang_lebih_rounded = excel_round(kurang_lebih, -2)
 
     return AnnualPPhResult(
