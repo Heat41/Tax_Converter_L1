@@ -24,6 +24,36 @@ class HartaPipelineResult:
 class HartaPreviewPipeline:
     """Bridge Stage 3B -> 3C -> 3F for UI preview/export."""
 
+    # Dipakai hanya untuk fallback identitas WP dari kolom ATAS NAMA.
+    # Nilai asli pada Worksheet Harta tidak pernah diubah.
+    OWNER_PREFIX_TITLES = {
+        "dr",
+        "drg",
+        "prof",
+        "ir",
+        "h",
+        "hj",
+    }
+    OWNER_SUFFIX_TITLES = {
+        "se",
+        "sh",
+        "mh",
+        "mm",
+        "mba",
+        "mkom",
+        "msi",
+        "ak",
+        "ca",
+        "cpa",
+        "spog",
+        "spjp",
+        "sppd",
+        "spm",
+        "spb",
+        "spk",
+        "k",
+    }
+
     def __init__(self):
         self.harta_mapper = CoretaxHartaMapper()
         self.worksheet_mapper = WorksheetHartaMapper()
@@ -143,18 +173,54 @@ class HartaPreviewPipeline:
                     return value
         return None
 
-    @staticmethod
-    def _infer_unique_owner_name(rows: List[WorksheetHartaRow]) -> Optional[str]:
-        """Fallback konservatif: pakai ATAS NAMA hanya jika seluruh nama konsisten."""
-        unique = {}
+    @classmethod
+    def _owner_identity_key(cls, value: object) -> str:
+        """Buat key nama untuk membandingkan variasi gelar tanpa mengubah data asli."""
+        text = " ".join(str(value or "").strip().split()).casefold()
+        if not text:
+            return ""
+
+        # Titik dihapus agar Sp.OG -> spog, sedangkan tanda baca lain menjadi spasi.
+        text = text.replace(".", "")
+        text = re.sub(r"[^a-z0-9]+", " ", text)
+        tokens = [token for token in text.split() if token]
+
+        while tokens and tokens[0] in cls.OWNER_PREFIX_TITLES:
+            tokens.pop(0)
+        while tokens and tokens[-1] in cls.OWNER_SUFFIX_TITLES:
+            tokens.pop()
+
+        return " ".join(tokens)
+
+    @classmethod
+    def _infer_unique_owner_name(cls, rows: List[WorksheetHartaRow]) -> Optional[str]:
+        """Fallback konservatif untuk Nama WP dari variasi ATAS NAMA.
+
+        Nama seperti ``DR EVY BACHTIAR SPOG`` dan ``EVY BACHTIAR`` dianggap
+        satu identitas karena perbedaannya hanya gelar. Bila nama intinya tetap
+        berbeda, fungsi mengembalikan None agar UI tidak menebak WP yang salah.
+        """
+        grouped = {}
         for row in rows:
             name = " ".join(str(row.atas_nama or "").strip().split())
             if not name:
                 continue
-            unique.setdefault(name.casefold(), name)
-        if len(unique) == 1:
-            return next(iter(unique.values()))
-        return None
+            key = cls._owner_identity_key(name)
+            if key:
+                grouped.setdefault(key, []).append(name)
+
+        if len(grouped) != 1:
+            return None
+
+        candidates = next(iter(grouped.values()))
+        if not candidates:
+            return None
+
+        # Pilih bentuk paling sederhana untuk display, bukan versi bergelar.
+        return min(
+            candidates,
+            key=lambda value: (len(value.split()), len(value), value.casefold()),
+        )
 
     @staticmethod
     def _norm_header(value: object) -> str:
