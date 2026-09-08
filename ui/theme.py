@@ -8,18 +8,30 @@ QMainWindow, QWidget {
     color: #172033;
     font-family: "Segoe UI";
 }
+QWidget#mainContent {
+    background: #F6F8FB;
+}
 QFrame#sidebar {
     background: #102A43;
     border: none;
 }
+QLabel#brandLogo {
+    background: transparent;
+    border: none;
+}
 QLabel#brand {
     color: white;
-    font-size: 21px;
-    font-weight: 700;
+    font-size: 18px;
+    font-weight: 800;
 }
 QLabel#brandSub {
     color: #B9C7D6;
     font-size: 12px;
+    font-weight: 600;
+}
+QLabel#sidebarCaption {
+    color: #93AFC8;
+    font-size: 11px;
     font-weight: 600;
 }
 QPushButton {
@@ -54,8 +66,12 @@ QPushButton#navButton {
     font-size: 14px;
     font-weight: 700;
 }
-QPushButton#navButton:hover, QPushButton#navButton[active="true"] {
+QPushButton#navButton:hover {
     background: #1F486A;
+    color: white;
+}
+QPushButton#navButton[active="true"] {
+    background: #2563EB;
     color: white;
 }
 QLabel#pageTitle {
