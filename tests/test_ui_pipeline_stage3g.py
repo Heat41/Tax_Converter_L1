@@ -2,6 +2,7 @@ import unittest
 from pathlib import Path
 
 from core.coretax_reader import CoretaxReadResult
+from core.mapping.worksheet_harta_mapper import WorksheetHartaRow
 from core.pipeline.harta_pipeline import HartaPreviewPipeline
 from core.validation.models import BatchImportResult, FileCategoryResult, ValidationResult
 
@@ -62,6 +63,21 @@ class TestHartaPreviewPipelineStage3G(unittest.TestCase):
             category_results={"KAS SETARA KAS": category},
         )
 
+    @staticmethod
+    def _worksheet_row(atas_nama):
+        return WorksheetHartaRow(
+            nomor=1,
+            kode_eform="012",
+            kode_ct="0102",
+            nama_harta="Tabungan",
+            nomor_akun_keterangan="111",
+            atas_nama=atas_nama,
+            nama_bank="BRI",
+            tahun_perolehan=2025,
+            nilai_tahun_sebelumnya=0,
+            nilai_tahun_berjalan=1000000,
+        )
+
     def test_pipeline_maps_batch_to_simulasi_preview(self):
         result = self.pipeline.build_from_batch(self._valid_batch(), wp_id=0)
 
@@ -86,6 +102,25 @@ class TestHartaPreviewPipelineStage3G(unittest.TestCase):
     def test_pipeline_infers_consistent_wp_name_from_owner_as_fallback(self):
         result = self.pipeline.build_from_batch(self._valid_batch(), wp_id=0)
         self.assertEqual(result.nama_wp, "LISA VINATALIA")
+
+    def test_owner_name_fallback_treats_title_variants_as_same_person(self):
+        rows = [
+            self._worksheet_row("DR EVY BACHTIAR SPOG"),
+            self._worksheet_row("EVY BACHTIAR"),
+            self._worksheet_row("Dr. EVY BACHTIAR Sp.OG"),
+        ]
+
+        name = self.pipeline._infer_unique_owner_name(rows)
+
+        self.assertEqual(name, "EVY BACHTIAR")
+
+    def test_owner_name_fallback_rejects_genuinely_different_names(self):
+        rows = [
+            self._worksheet_row("EVY BACHTIAR"),
+            self._worksheet_row("LISA VINATALIA"),
+        ]
+
+        self.assertIsNone(self.pipeline._infer_unique_owner_name(rows))
 
     def test_pipeline_keeps_previous_year_zero_without_previous_import(self):
         result = self.pipeline.build_from_batch(self._valid_batch(), wp_id=0)
