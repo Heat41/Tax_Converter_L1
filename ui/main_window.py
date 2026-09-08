@@ -18,8 +18,10 @@ from PySide6.QtWidgets import (
 from config.database import get_db_connection
 from config.settings import APP_NAME, APP_VERSION
 from ui.performance import optimize_table_interaction, suspended_updates
-from ui.theme import APP_FONT, STYLESHEET
+from ui.theme import APP_FONT
+from ui.theme_manager import apply_theme, get_saved_theme
 from ui.pages.import_coretax_page_view import ImportCoretaxPage
+from ui.pages.settings_page import SettingsPage
 from ui.pages.worksheet_pph_stage7_fix import WorksheetPage
 
 
@@ -34,7 +36,9 @@ class MainWindow(QMainWindow):
         self.resize(1280, 760)
         self.setMinimumSize(1000, 650)
         self.setFont(APP_FONT)
-        self.setStyleSheet(STYLESHEET)
+
+        self.current_theme = get_saved_theme()
+        apply_theme(self.current_theme)
 
         self.logo_path = (
             Path(__file__).resolve().parent / "assets" / "tax_converter_l1.svg"
@@ -76,13 +80,22 @@ class MainWindow(QMainWindow):
 
         brand_text = QVBoxLayout()
         brand_text.setContentsMargins(0, 1, 0, 0)
-        brand_text.setSpacing(1)
+        brand_text.setSpacing(2)
 
-        brand = QLabel("TAX_CONVERTER")
-        brand.setObjectName("brand")
-        brand_text.addWidget(brand)
+        brand_name_row = QHBoxLayout()
+        brand_name_row.setContentsMargins(0, 0, 0, 0)
+        brand_name_row.setSpacing(5)
 
-        sub = QLabel(f"L-1 • v{APP_VERSION}")
+        self.brand_main = QLabel("TAX_CONVERTER")
+        self.brand_main.setObjectName("brandMain")
+        self.brand_accent = QLabel("L-1")
+        self.brand_accent.setObjectName("brandAccent")
+        brand_name_row.addWidget(self.brand_main)
+        brand_name_row.addWidget(self.brand_accent)
+        brand_name_row.addStretch()
+        brand_text.addLayout(brand_name_row)
+
+        sub = QLabel(f"v{APP_VERSION}")
         sub.setObjectName("brandSub")
         brand_text.addWidget(sub)
         brand_text.addStretch()
@@ -139,11 +152,10 @@ class MainWindow(QMainWindow):
             "Halaman finalisasi akan digunakan untuk mengunci hasil dan membuat XML.",
             "Proses finalisasi, validasi akhir, dan generator XML akan ditambahkan pada Stage 4.",
         )
-        self.pages["pengaturan"] = self._build_placeholder_page(
-            "Pengaturan",
-            "Pengaturan aplikasi akan ditempatkan di sini.",
-            "Konfigurasi aplikasi akan ditambahkan setelah alur utama selesai.",
-        )
+
+        settings_page = SettingsPage(self.current_theme)
+        settings_page.theme_changed.connect(self._change_theme)
+        self.pages["pengaturan"] = settings_page
 
         for page in self.pages.values():
             self.stack.addWidget(page)
@@ -300,6 +312,12 @@ class MainWindow(QMainWindow):
         box.addWidget(value_label)
         card.value_label = value_label
         return card
+
+    def _change_theme(self, theme: str):
+        self.current_theme = apply_theme(theme, persist=True)
+        settings_page = self.pages.get("pengaturan")
+        if hasattr(settings_page, "set_theme"):
+            settings_page.set_theme(self.current_theme)
 
     def _show_page(self, page_key):
         page = self.pages[page_key]
