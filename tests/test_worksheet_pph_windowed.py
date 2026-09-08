@@ -33,7 +33,7 @@ class TestWorksheetPPhWindowed(unittest.TestCase):
         )
         self.assertEqual(table.minimumWidth(), 0)
 
-    def test_vertical_scrolling_remains_pixel_based(self):
+    def test_table_vertical_scrolling_remains_pixel_based(self):
         table = self.page.bupot_table
         self.assertEqual(
             table.verticalScrollMode(),
@@ -43,6 +43,22 @@ class TestWorksheetPPhWindowed(unittest.TestCase):
             table.verticalScrollBarPolicy(),
             Qt.ScrollBarAsNeeded,
         )
+
+    def test_pph_page_has_its_own_vertical_scroll_area(self):
+        scroll = self.page.pph_scroll_area
+        self.assertGreaterEqual(self.page.tabs.indexOf(scroll), 0)
+        self.assertIs(scroll.widget(), self.page.pph_tab)
+        self.assertTrue(scroll.widgetResizable())
+        self.assertEqual(
+            scroll.verticalScrollBarPolicy(),
+            Qt.ScrollBarAlwaysOn,
+        )
+        self.assertEqual(
+            scroll.horizontalScrollBarPolicy(),
+            Qt.ScrollBarAlwaysOff,
+        )
+        self.assertGreaterEqual(self.page.pph_tab.minimumHeight(), 650)
+        self.assertEqual(scroll.verticalScrollBar().singleStep(), 24)
 
 
 if __name__ == "__main__":
