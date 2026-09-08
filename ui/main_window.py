@@ -1,4 +1,7 @@
+from pathlib import Path
+
 from PySide6.QtCore import Qt
+from PySide6.QtGui import QIcon
 from PySide6.QtWidgets import (
     QFrame,
     QHBoxLayout,
@@ -14,12 +17,17 @@ from PySide6.QtWidgets import (
 
 from config.database import get_db_connection
 from config.settings import APP_NAME, APP_VERSION
+from ui.performance import optimize_table_interaction, suspended_updates
 from ui.theme import APP_FONT, STYLESHEET
 from ui.pages.import_coretax_page_view import ImportCoretaxPage
 from ui.pages.worksheet_pph_stage7_fix import WorksheetPage
 
 
 class MainWindow(QMainWindow):
+    SIDEBAR_WIDTH = 250
+    CONTENT_MARGIN_X = 28
+    CONTENT_MARGIN_Y = 26
+
     def __init__(self):
         super().__init__()
         self.setWindowTitle(APP_NAME)
@@ -27,6 +35,12 @@ class MainWindow(QMainWindow):
         self.setMinimumSize(1000, 650)
         self.setFont(APP_FONT)
         self.setStyleSheet(STYLESHEET)
+
+        self.logo_path = (
+            Path(__file__).resolve().parent / "assets" / "tax_converter_l1.svg"
+        )
+        if self.logo_path.exists():
+            self.setWindowIcon(QIcon(str(self.logo_path)))
 
         self.nav_buttons = {}
         self.pages = {}
@@ -40,20 +54,47 @@ class MainWindow(QMainWindow):
         layout.setContentsMargins(0, 0, 0, 0)
         layout.setSpacing(0)
 
-        sidebar = QFrame(objectName="sidebar")
-        sidebar.setFixedWidth(230)
-        side = QVBoxLayout(sidebar)
-        side.setContentsMargins(18, 24, 18, 18)
-        side.setSpacing(8)
+        self.sidebar = QFrame(objectName="sidebar")
+        self.sidebar.setFixedWidth(self.SIDEBAR_WIDTH)
+        side = QVBoxLayout(self.sidebar)
+        side.setContentsMargins(18, 22, 18, 18)
+        side.setSpacing(6)
 
-        brand = QLabel("Tax Converter")
+        brand_row = QHBoxLayout()
+        brand_row.setContentsMargins(0, 0, 0, 0)
+        brand_row.setSpacing(12)
+
+        self.brand_logo = QLabel()
+        self.brand_logo.setObjectName("brandLogo")
+        self.brand_logo.setFixedSize(46, 46)
+        if self.logo_path.exists():
+            self.brand_logo.setPixmap(
+                QIcon(str(self.logo_path)).pixmap(46, 46)
+            )
+        self.brand_logo.setAlignment(Qt.AlignCenter)
+        brand_row.addWidget(self.brand_logo, alignment=Qt.AlignTop)
+
+        brand_text = QVBoxLayout()
+        brand_text.setContentsMargins(0, 1, 0, 0)
+        brand_text.setSpacing(1)
+
+        brand = QLabel("TAX_CONVERTER")
         brand.setObjectName("brand")
-        side.addWidget(brand)
+        brand_text.addWidget(brand)
 
-        sub = QLabel(f"Lampiran L-1 • v{APP_VERSION}")
+        sub = QLabel(f"L-1 • v{APP_VERSION}")
         sub.setObjectName("brandSub")
-        side.addWidget(sub)
-        side.addSpacing(28)
+        brand_text.addWidget(sub)
+        brand_text.addStretch()
+        brand_row.addLayout(brand_text, 1)
+
+        side.addLayout(brand_row)
+
+        product_desc = QLabel("Converter Harta & Kertas Kerja SPT")
+        product_desc.setObjectName("sidebarCaption")
+        product_desc.setWordWrap(True)
+        side.addWidget(product_desc)
+        side.addSpacing(20)
 
         navigation = (
             ("dashboard", "Dashboard"),
@@ -67,14 +108,18 @@ class MainWindow(QMainWindow):
             button = QPushButton(text)
             button.setObjectName("navButton")
             button.setCursor(Qt.PointingHandCursor)
-            button.clicked.connect(lambda checked=False, page=key: self._show_page(page))
+            button.setMinimumHeight(44)
+            button.clicked.connect(
+                lambda checked=False, page=key: self._show_page(page)
+            )
             side.addWidget(button)
             self.nav_buttons[key] = button
 
         side.addStretch()
 
-        version = QLabel("Desktop Application")
+        version = QLabel("Internal Desktop Application")
         version.setObjectName("brandSub")
+        version.setWordWrap(True)
         side.addWidget(version)
 
         self.stack = QStackedWidget()
@@ -103,68 +148,81 @@ class MainWindow(QMainWindow):
         for page in self.pages.values():
             self.stack.addWidget(page)
 
-        content = QWidget()
-        content_layout = QVBoxLayout(content)
-        content_layout.setContentsMargins(34, 30, 34, 30)
+        self.content = QWidget()
+        self.content.setObjectName("mainContent")
+        content_layout = QVBoxLayout(self.content)
+        content_layout.setContentsMargins(
+            self.CONTENT_MARGIN_X,
+            self.CONTENT_MARGIN_Y,
+            self.CONTENT_MARGIN_X,
+            self.CONTENT_MARGIN_Y,
+        )
         content_layout.setSpacing(0)
         content_layout.addWidget(self.stack)
 
-        layout.addWidget(sidebar)
-        layout.addWidget(content, 1)
+        layout.addWidget(self.sidebar)
+        layout.addWidget(self.content, 1)
         self.setCentralWidget(root)
 
     def _build_dashboard_page(self):
         page = QWidget()
         main = QVBoxLayout(page)
         main.setContentsMargins(0, 0, 0, 0)
-        main.setSpacing(18)
+        main.setSpacing(16)
 
         title = QLabel("Dashboard")
         title.setObjectName("pageTitle")
         main.addWidget(title)
 
         subtitle = QLabel(
-            "Kelola proses konversi data harta ke format Coretax Lampiran L-1."
+            "Kelola proses konversi data Harta, Worksheet, dan PPh Tahunan dalam satu alur kerja."
         )
         subtitle.setObjectName("pageSubTitle")
+        subtitle.setWordWrap(True)
         main.addWidget(subtitle)
 
         cards = QHBoxLayout()
-        cards.setSpacing(14)
+        cards.setSpacing(12)
         self.wp_card = self._card("Wajib Pajak", "0")
         self.draft_card = self._card("Draft", "0")
         self.final_card = self._card("Final", "0")
         self.asset_card = self._card("Total Harta", "0")
-        for card in (self.wp_card, self.draft_card, self.final_card, self.asset_card):
+        for card in (
+            self.wp_card,
+            self.draft_card,
+            self.final_card,
+            self.asset_card,
+        ):
             cards.addWidget(card)
         main.addLayout(cards)
 
         action = QFrame(objectName="card")
         action_layout = QVBoxLayout(action)
-        action_layout.setContentsMargins(22, 20, 22, 20)
-        action_layout.setSpacing(8)
+        action_layout.setContentsMargins(20, 18, 20, 18)
+        action_layout.setSpacing(7)
 
         heading = QLabel("Mulai Proses")
         heading.setObjectName("sectionTitle")
         action_layout.addWidget(heading)
 
         desc = QLabel(
-            "Impor data Coretax, periksa worksheet, lalu finalisasi hasil konversi."
+            "Impor data Coretax, periksa Worksheet, lakukan rekonsiliasi, lalu finalisasi hasil konversi."
         )
         desc.setObjectName("pageSubTitle")
+        desc.setWordWrap(True)
         action_layout.addWidget(desc)
 
         button = QPushButton("Impor Data Coretax")
         button.setObjectName("primaryButton")
         button.setCursor(Qt.PointingHandCursor)
-        button.setFixedWidth(190)
+        button.setMinimumWidth(190)
         button.clicked.connect(lambda: self._show_page("import"))
         action_layout.addWidget(button, alignment=Qt.AlignLeft)
         main.addWidget(action)
 
         recent = QFrame(objectName="card")
         recent_layout = QVBoxLayout(recent)
-        recent_layout.setContentsMargins(22, 18, 22, 18)
+        recent_layout.setContentsMargins(20, 16, 20, 16)
         recent_layout.setSpacing(10)
 
         recent_title = QLabel("Wajib Pajak Terbaru")
@@ -181,6 +239,13 @@ class MainWindow(QMainWindow):
         self.wp_table.verticalHeader().setVisible(False)
         self.wp_table.horizontalHeader().setStretchLastSection(True)
         self.wp_table.setMinimumHeight(180)
+        optimize_table_interaction(
+            self.wp_table,
+            column_widths={0: 190, 1: 280, 2: 120, 3: 135},
+            row_height=36,
+            horizontal_step=18,
+            vertical_step=18,
+        )
         recent_layout.addWidget(self.wp_table)
         main.addWidget(recent, 1)
 
@@ -191,7 +256,7 @@ class MainWindow(QMainWindow):
         page = QWidget()
         layout = QVBoxLayout(page)
         layout.setContentsMargins(0, 0, 0, 0)
-        layout.setSpacing(18)
+        layout.setSpacing(16)
 
         title = QLabel(title_text)
         title.setObjectName("pageTitle")
@@ -199,11 +264,12 @@ class MainWindow(QMainWindow):
 
         subtitle = QLabel(subtitle_text)
         subtitle.setObjectName("pageSubTitle")
+        subtitle.setWordWrap(True)
         layout.addWidget(subtitle)
 
         card = QFrame(objectName="card")
         card_layout = QVBoxLayout(card)
-        card_layout.setContentsMargins(22, 22, 22, 22)
+        card_layout.setContentsMargins(20, 20, 20, 20)
         card_layout.setSpacing(8)
 
         heading = QLabel("Tahap ini belum diaktifkan")
@@ -221,9 +287,10 @@ class MainWindow(QMainWindow):
     @staticmethod
     def _card(title, value):
         card = QFrame(objectName="card")
+        card.setMinimumHeight(96)
         box = QVBoxLayout(card)
-        box.setContentsMargins(18, 16, 18, 16)
-        box.setSpacing(6)
+        box.setContentsMargins(17, 15, 17, 15)
+        box.setSpacing(5)
 
         label = QLabel(title)
         label.setObjectName("cardTitle")
@@ -251,10 +318,14 @@ class MainWindow(QMainWindow):
             cur.execute("SELECT COUNT(*) FROM master_wp")
             self.wp_card.value_label.setText(str(cur.fetchone()[0]))
 
-            cur.execute("SELECT COUNT(*) FROM master_wp WHERE status_proses = 'DRAFT'")
+            cur.execute(
+                "SELECT COUNT(*) FROM master_wp WHERE status_proses = 'DRAFT'"
+            )
             self.draft_card.value_label.setText(str(cur.fetchone()[0]))
 
-            cur.execute("SELECT COUNT(*) FROM master_wp WHERE status_proses = 'FINAL'")
+            cur.execute(
+                "SELECT COUNT(*) FROM master_wp WHERE status_proses = 'FINAL'"
+            )
             self.final_card.value_label.setText(str(cur.fetchone()[0]))
 
             cur.execute("SELECT COUNT(*) FROM harta_l1_items WHERE is_active = 1")
@@ -268,22 +339,21 @@ class MainWindow(QMainWindow):
             """)
             rows = cur.fetchall()
 
-            self.wp_table.setRowCount(len(rows))
-            for row_index, row in enumerate(rows):
-                values = (
-                    row["npwp"],
-                    row["nama_wp"],
-                    str(row["tahun_pajak"]),
-                    self._status_label(row["status_proses"]),
-                )
-                for column_index, value in enumerate(values):
-                    self.wp_table.setItem(
-                        row_index,
-                        column_index,
-                        QTableWidgetItem(value or "-"),
+            with suspended_updates(self.wp_table):
+                self.wp_table.setRowCount(len(rows))
+                for row_index, row in enumerate(rows):
+                    values = (
+                        row["npwp"],
+                        row["nama_wp"],
+                        str(row["tahun_pajak"]),
+                        self._status_label(row["status_proses"]),
                     )
-
-            self.wp_table.resizeColumnsToContents()
+                    for column_index, value in enumerate(values):
+                        self.wp_table.setItem(
+                            row_index,
+                            column_index,
+                            QTableWidgetItem(value or "-"),
+                        )
         finally:
             conn.close()
 
