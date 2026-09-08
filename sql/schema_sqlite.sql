@@ -151,3 +151,49 @@ CREATE TABLE IF NOT EXISTS audit_trail_koreksi (
 CREATE INDEX IF NOT EXISTS idx_audit_wp_id ON audit_trail_koreksi(wp_id);
 CREATE INDEX IF NOT EXISTS idx_audit_asset_id ON audit_trail_koreksi(asset_id);
 CREATE INDEX IF NOT EXISTS idx_audit_waktu ON audit_trail_koreksi(waktu_koreksi);
+
+-- -----------------------------------------------------------------------------
+-- 6. STATE WORKSHEET HARTA / SIMULASI I
+-- Menyimpan draft Edited / Current terpisah dari model aset Coretax.
+-- Baseline dibedakan dengan fingerprint Original Import agar re-import tidak
+-- menimpa draft lama secara diam-diam.
+-- -----------------------------------------------------------------------------
+CREATE TABLE IF NOT EXISTS worksheet_harta_states (
+    id INTEGER PRIMARY KEY AUTOINCREMENT,
+    npwp TEXT NOT NULL,
+    tahun_pajak INTEGER NOT NULL CHECK(tahun_pajak >= 2000 AND tahun_pajak <= 2100),
+    original_hash TEXT NOT NULL,
+    original_rows_json TEXT NOT NULL,
+    current_rows_json TEXT NOT NULL,
+    origin_indices_json TEXT NOT NULL,
+    created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+    updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+    UNIQUE(npwp, tahun_pajak, original_hash)
+);
+
+CREATE INDEX IF NOT EXISTS idx_worksheet_harta_npwp_tahun
+ON worksheet_harta_states(npwp, tahun_pajak);
+
+-- -----------------------------------------------------------------------------
+-- 7. AUDIT TRAIL WORKSHEET HARTA
+-- Action pada level worksheet: ADD / EDIT / DELETE.
+-- EDIT dicatat per field, sedangkan ADD/DELETE menyimpan snapshot satu baris.
+-- -----------------------------------------------------------------------------
+CREATE TABLE IF NOT EXISTS worksheet_harta_audit (
+    id INTEGER PRIMARY KEY AUTOINCREMENT,
+    state_id INTEGER NOT NULL,
+    action TEXT NOT NULL CHECK(action IN ('ADD', 'EDIT', 'DELETE')),
+    origin_index INTEGER,
+    row_order INTEGER,
+    nama_kolom TEXT NOT NULL,
+    nilai_lama TEXT,
+    nilai_baru TEXT,
+    waktu_perubahan TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+    FOREIGN KEY (state_id) REFERENCES worksheet_harta_states(id) ON DELETE CASCADE
+);
+
+CREATE INDEX IF NOT EXISTS idx_worksheet_harta_audit_state
+ON worksheet_harta_audit(state_id);
+
+CREATE INDEX IF NOT EXISTS idx_worksheet_harta_audit_time
+ON worksheet_harta_audit(waktu_perubahan);
