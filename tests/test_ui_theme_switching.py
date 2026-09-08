@@ -37,6 +37,13 @@ class TestUiThemeSwitching(unittest.TestCase):
         self.assertIn("QLabel#brandMain", STYLESHEET)
         self.assertIn("QLabel#brandAccent", STYLESHEET)
         self.assertIn("color: #2CC55E;", STYLESHEET)
+        self.assertIn("font-size: 16px;", STYLESHEET)
+
+    def test_light_sidebar_labels_are_explicitly_transparent(self):
+        self.assertIn("QFrame#sidebar QLabel", STYLESHEET)
+        sidebar_rule = STYLESHEET.split("QFrame#sidebar QLabel", 1)[1].split("}", 1)[0]
+        self.assertIn("background: transparent;", sidebar_rule)
+        self.assertIn("border: none;", sidebar_rule)
 
     def test_dark_styles_cover_main_surfaces_and_tables(self):
         dark = stylesheet_for("dark")
