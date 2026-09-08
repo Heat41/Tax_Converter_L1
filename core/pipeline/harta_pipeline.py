@@ -1,3 +1,4 @@
+import re
 from dataclasses import dataclass, field
 from typing import List, Optional
 
@@ -11,6 +12,7 @@ class HartaPipelineResult:
     mapping: HartaMappingResult
     worksheet_rows: List[WorksheetHartaRow] = field(default_factory=list)
     current_year: Optional[int] = None
+    npwp: Optional[str] = None
     errors: List[str] = field(default_factory=list)
 
     @property
@@ -38,6 +40,8 @@ class HartaPreviewPipeline:
             import_batch_id=import_batch_id,
         )
         result = HartaPipelineResult(mapping=mapping)
+        result.current_year = self._infer_tax_year(batch)
+        result.npwp = self._infer_npwp(batch)
 
         if mapping.errors:
             result.errors.extend(mapping.errors)
@@ -49,7 +53,6 @@ class HartaPreviewPipeline:
             result.errors.append(str(exc))
             return result
 
-        result.current_year = self._infer_tax_year(batch)
         return result
 
     @staticmethod
@@ -78,6 +81,30 @@ class HartaPreviewPipeline:
                     return int(float(value.replace(",", "")))
                 except ValueError:
                     continue
+        return None
+
+    @staticmethod
+    def _infer_npwp(batch: BatchImportResult) -> Optional[str]:
+        for category_result in batch.category_results.values():
+            read_result = category_result.read_result
+            if read_result is None:
+                continue
+
+            headers = [HartaPreviewPipeline._norm_header(h) for h in read_result.headers]
+            npwp_index = None
+            for candidate in ("npwp", "npwp wajib pajak"):
+                if candidate in headers:
+                    npwp_index = headers.index(candidate)
+                    break
+            if npwp_index is None:
+                continue
+
+            for row in read_result.rows:
+                if npwp_index >= len(row):
+                    continue
+                digits = re.sub(r"\D", "", str(row[npwp_index] or ""))
+                if digits:
+                    return digits
         return None
 
     @staticmethod
