@@ -1,6 +1,6 @@
 from PySide6.QtWidgets import QLabel, QMessageBox
 
-from ui.pages.worksheet_page import WorksheetPage as BaseWorksheetPage
+from ui.pages.worksheet_harta_structure import WorksheetPage as BaseWorksheetPage
 
 
 class WorksheetPage(BaseWorksheetPage):
@@ -56,6 +56,13 @@ class WorksheetPage(BaseWorksheetPage):
         self.harta_notice.clear()
         self.harta_notice.setVisible(False)
 
+    def _change_summary(self) -> str:
+        return (
+            f"{self._count_changed_cells()} sel dikoreksi, "
+            f"{self._count_added_rows()} baris ditambah, "
+            f"{self._count_deleted_rows()} baris dihapus"
+        )
+
     def load_harta_preview(self, pipeline_result):
         super().load_harta_preview(pipeline_result)
         if pipeline_result is not None and getattr(pipeline_result, "worksheet_rows", None):
@@ -73,7 +80,7 @@ class WorksheetPage(BaseWorksheetPage):
 
     def _show_harta_mode(self, mode: str):
         super()._show_harta_mode(mode)
-        if not self.harta_current_rows:
+        if self.harta_pipeline_result is None:
             return
 
         if mode == "original":
@@ -84,12 +91,12 @@ class WorksheetPage(BaseWorksheetPage):
         elif mode == "current":
             if self._has_unsaved_harta_changes():
                 self._show_notice(
-                    "⚠ MODE EDITED / CURRENT — ada perubahan yang belum disimpan.",
+                    f"⚠ MODE EDITED / CURRENT — {self._change_summary()} dan belum disimpan.",
                     "warning",
                 )
             else:
                 self._show_notice(
-                    "MODE EDITED / CURRENT — klik dua kali pada sel untuk melakukan koreksi manual.",
+                    "MODE EDITED / CURRENT — klik dua kali pada sel untuk koreksi, atau gunakan Tambah/Hapus Baris.",
                     "info",
                 )
 
@@ -100,7 +107,7 @@ class WorksheetPage(BaseWorksheetPage):
 
         if self.harta_mode == "current" and after:
             self._show_notice(
-                f"⚠ Ada {self._count_changed_cells()} sel yang berbeda dari Original Import dan belum disimpan.",
+                f"⚠ {self._change_summary()} dan belum disimpan.",
                 "warning",
             )
         elif before and not after:
@@ -109,23 +116,65 @@ class WorksheetPage(BaseWorksheetPage):
                 "info",
             )
 
+    def add_harta_row(self):
+        before = len(self.harta_current_rows)
+        super().add_harta_row()
+        if len(self.harta_current_rows) > before:
+            self._show_notice(
+                f"⚠ Baris Harta manual baru ditambahkan. {self._change_summary()} dan belum disimpan.",
+                "warning",
+            )
+
+    def remove_selected_harta_rows(self):
+        if self.harta_mode != "current":
+            return 0
+
+        selected_rows = sorted(
+            {index.row() for index in self.harta_table.selectedIndexes()}
+        )
+        if not selected_rows:
+            self._show_notice(
+                "Pilih satu atau beberapa baris Harta yang akan dihapus.",
+                "warning",
+            )
+            return 0
+
+        answer = QMessageBox.question(
+            self,
+            "Hapus Baris Harta",
+            f"Hapus {len(selected_rows)} baris yang dipilih dari Edited / Current?\n\n"
+            "Original Import tidak akan berubah dan baris dapat dipulihkan dengan Reset ke Import.",
+            QMessageBox.Yes | QMessageBox.No,
+            QMessageBox.No,
+        )
+        if answer != QMessageBox.Yes:
+            return 0
+
+        removed = super().remove_selected_harta_rows()
+        if removed:
+            self._show_notice(
+                f"⚠ {removed} baris dihapus dari Edited / Current. {self._change_summary()} dan belum disimpan.",
+                "warning",
+            )
+        return removed
+
     def save_harta_changes(self):
         had_unsaved = self._has_unsaved_harta_changes()
         super().save_harta_changes()
         if had_unsaved:
             self._show_notice(
-                f"✓ Perubahan tersimpan pada sesi worksheet. {self._count_changed_cells()} sel tetap ditandai karena berbeda dari Original Import.",
+                f"✓ Perubahan tersimpan pada sesi worksheet. {self._change_summary()} tetap ditandai terhadap Original Import.",
                 "success",
             )
 
     def _confirm_reset_harta_to_import(self):
-        if not self.harta_original_rows or self._count_changed_cells() == 0:
+        if not self.harta_original_rows or not self._has_any_harta_changes():
             return
 
         answer = QMessageBox.question(
             self,
             "Reset ke Original Import",
-            "Semua koreksi pada Edited / Current akan dibatalkan dan dikembalikan persis ke hasil import Coretax.\n\n"
+            "Semua koreksi, baris tambahan, dan penghapusan pada Edited / Current akan dibatalkan dan dikembalikan persis ke hasil import Coretax.\n\n"
             "Original Import tidak akan berubah. Lanjutkan reset?",
             QMessageBox.Yes | QMessageBox.No,
             QMessageBox.No,
@@ -136,6 +185,6 @@ class WorksheetPage(BaseWorksheetPage):
     def reset_harta_to_import(self):
         super().reset_harta_to_import()
         self._show_notice(
-            "✓ Edited / Current berhasil dikembalikan ke Original Import. Semua koreksi telah dibatalkan.",
+            "✓ Edited / Current berhasil dikembalikan ke Original Import. Semua koreksi, penambahan, dan penghapusan telah dibatalkan.",
             "success",
         )
