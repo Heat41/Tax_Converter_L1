@@ -67,6 +67,8 @@ class TestWorksheetHartaPersistence(unittest.TestCase):
         self.assertTrue(result.persisted)
         self.assertEqual(result.edit_count, 1)
         self.assertFalse(page.save_harta_button.isEnabled())
+        self.assertIn("TERSIMPAN KE DATABASE", page.harta_status.text())
+        self.assertIn("tersimpan ke database", page.harta_notice.text().lower())
 
     def test_same_original_restores_saved_current(self):
         first = self._page()
@@ -83,6 +85,7 @@ class TestWorksheetHartaPersistence(unittest.TestCase):
         second._show_harta_mode("current")
         self.assertEqual(second.harta_table.item(0, 5).text(), "WP EDITED")
         self.assertFalse(second.save_harta_button.isEnabled())
+        self.assertIn("database", second.harta_status.text().lower())
 
 
 if __name__ == "__main__":
