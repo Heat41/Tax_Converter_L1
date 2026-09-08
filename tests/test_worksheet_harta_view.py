@@ -42,13 +42,17 @@ class TestWorksheetHartaView(unittest.TestCase):
 
     def test_current_mode_shows_notice(self):
         self.page._show_harta_mode("current")
-        self.assertTrue(self.page.harta_notice.isVisible())
+        # QWidget.isVisible() juga mempertimbangkan visibility seluruh parent
+        # hierarchy. Pada unit test page tidak di-show(), jadi gunakan isHidden()
+        # untuk memastikan banner memang diminta tampil oleh UI.
+        self.assertFalse(self.page.harta_notice.isHidden())
         self.assertIn("EDITED / CURRENT", self.page.harta_notice.text())
 
     def test_direct_reset_shows_success_notice(self):
         self.page._show_harta_mode("current")
         self.page.harta_table.item(0, 3).setText("Koreksi")
         self.page.reset_harta_to_import()
+        self.assertFalse(self.page.harta_notice.isHidden())
         self.assertIn("berhasil dikembalikan", self.page.harta_notice.text())
 
 
