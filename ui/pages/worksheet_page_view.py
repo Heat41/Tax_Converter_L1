@@ -1,4 +1,10 @@
-from PySide6.QtWidgets import QLabel, QMessageBox
+from PySide6.QtCore import Qt
+from PySide6.QtWidgets import (
+    QAbstractItemView,
+    QHeaderView,
+    QLabel,
+    QMessageBox,
+)
 
 from ui.pages.worksheet_harta_structure import WorksheetPage as BaseWorksheetPage
 
@@ -21,9 +27,23 @@ class WorksheetPage(BaseWorksheetPage):
         ),
     }
 
+    HARTA_COLUMN_WIDTHS = {
+        0: 55,
+        1: 95,
+        2: 85,
+        3: 230,
+        4: 235,
+        5: 155,
+        6: 145,
+        7: 105,
+        8: 135,
+        9: 135,
+    }
+
     def __init__(self, parent=None):
         super().__init__(parent)
         self._install_harta_feedback()
+        self._optimize_harta_table()
 
     def _install_harta_feedback(self):
         status_font = self.harta_status.font()
@@ -44,6 +64,36 @@ class WorksheetPage(BaseWorksheetPage):
         except (TypeError, RuntimeError):
             pass
         self.reset_harta_button.clicked.connect(self._confirm_reset_harta_to_import)
+
+    def _optimize_harta_table(self):
+        """Kurangi layout recalculation agar scroll/resize window lebih halus."""
+        table = self.harta_table
+        header = table.horizontalHeader()
+        vertical = table.verticalHeader()
+
+        # ResizeToContents mengukur ulang isi sel ketika viewport berubah.
+        # Interactive + lebar stabil jauh lebih ringan untuk grid worksheet.
+        header.setSectionResizeMode(QHeaderView.Interactive)
+        header.setStretchLastSection(False)
+        header.setMinimumSectionSize(48)
+        for column, width in self.HARTA_COLUMN_WIDTHS.items():
+            table.setColumnWidth(column, width)
+
+        # Tinggi baris tetap mencegah geometry recalculation selama scrolling.
+        vertical.setSectionResizeMode(QHeaderView.Fixed)
+        vertical.setDefaultSectionSize(34)
+        vertical.setMinimumSectionSize(34)
+
+        # Scroll per-pixel menghindari kesan meloncat/patah per baris atau kolom.
+        table.setHorizontalScrollMode(QAbstractItemView.ScrollPerPixel)
+        table.setVerticalScrollMode(QAbstractItemView.ScrollPerPixel)
+        table.horizontalScrollBar().setSingleStep(18)
+        table.verticalScrollBar().setSingleStep(18)
+
+        # Grid tidak membutuhkan wrap; elide menjaga render sel tetap ringan.
+        table.setWordWrap(False)
+        table.setTextElideMode(Qt.ElideRight)
+        table.setCornerButtonEnabled(False)
 
     def _show_notice(self, message: str, level: str = "info"):
         self.harta_notice.setText(message)
