@@ -4,6 +4,7 @@ from PySide6.QtCore import Qt
 from PySide6.QtWidgets import QPushButton
 
 from core.mapping.worksheet_harta_mapper import WorksheetHartaRow
+from core.worksheet_state import WorksheetHartaStateStore
 from ui.pages.worksheet_page import WorksheetPage as BaseWorksheetPage
 
 
@@ -11,14 +12,18 @@ class WorksheetPage(BaseWorksheetPage):
     """Lapisan editor struktur untuk Worksheet Harta.
 
     Menambahkan kemampuan tambah/hapus baris pada mode Edited / Current tanpa
-    mengubah Original Import. Setiap baris Current menyimpan referensi indeks
-    baris Original agar perubahan tetap dapat dibandingkan walau urutan baris
-    berubah akibat penghapusan atau penambahan.
+    mengubah Original Import. State Current dapat dipersist ke SQLite dan
+    dipulihkan kembali bila NPWP, Tahun Pajak, dan baseline Original sama.
     """
 
     def __init__(self, parent=None):
         self.harta_origin_indices = []
         self.harta_saved_origin_indices = []
+        self.harta_npwp = None
+        self.harta_restored_from_db = False
+        self.last_harta_save_result = None
+        self.last_harta_save_error = None
+        self.harta_state_store = WorksheetHartaStateStore()
         super().__init__(parent)
         self._install_structure_actions()
         self._refresh_harta_actions()
@@ -45,16 +50,46 @@ class WorksheetPage(BaseWorksheetPage):
 
     def load_harta_preview(self, pipeline_result):
         super().load_harta_preview(pipeline_result)
+        self.harta_restored_from_db = False
+        self.last_harta_save_result = None
+        self.last_harta_save_error = None
+
         if pipeline_result is not None and getattr(pipeline_result, "worksheet_rows", None):
+            self.harta_npwp = getattr(pipeline_result, "npwp", None)
             self.harta_origin_indices = list(range(len(self.harta_original_rows)))
             self.harta_saved_origin_indices = list(self.harta_origin_indices)
+
+            year = getattr(pipeline_result, "current_year", None)
+            if self.harta_npwp and year:
+                try:
+                    persisted = self.harta_state_store.load_matching(
+                        self.harta_npwp,
+                        int(year),
+                        self.harta_original_rows,
+                    )
+                except Exception as exc:
+                    persisted = None
+                    self.last_harta_save_error = str(exc)
+
+                if persisted is not None:
+                    self.harta_current_rows = list(persisted.current_rows)
+                    self.harta_saved_rows = list(persisted.current_rows)
+                    self.harta_origin_indices = list(persisted.origin_indices)
+                    self.harta_saved_origin_indices = list(persisted.origin_indices)
+                    self.harta_restored_from_db = True
         else:
+            self.harta_npwp = None
             self.harta_origin_indices = []
             self.harta_saved_origin_indices = []
+
         self._refresh_harta_actions()
 
     def clear_harta_preview(self):
         super().clear_harta_preview()
+        self.harta_npwp = None
+        self.harta_restored_from_db = False
+        self.last_harta_save_result = None
+        self.last_harta_save_error = None
         self.harta_origin_indices = []
         self.harta_saved_origin_indices = []
         if hasattr(self, "add_harta_button"):
@@ -219,29 +254,59 @@ class WorksheetPage(BaseWorksheetPage):
         edited = self._count_changed_cells()
         added = self._count_added_rows()
         deleted = self._count_deleted_rows()
+        visible_count = (
+            len(self.harta_original_rows)
+            if self.harta_mode == "original"
+            else len(self.harta_current_rows)
+        )
 
         suffix = ""
         if self.harta_mode == "current":
             if saved:
-                suffix = " • perubahan tersimpan pada sesi worksheet"
+                suffix = " • perubahan tersimpan"
             elif self._has_unsaved_harta_changes():
                 suffix = " • ada perubahan belum disimpan"
             elif self._has_any_harta_changes():
-                suffix = " • koreksi tersimpan pada sesi worksheet"
+                suffix = " • draft koreksi tersimpan"
 
         self.harta_status.setText(
-            f"Mode {label} • {len(self.harta_current_rows)} baris Harta • "
+            f"Mode {label} • {visible_count} baris Harta • "
             f"Tahun {year} • {edited} sel dikoreksi • "
             f"{added} baris ditambah • {deleted} baris dihapus{suffix}"
         )
 
     def save_harta_changes(self):
         if self.harta_mode != "current" or self.harta_pipeline_result is None:
-            return
+            return None
+
+        self.last_harta_save_result = None
+        self.last_harta_save_error = None
+        year = getattr(self.harta_pipeline_result, "current_year", None)
+
+        if self.harta_npwp and year:
+            try:
+                self.last_harta_save_result = self.harta_state_store.save_state(
+                    npwp=self.harta_npwp,
+                    tahun_pajak=int(year),
+                    original_rows=self.harta_original_rows,
+                    current_rows=self.harta_current_rows,
+                    origin_indices=self.harta_origin_indices,
+                )
+            except Exception as exc:
+                self.last_harta_save_error = str(exc)
+                self.harta_status.setText(
+                    f"Gagal menyimpan Worksheet Harta ke database: {exc}"
+                )
+                self._refresh_harta_actions()
+                return None
+
+        # Jika NPWP tidak tersedia (mis. unit test/synthetic preview), state sesi
+        # tetap bekerja seperti sebelumnya tanpa mengganggu editor.
         self.harta_saved_rows = list(self.harta_current_rows)
         self.harta_saved_origin_indices = list(self.harta_origin_indices)
         self._refresh_harta_actions()
         self._update_harta_status(saved=True)
+        return self.last_harta_save_result
 
     def reset_harta_to_import(self):
         if not self.harta_original_rows:
