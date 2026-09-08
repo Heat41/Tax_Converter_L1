@@ -1,4 +1,7 @@
+from dataclasses import replace
+
 from PySide6.QtCore import Qt
+from PySide6.QtGui import QColor
 from PySide6.QtWidgets import (
     QFrame,
     QHBoxLayout,
@@ -17,15 +20,34 @@ class WorksheetPage(QWidget):
     """Halaman worksheet utama.
 
     Tab Harta menerima hasil pipeline SIMULASI I dari halaman Impor Coretax.
-    Tab Penghasilan & PPh tetap terpisah dan disiapkan untuk input manual.
+    Original Import selalu read-only, sedangkan Edited / Current dapat dikoreksi
+    tanpa mengubah hasil import awal. Tab Penghasilan & PPh tetap terpisah.
     """
+
+    HARTA_FIELDS = (
+        "nomor",
+        "kode_eform",
+        "kode_ct",
+        "nama_harta",
+        "nomor_akun_keterangan",
+        "atas_nama",
+        "nama_bank",
+        "tahun_perolehan",
+        "nilai_tahun_sebelumnya",
+        "nilai_tahun_berjalan",
+    )
+    NUMERIC_COLUMNS = {8, 9}
+    YEAR_COLUMN = 7
+    CHANGE_BACKGROUND = QColor("#FFF3CD")
 
     def __init__(self, parent=None):
         super().__init__(parent)
         self.harta_pipeline_result = None
         self.harta_original_rows = []
         self.harta_current_rows = []
+        self.harta_saved_rows = []
         self.harta_mode = "original"
+        self._rendering_harta = False
         self._build_ui()
 
     def _build_ui(self):
@@ -69,9 +91,9 @@ class WorksheetPage(QWidget):
         heading = QLabel("Worksheet Harta — SIMULASI I")
         heading.setObjectName("sectionTitle")
         description = QLabel(
-            "Data Harta pada bagian ini berasal langsung dari preview hasil import Coretax. "
-            "Original Import menyimpan hasil awal pipeline; Edited / Current akan menjadi "
-            "area koreksi pada tahap editor berikutnya."
+            "Original Import menyimpan hasil awal pipeline dan tidak dapat diedit. "
+            "Gunakan Edited / Current untuk koreksi manual; sel yang berubah akan "
+            "ditandai agar perbedaannya mudah diaudit."
         )
         description.setObjectName("pageSubTitle")
         description.setWordWrap(True)
@@ -90,6 +112,9 @@ class WorksheetPage(QWidget):
         self.original_button.setObjectName("secondaryButton")
         self.current_button = QPushButton("Edited / Current")
         self.current_button.setObjectName("secondaryButton")
+        self.reset_harta_button = QPushButton("Reset ke Import")
+        self.reset_harta_button.setObjectName("secondaryButton")
+        self.reset_harta_button.setEnabled(False)
         self.save_harta_button = QPushButton("Simpan Perubahan")
         self.save_harta_button.setObjectName("primaryButton")
         self.save_harta_button.setEnabled(False)
@@ -100,9 +125,12 @@ class WorksheetPage(QWidget):
         self.current_button.clicked.connect(
             lambda: self._show_harta_mode("current")
         )
+        self.reset_harta_button.clicked.connect(self.reset_harta_to_import)
+        self.save_harta_button.clicked.connect(self.save_harta_changes)
 
         toolbar.addWidget(self.original_button)
         toolbar.addWidget(self.current_button)
+        toolbar.addWidget(self.reset_harta_button)
         toolbar.addStretch()
         toolbar.addWidget(self.save_harta_button)
         layout.addLayout(toolbar)
@@ -128,6 +156,7 @@ class WorksheetPage(QWidget):
             QHeaderView.ResizeToContents
         )
         self.harta_table.horizontalHeader().setMinimumSectionSize(80)
+        self.harta_table.itemChanged.connect(self._on_harta_item_changed)
         layout.addWidget(self.harta_table, 1)
 
         return page
@@ -142,30 +171,35 @@ class WorksheetPage(QWidget):
 
         self.harta_pipeline_result = pipeline_result
         self.harta_original_rows = list(pipeline_result.worksheet_rows)
-        # Untuk saat ini Current dimulai identik dengan Original. Pada tahap
-        # editor berikutnya daftar ini akan menjadi state koreksi tersendiri.
         self.harta_current_rows = list(pipeline_result.worksheet_rows)
+        self.harta_saved_rows = list(pipeline_result.worksheet_rows)
         self.harta_mode = "original"
 
         year = pipeline_result.current_year or "-"
         skipped = getattr(pipeline_result.mapping, "skipped_rows", 0)
         self.harta_status.setText(
             f"{len(self.harta_original_rows)} baris Harta tersambung • "
-            f"Tahun {year} • {skipped} baris dilewati"
+            f"Tahun {year} • {skipped} baris dilewati • Mode Original Import"
         )
         self._render_harta_rows(self.harta_original_rows)
+        self._refresh_harta_actions()
 
     def clear_harta_preview(self):
         self.harta_pipeline_result = None
         self.harta_original_rows = []
         self.harta_current_rows = []
+        self.harta_saved_rows = []
         self.harta_mode = "original"
-        self.harta_table.clearContents()
-        self.harta_table.setRowCount(0)
+        self._rendering_harta = True
+        try:
+            self.harta_table.clearContents()
+            self.harta_table.setRowCount(0)
+        finally:
+            self._rendering_harta = False
         self.harta_status.setText(
             "Belum ada preview Harta dari halaman Impor Coretax."
         )
-        self.save_harta_button.setEnabled(False)
+        self._refresh_harta_actions()
 
     def _show_harta_mode(self, mode: str):
         if mode not in {"original", "current"}:
@@ -179,41 +213,234 @@ class WorksheetPage(QWidget):
         self._render_harta_rows(rows)
 
         if self.harta_pipeline_result is not None:
-            label = "Original Import" if mode == "original" else "Edited / Current"
-            year = self.harta_pipeline_result.current_year or "-"
-            self.harta_status.setText(
-                f"Mode {label} • {len(rows)} baris Harta • Tahun {year}"
-            )
+            self._update_harta_status()
+        self._refresh_harta_actions()
 
     def _render_harta_rows(self, rows):
-        self.harta_table.clearContents()
-        self.harta_table.setRowCount(len(rows))
+        self._rendering_harta = True
+        self.harta_table.blockSignals(True)
+        try:
+            self.harta_table.clearContents()
+            self.harta_table.setRowCount(len(rows))
 
-        for row_index, item in enumerate(rows):
-            values = [
-                item.nomor,
-                item.kode_eform,
-                item.kode_ct,
-                item.nama_harta,
-                item.nomor_akun_keterangan,
-                item.atas_nama,
-                item.nama_bank,
-                item.tahun_perolehan,
-                item.nilai_tahun_sebelumnya,
-                item.nilai_tahun_berjalan,
-            ]
-            for column_index, value in enumerate(values):
-                table_item = QTableWidgetItem(
+            for row_index, item in enumerate(rows):
+                values = [getattr(item, field) for field in self.HARTA_FIELDS]
+                for column_index, value in enumerate(values):
+                    table_item = QTableWidgetItem(
+                        self._format_harta_value(
+                            value,
+                            numeric=column_index in self.NUMERIC_COLUMNS,
+                        )
+                    )
+                    if self.harta_mode == "original" or column_index == 0:
+                        table_item.setFlags(
+                            table_item.flags() & ~Qt.ItemIsEditable
+                        )
+                    self.harta_table.setItem(
+                        row_index,
+                        column_index,
+                        table_item,
+                    )
+                    if self.harta_mode == "current":
+                        self._apply_change_highlight(
+                            row_index,
+                            column_index,
+                            table_item,
+                        )
+        finally:
+            self.harta_table.blockSignals(False)
+            self._rendering_harta = False
+
+        if self.harta_mode == "current" and rows:
+            self.harta_table.setEditTriggers(
+                QTableWidget.DoubleClicked
+                | QTableWidget.EditKeyPressed
+                | QTableWidget.SelectedClicked
+            )
+        else:
+            self.harta_table.setEditTriggers(QTableWidget.NoEditTriggers)
+
+    def _on_harta_item_changed(self, item: QTableWidgetItem):
+        if self._rendering_harta or self.harta_mode != "current":
+            return
+
+        row_index = item.row()
+        column_index = item.column()
+        if (
+            row_index < 0
+            or row_index >= len(self.harta_current_rows)
+            or column_index <= 0
+            or column_index >= len(self.HARTA_FIELDS)
+        ):
+            return
+
+        field_name = self.HARTA_FIELDS[column_index]
+        old_row = self.harta_current_rows[row_index]
+
+        try:
+            value = self._parse_harta_edit(item.text(), column_index)
+        except ValueError:
+            original_value = getattr(old_row, field_name)
+            self.harta_table.blockSignals(True)
+            try:
+                item.setText(
                     self._format_harta_value(
-                        value,
-                        numeric=column_index in (8, 9),
+                        original_value,
+                        numeric=column_index in self.NUMERIC_COLUMNS,
                     )
                 )
-                self.harta_table.setItem(
-                    row_index,
-                    column_index,
-                    table_item,
+            finally:
+                self.harta_table.blockSignals(False)
+            self.harta_status.setText(
+                "Nilai tidak valid. TH PEROLEHAN harus berupa tahun, dan kolom nilai harus berupa angka."
+            )
+            return
+
+        self.harta_current_rows[row_index] = replace(
+            old_row,
+            **{field_name: value},
+        )
+
+        # Normalisasikan tampilan angka setelah edit.
+        if column_index in self.NUMERIC_COLUMNS or column_index == self.YEAR_COLUMN:
+            self.harta_table.blockSignals(True)
+            try:
+                item.setText(
+                    self._format_harta_value(
+                        value,
+                        numeric=column_index in self.NUMERIC_COLUMNS,
+                    )
                 )
+            finally:
+                self.harta_table.blockSignals(False)
+
+        self._apply_change_highlight(row_index, column_index, item)
+        self._refresh_harta_actions()
+        self._update_harta_status()
+
+    def _apply_change_highlight(
+        self,
+        row_index: int,
+        column_index: int,
+        table_item: QTableWidgetItem,
+    ) -> None:
+        changed = self._cell_changed_from_original(row_index, column_index)
+        if changed:
+            table_item.setBackground(self.CHANGE_BACKGROUND)
+        else:
+            table_item.setData(Qt.BackgroundRole, None)
+
+    def _cell_changed_from_original(self, row_index: int, column_index: int) -> bool:
+        if (
+            row_index >= len(self.harta_original_rows)
+            or row_index >= len(self.harta_current_rows)
+        ):
+            return False
+        field_name = self.HARTA_FIELDS[column_index]
+        return getattr(
+            self.harta_original_rows[row_index], field_name
+        ) != getattr(self.harta_current_rows[row_index], field_name)
+
+    def _count_changed_cells(self) -> int:
+        total = 0
+        common_rows = min(
+            len(self.harta_original_rows),
+            len(self.harta_current_rows),
+        )
+        for row_index in range(common_rows):
+            for column_index in range(1, len(self.HARTA_FIELDS)):
+                if self._cell_changed_from_original(row_index, column_index):
+                    total += 1
+        return total
+
+    def _has_unsaved_harta_changes(self) -> bool:
+        return self.harta_current_rows != self.harta_saved_rows
+
+    def _refresh_harta_actions(self):
+        has_data = bool(self.harta_current_rows)
+        changed_cells = self._count_changed_cells()
+        self.reset_harta_button.setEnabled(has_data and changed_cells > 0)
+        self.save_harta_button.setEnabled(
+            has_data
+            and self.harta_mode == "current"
+            and self._has_unsaved_harta_changes()
+        )
+
+    def _update_harta_status(self, *, saved: bool = False):
+        if self.harta_pipeline_result is None:
+            return
+        year = self.harta_pipeline_result.current_year or "-"
+        label = (
+            "Original Import"
+            if self.harta_mode == "original"
+            else "Edited / Current"
+        )
+        changed_cells = self._count_changed_cells()
+        suffix = ""
+        if self.harta_mode == "current":
+            if saved:
+                suffix = " • perubahan tersimpan pada sesi worksheet"
+            elif self._has_unsaved_harta_changes():
+                suffix = " • ada perubahan belum disimpan"
+            elif changed_cells:
+                suffix = " • koreksi tersimpan pada sesi worksheet"
+        self.harta_status.setText(
+            f"Mode {label} • {len(self.harta_current_rows)} baris Harta • "
+            f"Tahun {year} • {changed_cells} sel dikoreksi{suffix}"
+        )
+
+    def save_harta_changes(self):
+        if self.harta_mode != "current" or not self.harta_current_rows:
+            return
+        self.harta_saved_rows = list(self.harta_current_rows)
+        self._refresh_harta_actions()
+        self._update_harta_status(saved=True)
+
+    def reset_harta_to_import(self):
+        if not self.harta_original_rows:
+            return
+        self.harta_current_rows = list(self.harta_original_rows)
+        self._render_harta_rows(self.harta_current_rows)
+        self._refresh_harta_actions()
+        self._update_harta_status()
+
+    @classmethod
+    def _parse_harta_edit(cls, text: str, column_index: int):
+        value = str(text or "").strip()
+        if column_index == cls.YEAR_COLUMN:
+            if not value:
+                raise ValueError("tahun kosong")
+            try:
+                year = int(float(value.replace(",", ".")))
+            except ValueError as exc:
+                raise ValueError("tahun tidak valid") from exc
+            if year < 1900 or year > 2100:
+                raise ValueError("tahun di luar rentang")
+            return year
+
+        if column_index in cls.NUMERIC_COLUMNS:
+            if not value:
+                return 0.0
+            cleaned = value.replace("Rp", "").replace("rp", "").replace(" ", "")
+            if "," in cleaned and "." in cleaned:
+                cleaned = cleaned.replace(".", "").replace(",", ".")
+            elif "." in cleaned:
+                parts = cleaned.split(".")
+                if len(parts) > 1 and all(len(part) == 3 for part in parts[1:]):
+                    cleaned = "".join(parts)
+            elif "," in cleaned:
+                tail = cleaned.rsplit(",", 1)[-1]
+                cleaned = (
+                    cleaned.replace(",", ".")
+                    if len(tail) <= 2
+                    else cleaned.replace(",", "")
+                )
+            try:
+                return float(cleaned)
+            except ValueError as exc:
+                raise ValueError("angka tidak valid") from exc
+
+        return value
 
     @staticmethod
     def _format_harta_value(value, *, numeric: bool = False) -> str:
