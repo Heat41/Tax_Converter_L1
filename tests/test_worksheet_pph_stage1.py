@@ -1,6 +1,7 @@
 import sys
 import unittest
 
+from PySide6.QtCore import Qt
 from PySide6.QtWidgets import QApplication, QAbstractItemView
 
 from ui.pages.worksheet_pph_stage1 import WorksheetPage
@@ -26,7 +27,7 @@ class TestWorksheetPPhStage1(unittest.TestCase):
         netto = self.page.bupot_table.item(0, 6)
         self.assertIsNotNone(netto)
         self.assertEqual(netto.text(), "0")
-        self.assertFalse(bool(netto.flags() & netto.flags().ItemIsEditable))
+        self.assertFalse(bool(netto.flags() & Qt.ItemIsEditable))
 
     def test_bruto_minus_pengurang_calculates_netto_automatically(self):
         self.page._add_bupot_row()
