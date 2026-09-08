@@ -85,6 +85,11 @@ class MainWindow(QMainWindow):
         import_page.harta_preview_changed.connect(
             worksheet_page.load_harta_preview
         )
+        worksheet_page.tabs.currentChanged.connect(
+            lambda _index: worksheet_page._render_reconciliation()
+            if hasattr(worksheet_page, "_render_reconciliation")
+            else None
+        )
 
         self.pages["import"] = import_page
         self.pages["worksheet"] = worksheet_page
