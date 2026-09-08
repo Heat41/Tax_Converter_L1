@@ -53,7 +53,8 @@ class TestWorksheetHartaView(unittest.TestCase):
         self.page.harta_table.item(0, 3).setText("Koreksi")
         self.page.reset_harta_to_import()
         self.assertFalse(self.page.harta_notice.isHidden())
-        self.assertIn("berhasil dikembalikan", self.page.harta_notice.text())
+        self.assertIn("dikembalikan", self.page.harta_notice.text())
+        self.assertIn("Klik Simpan Perubahan", self.page.harta_notice.text())
 
 
 if __name__ == "__main__":
