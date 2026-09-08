@@ -70,6 +70,37 @@ class TestWorksheetAuditIdentity(unittest.TestCase):
 
         self.assertEqual(self.page.audit_wp_name_value.text(), "EVY BACHTIAR")
 
+    def test_audit_identity_normalizes_owner_title_variants(self):
+        result = HartaPipelineResult(
+            mapping=HartaMappingResult(),
+            worksheet_rows=[
+                self._row("DR EVY BACHTIAR SPOG"),
+                self._row("EVY BACHTIAR"),
+                self._row("Dr. EVY BACHTIAR Sp.OG"),
+            ],
+            current_year=2025,
+            npwp="6101015612710001",
+        )
+        self.page.load_harta_preview(result)
+
+        self.assertEqual(self.page.audit_wp_name_value.text(), "EVY BACHTIAR")
+        self.assertEqual(self.page.audit_npwp_value.text(), "6101015612710001")
+        self.assertEqual(self.page.audit_year_value.text(), "2025")
+
+    def test_audit_identity_does_not_guess_different_owner_names(self):
+        result = HartaPipelineResult(
+            mapping=HartaMappingResult(),
+            worksheet_rows=[
+                self._row("EVY BACHTIAR"),
+                self._row("LISA VINATALIA"),
+            ],
+            current_year=2025,
+            npwp="1234567890123456",
+        )
+        self.page.load_harta_preview(result)
+
+        self.assertEqual(self.page.audit_wp_name_value.text(), "Belum terdeteksi")
+
     def test_clear_resets_audit_identity(self):
         result = HartaPipelineResult(
             mapping=HartaMappingResult(),
