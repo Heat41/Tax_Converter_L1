@@ -13,6 +13,7 @@ class HartaPipelineResult:
     worksheet_rows: List[WorksheetHartaRow] = field(default_factory=list)
     current_year: Optional[int] = None
     npwp: Optional[str] = None
+    nama_wp: Optional[str] = None
     errors: List[str] = field(default_factory=list)
 
     @property
@@ -42,6 +43,7 @@ class HartaPreviewPipeline:
         result = HartaPipelineResult(mapping=mapping)
         result.current_year = self._infer_tax_year(batch)
         result.npwp = self._infer_npwp(batch)
+        result.nama_wp = self._infer_nama_wp(batch)
 
         if mapping.errors:
             result.errors.extend(mapping.errors)
@@ -52,6 +54,9 @@ class HartaPreviewPipeline:
         except Exception as exc:
             result.errors.append(str(exc))
             return result
+
+        if not result.nama_wp:
+            result.nama_wp = self._infer_unique_owner_name(result.worksheet_rows)
 
         return result
 
@@ -105,6 +110,50 @@ class HartaPreviewPipeline:
                 digits = re.sub(r"\D", "", str(row[npwp_index] or ""))
                 if digits:
                     return digits
+        return None
+
+    @staticmethod
+    def _infer_nama_wp(batch: BatchImportResult) -> Optional[str]:
+        """Ambil Nama WP hanya dari kolom identitas yang eksplisit bila tersedia."""
+        candidates = (
+            "nama wajib pajak",
+            "nama wp",
+            "nama taxpayer",
+            "taxpayer name",
+        )
+        for category_result in batch.category_results.values():
+            read_result = category_result.read_result
+            if read_result is None:
+                continue
+
+            headers = [HartaPreviewPipeline._norm_header(h) for h in read_result.headers]
+            name_index = None
+            for candidate in candidates:
+                if candidate in headers:
+                    name_index = headers.index(candidate)
+                    break
+            if name_index is None:
+                continue
+
+            for row in read_result.rows:
+                if name_index >= len(row):
+                    continue
+                value = " ".join(str(row[name_index] or "").strip().split())
+                if value:
+                    return value
+        return None
+
+    @staticmethod
+    def _infer_unique_owner_name(rows: List[WorksheetHartaRow]) -> Optional[str]:
+        """Fallback konservatif: pakai ATAS NAMA hanya jika seluruh nama konsisten."""
+        unique = {}
+        for row in rows:
+            name = " ".join(str(row.atas_nama or "").strip().split())
+            if not name:
+                continue
+            unique.setdefault(name.casefold(), name)
+        if len(unique) == 1:
+            return next(iter(unique.values()))
         return None
 
     @staticmethod
