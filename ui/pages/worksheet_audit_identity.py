@@ -1,5 +1,6 @@
 from PySide6.QtWidgets import QGridLayout, QLabel, QWidget
 
+from core.pipeline.harta_pipeline import HartaPreviewPipeline
 from ui.pages.worksheet_page_view import WorksheetPage as BaseWorksheetPage
 
 
@@ -7,8 +8,9 @@ class WorksheetPage(BaseWorksheetPage):
     """Tambahkan identitas WP pada tab Riwayat Audit.
 
     Identitas utama memakai Nama WP dari pipeline bila tersedia. Jika file
-    produksi tidak menyediakan kolom Nama Wajib Pajak, fallback hanya memakai
-    ATAS NAMA ketika seluruh Original Import memiliki satu nama yang konsisten.
+    produksi tidak menyediakan kolom Nama Wajib Pajak, fallback memakai
+    normalisasi konservatif ATAS NAMA agar variasi gelar tidak dianggap sebagai
+    Wajib Pajak yang berbeda.
     """
 
     def __init__(self, parent=None):
@@ -54,14 +56,10 @@ class WorksheetPage(BaseWorksheetPage):
         if explicit_name:
             return " ".join(str(explicit_name).strip().split())
 
-        unique = {}
-        for row in self.harta_original_rows:
-            name = " ".join(str(getattr(row, "atas_nama", "") or "").strip().split())
-            if name:
-                unique.setdefault(name.casefold(), name)
-        if len(unique) == 1:
-            return next(iter(unique.values()))
-        return "Belum terdeteksi"
+        inferred = HartaPreviewPipeline._infer_unique_owner_name(
+            list(self.harta_original_rows)
+        )
+        return inferred or "Belum terdeteksi"
 
     def _update_audit_identity(self):
         if not hasattr(self, "audit_wp_name_value"):
