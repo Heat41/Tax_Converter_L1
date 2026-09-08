@@ -1,6 +1,11 @@
 from PySide6.QtCore import Signal
 from PySide6.QtWidgets import QMessageBox
 
+from ui.performance import (
+    optimize_scroll_area,
+    optimize_table_interaction,
+    suspended_updates,
+)
 from ui.pages.import_coretax_page import ImportCoretaxPage as BaseImportCoretaxPage
 
 
@@ -9,10 +14,57 @@ class ImportCoretaxPage(BaseImportCoretaxPage):
 
     Selain styling state, halaman ini memancarkan hasil preview Harta agar
     halaman Worksheet dapat memakai hasil pipeline yang sama tanpa menghitung
-    ulang data Coretax.
+    ulang data Coretax. Tabel interaktif memakai geometri stabil dan scroll
+    per-pixel untuk menjaga performa pada mode windowed.
     """
 
     harta_preview_changed = Signal(object)
+
+    VALIDATION_COLUMN_WIDTHS = {
+        0: 165,
+        1: 300,
+        2: 90,
+        3: 70,
+        4: 300,
+    }
+
+    PREVIEW_COLUMN_WIDTHS = {
+        0: 55,
+        1: 95,
+        2: 85,
+        3: 230,
+        4: 235,
+        5: 155,
+        6: 145,
+        7: 105,
+        8: 135,
+        9: 135,
+    }
+
+    def __init__(self, parent=None):
+        super().__init__(parent)
+        self._optimize_interactive_ui()
+
+    def _optimize_interactive_ui(self):
+        """Optimasi seluruh area scroll/tabel yang sering berinteraksi dengan user."""
+        optimize_scroll_area(self.scroll_area, vertical_step=26)
+
+        optimize_table_interaction(
+            self.table,
+            column_widths=self.VALIDATION_COLUMN_WIDTHS,
+            row_height=36,
+            horizontal_step=18,
+            vertical_step=18,
+            stretch_column=4,
+        )
+
+        optimize_table_interaction(
+            self.worksheet_table,
+            column_widths=self.PREVIEW_COLUMN_WIDTHS,
+            row_height=34,
+            horizontal_step=18,
+            vertical_step=18,
+        )
 
     @staticmethod
     def _set_info_emphasis(label, active: bool) -> None:
@@ -80,20 +132,26 @@ class ImportCoretaxPage(BaseImportCoretaxPage):
             self.harta_preview_changed.emit(None)
 
     def _render_result(self, result):
-        super()._render_result(result)
+        # Hindari repaint per-sel ketika hasil validasi diganti sekaligus.
+        with suspended_updates(self.table):
+            super()._render_result(result)
         self._set_info_emphasis(self.preview_info, self.table.rowCount() > 0)
 
     def _render_worksheet_preview(self, result):
-        super()._render_worksheet_preview(result)
+        # Preview bisa bertambah besar; isi tabel secara batch tanpa repaint per-sel.
+        with suspended_updates(self.worksheet_table):
+            super()._render_worksheet_preview(result)
         self._set_info_emphasis(
             self.worksheet_info,
             self.worksheet_table.rowCount() > 0,
         )
 
     def _reset_result_ui(self):
-        super()._reset_result_ui()
+        with suspended_updates(self.table):
+            super()._reset_result_ui()
         self._set_info_emphasis(self.preview_info, False)
 
     def _reset_worksheet_preview(self):
-        super()._reset_worksheet_preview()
+        with suspended_updates(self.worksheet_table):
+            super()._reset_worksheet_preview()
         self._set_info_emphasis(self.worksheet_info, False)
