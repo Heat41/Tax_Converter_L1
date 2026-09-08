@@ -136,11 +136,14 @@ class WorksheetPage(BaseWorksheetPage):
     def _cell_changed_from_original(self, row_index: int, column_index: int) -> bool:
         if row_index < 0 or row_index >= len(self.harta_current_rows):
             return False
+        if column_index == 0:
+            # NO adalah nomor urut tampilan, bukan data koreksi/audit.
+            return False
 
         original_index = self._original_index_for_current(row_index)
         if original_index is None:
             # Baris manual baru ditandai seluruh kolom editable-nya.
-            return column_index > 0
+            return True
         if original_index < 0 or original_index >= len(self.harta_original_rows):
             return True
 
