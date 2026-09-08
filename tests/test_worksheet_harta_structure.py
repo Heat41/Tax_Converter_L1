@@ -136,7 +136,7 @@ class TestWorksheetHartaStructure(unittest.TestCase):
         self.assertFalse(self.page.save_harta_button.isEnabled())
         self.assertTrue(self.page.reset_harta_button.isEnabled())
         self.assertEqual(self.page._count_added_rows(), 1)
-        self.assertIn("tersimpan pada sesi worksheet", self.page.harta_status.text())
+        self.assertIn("perubahan tersimpan", self.page.harta_status.text())
 
 
 if __name__ == "__main__":
