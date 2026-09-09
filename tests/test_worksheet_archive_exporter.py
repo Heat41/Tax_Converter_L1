@@ -2,9 +2,11 @@ from __future__ import annotations
 
 from pathlib import Path
 
+from openpyxl import load_workbook
+
 from core.finalization import FinalizationInput
 from core.mapping.worksheet_harta_mapper import WorksheetHartaRow
-from core.worksheet_archive_exporter import WorksheetArchiveExporter
+from core.worksheet_archive_exporter_styled import StyledWorksheetArchiveExporter
 from core.worksheet_pph_state import WorksheetBupotRow
 from core.worksheet_workbook_generic import GenericWorksheetWorkbookImporter
 
@@ -73,12 +75,19 @@ def _input(*, dirty=False):
 
 def test_export_excel_is_round_trip_compatible(tmp_path: Path):
     path = tmp_path / "arsip.xlsx"
-    result = WorksheetArchiveExporter().export_excel(_input(), path)
+    result = StyledWorksheetArchiveExporter().export_excel(_input(), path)
 
     assert result.output_path == path
     assert path.exists()
     assert result.bupot_count == 1
     assert result.harta_count == 1
+
+    wb = load_workbook(path)
+    assert "TblBupotArsip" in wb["2025"].tables
+    assert "TblUmkmArsip" in wb["2025"].tables
+    assert "TblHartaArsip" in wb["SIMULASI I"].tables
+    assert wb["2025"].sheet_view.showGridLines is False
+    assert wb["SIMULASI I"].sheet_view.showGridLines is False
 
     imported = GenericWorksheetWorkbookImporter().parse(path)
     assert imported.is_valid
@@ -93,7 +102,7 @@ def test_export_excel_is_round_trip_compatible(tmp_path: Path):
 
 def test_export_is_blocked_when_saved_state_is_dirty(tmp_path: Path):
     try:
-        WorksheetArchiveExporter().export_excel(_input(dirty=True), tmp_path / "dirty.xlsx")
+        StyledWorksheetArchiveExporter().export_excel(_input(dirty=True), tmp_path / "dirty.xlsx")
     except ValueError as exc:
         assert "Simpan perubahan" in str(exc)
     else:
