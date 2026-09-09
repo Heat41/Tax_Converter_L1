@@ -1,6 +1,9 @@
-from PySide6.QtCore import Signal
-from PySide6.QtWidgets import QMessageBox
+from pathlib import Path
 
+from PySide6.QtCore import Signal
+from PySide6.QtWidgets import QFileDialog, QMessageBox, QPushButton
+
+from core.worksheet_workbook_importer import WorksheetWorkbookImporter
 from ui.performance import (
     optimize_scroll_area,
     optimize_table_interaction,
@@ -14,11 +17,12 @@ class ImportCoretaxPage(BaseImportCoretaxPage):
 
     Selain styling state, halaman ini memancarkan hasil preview Harta agar
     halaman Worksheet dapat memakai hasil pipeline yang sama tanpa menghitung
-    ulang data Coretax. Tabel interaktif memakai geometri stabil dan scroll
-    per-pixel untuk menjaga performa pada mode windowed.
+    ulang data Coretax. Stage 8B.1 juga menambahkan jalur impor Kertas Kerja
+    yang sudah dikerjakan di luar aplikasi.
     """
 
     harta_preview_changed = Signal(object)
+    worksheet_workbook_imported = Signal(object)
 
     VALIDATION_COLUMN_WIDTHS = {
         0: 165,
@@ -43,7 +47,103 @@ class ImportCoretaxPage(BaseImportCoretaxPage):
 
     def __init__(self, parent=None):
         super().__init__(parent)
+        self.worksheet_workbook_importer = WorksheetWorkbookImporter()
+        self._install_worksheet_import_action()
         self._optimize_interactive_ui()
+
+    def _install_worksheet_import_action(self):
+        self.import_worksheet_button = QPushButton("📘 Impor Kertas Kerja yang Sudah Terisi")
+        self.import_worksheet_button.setObjectName("secondaryButton")
+        self.import_worksheet_button.setMinimumHeight(38)
+        self.import_worksheet_button.setToolTip(
+            "Impor workbook kertas kerja kantor (sheet tahun + SIMULASI I) agar pekerjaan yang sudah dilakukan di Excel tidak perlu diinput ulang."
+        )
+        self.import_worksheet_button.clicked.connect(self.choose_worksheet_workbook)
+
+        parent = self.validate_button.parentWidget()
+        if parent is not None and parent.layout() is not None:
+            parent.layout().addWidget(self.import_worksheet_button)
+
+    def choose_worksheet_workbook(self):
+        file_path, _ = QFileDialog.getOpenFileName(
+            self,
+            "Pilih Kertas Kerja yang Sudah Terisi",
+            "",
+            "Kertas Kerja Excel (*.xlsx *.xls);;Semua File (*.*)",
+        )
+        if not file_path:
+            return
+
+        self.status_label.setText("Membaca kertas kerja yang sudah terisi...")
+        self.progress.setVisible(True)
+        self.progress.setValue(25)
+        try:
+            result = self.worksheet_workbook_importer.parse(Path(file_path))
+        except Exception as exc:
+            self.progress.setVisible(False)
+            self.status_label.setText(f"Gagal membaca kertas kerja: {exc}")
+            QMessageBox.critical(self, "Import Kertas Kerja Gagal", str(exc))
+            return
+
+        if result.errors:
+            self.progress.setVisible(False)
+            self.status_label.setText("Kertas kerja tidak dapat diimpor karena struktur/identitas belum valid.")
+            QMessageBox.warning(
+                self,
+                "Kertas Kerja Belum Valid",
+                "\n".join(f"• {issue.message}" for issue in result.errors),
+            )
+            return
+
+        try:
+            exists = self.worksheet_workbook_importer.has_existing_state(result)
+        except Exception:
+            exists = False
+
+        if exists:
+            answer = QMessageBox.question(
+                self,
+                "Worksheet Sudah Ada",
+                f"Worksheet NPWP {result.npwp} Tahun {result.tahun_pajak} sudah memiliki data tersimpan.\n\n"
+                "Impor kertas kerja ini akan mengganti state Penghasilan/PPh untuk WP dan tahun tersebut. "
+                "Harta menggunakan isi SIMULASI I sebagai baseline import.\n\nLanjutkan?",
+                QMessageBox.Yes | QMessageBox.No,
+                QMessageBox.No,
+            )
+            if answer != QMessageBox.Yes:
+                self.progress.setVisible(False)
+                self.status_label.setText("Impor kertas kerja dibatalkan.")
+                return
+
+        self.progress.setValue(70)
+        try:
+            self.worksheet_workbook_importer.persist(result)
+        except Exception as exc:
+            self.progress.setVisible(False)
+            self.status_label.setText(f"Gagal menyimpan hasil import kertas kerja: {exc}")
+            QMessageBox.critical(self, "Penyimpanan Gagal", str(exc))
+            return
+
+        self.progress.setValue(100)
+        warning_text = ""
+        if result.warnings:
+            warning_text = "\n\nCatatan:\n" + "\n".join(
+                f"• {issue.message}" for issue in result.warnings
+            )
+
+        self.status_label.setText(
+            f"Kertas kerja berhasil diimpor: {result.nama_wp or 'WP'} • Tahun {result.tahun_pajak} • "
+            f"{len(result.bupot_rows)} Bupot • {len(result.harta_rows)} Harta."
+        )
+        QMessageBox.information(
+            self,
+            "Import Kertas Kerja Berhasil",
+            f"Data kertas kerja berhasil masuk ke Worksheet aplikasi.\n\n"
+            f"Nama: {result.nama_wp or '-'}\nNPWP: {result.npwp}\nTahun: {result.tahun_pajak}\n"
+            f"Bupot: {len(result.bupot_rows)} baris\nHarta: {len(result.harta_rows)} baris"
+            f"{warning_text}",
+        )
+        self.worksheet_workbook_imported.emit(result)
 
     def _optimize_interactive_ui(self):
         """Optimasi seluruh area scroll/tabel yang sering berinteraksi dengan user."""
@@ -74,7 +174,6 @@ class ImportCoretaxPage(BaseImportCoretaxPage):
 
     def set_files(self, files):
         super().set_files(files)
-        # Pemilihan sumber baru membuat preview lama tidak lagi relevan.
         self.harta_preview_changed.emit(None)
 
     def clear_selection(self):
@@ -82,7 +181,6 @@ class ImportCoretaxPage(BaseImportCoretaxPage):
         self.harta_preview_changed.emit(None)
 
     def validate_all(self):
-        # Saat validasi ulang dimulai, kosongkan sinkronisasi preview lama.
         self.harta_preview_changed.emit(None)
         super().validate_all()
 
@@ -90,8 +188,6 @@ class ImportCoretaxPage(BaseImportCoretaxPage):
         if result is None:
             return
 
-        # File template/NIHIL boleh lolos validasi struktur, tetapi tidak punya
-        # baris harta untuk dibentuk menjadi preview SIMULASI I.
         if result.total_rows == 0:
             self.preview_button.setEnabled(False)
             self.export_button.setEnabled(False)
@@ -132,13 +228,11 @@ class ImportCoretaxPage(BaseImportCoretaxPage):
             self.harta_preview_changed.emit(None)
 
     def _render_result(self, result):
-        # Hindari repaint per-sel ketika hasil validasi diganti sekaligus.
         with suspended_updates(self.table):
             super()._render_result(result)
         self._set_info_emphasis(self.preview_info, self.table.rowCount() > 0)
 
     def _render_worksheet_preview(self, result):
-        # Preview bisa bertambah besar; isi tabel secara batch tanpa repaint per-sel.
         with suspended_updates(self.worksheet_table):
             super()._render_worksheet_preview(result)
         self._set_info_emphasis(
