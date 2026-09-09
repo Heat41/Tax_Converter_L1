@@ -7,7 +7,7 @@ from PySide6.QtGui import QGuiApplication
 
 from core.finalization import FinalizationInput
 from core.mapping.worksheet_harta_mapper import WorksheetHartaRow
-from core.worksheet_archive_exporter_styled import StyledWorksheetArchiveExporter
+from core.worksheet_archive_exporter_polished import PolishedWorksheetArchiveExporter
 
 
 class _Analysis:
@@ -26,7 +26,7 @@ def _input():
                 nomor=1,
                 kode_eform="014",
                 kode_ct="0104",
-                nama_harta="Deposito",
+                nama_harta="Obligasi pemerintah Indonesia dengan nama aset yang cukup panjang untuk menguji wrapping PDF",
                 nomor_akun_keterangan="123",
                 atas_nama="WP PDF TEST",
                 nama_bank="BANK TEST",
@@ -54,7 +54,7 @@ def test_export_pdf_archive(tmp_path: Path):
         app = QGuiApplication([sys.argv[0]])
     try:
         path = tmp_path / "arsip.pdf"
-        result = StyledWorksheetArchiveExporter().export_pdf(_input(), path)
+        result = PolishedWorksheetArchiveExporter().export_pdf(_input(), path)
         assert result.output_path == path
         assert path.exists()
         assert path.stat().st_size > 1000
