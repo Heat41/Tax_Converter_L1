@@ -10,7 +10,7 @@ from core.legacy_pdf_template import Legacy1770TemplateManager
 class _TemplateManager(Legacy1770TemplateManager):
     @staticmethod
     def _page_count(path: Path) -> int:
-        return 16
+        return 6
 
 
 class TestLegacy1770TemplateManager(unittest.TestCase):
@@ -23,13 +23,13 @@ class TestLegacy1770TemplateManager(unittest.TestCase):
 
     def test_valid_template_can_be_copied_without_modifying_source(self):
         with tempfile.TemporaryDirectory() as tmp:
-            source = Path(tmp) / "1770_blank.pdf"
+            source = Path(tmp) / "1770_master.pdf"
             source.write_bytes(b"%PDF-FAKE-STAGE8C")
             manager = _TemplateManager(source)
 
             info = manager.require_ready()
             self.assertTrue(info.exists)
-            self.assertEqual(info.page_count, 16)
+            self.assertEqual(info.page_count, 6)
             self.assertTrue(info.sha256)
 
             target = Path(tmp) / "work" / "copy.pdf"
@@ -37,10 +37,14 @@ class TestLegacy1770TemplateManager(unittest.TestCase):
             self.assertEqual(target.read_bytes(), source.read_bytes())
             self.assertEqual(source.read_bytes(), b"%PDF-FAKE-STAGE8C")
 
-    def test_indonesian_export_pages_are_locked(self):
+    def test_export_pages_are_locked_to_six_page_master(self):
+        self.assertEqual(
+            Legacy1770TemplateManager.EXPORT_PAGES,
+            (1, 2, 3, 4, 5, 6),
+        )
         self.assertEqual(
             Legacy1770TemplateManager.INDONESIAN_EXPORT_PAGES,
-            (10, 12, 13, 14, 15),
+            (1, 2, 3, 4, 5, 6),
         )
 
 
