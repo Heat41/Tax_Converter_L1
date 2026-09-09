@@ -3,7 +3,7 @@ from pathlib import Path
 from PySide6.QtCore import Signal
 from PySide6.QtWidgets import QCheckBox, QFileDialog, QMessageBox, QPushButton
 
-from core.worksheet_workbook_importer_evy import WorksheetWorkbookImporter
+from core.worksheet_workbook_generic import GenericWorksheetWorkbookImporter
 from ui.performance import (
     optimize_scroll_area,
     optimize_table_interaction,
@@ -47,7 +47,7 @@ class ImportCoretaxPage(BaseImportCoretaxPage):
 
     def __init__(self, parent=None):
         super().__init__(parent)
-        self.worksheet_workbook_importer = WorksheetWorkbookImporter()
+        self.worksheet_workbook_importer = GenericWorksheetWorkbookImporter()
         self._install_worksheet_import_action()
         self._optimize_interactive_ui()
 
@@ -63,7 +63,7 @@ class ImportCoretaxPage(BaseImportCoretaxPage):
         self.import_bupot_checkbox = QCheckBox("Impor Bupot dari sheet tahun secara otomatis")
         self.import_bupot_checkbox.setChecked(True)
         self.import_bupot_checkbox.setToolTip(
-            "Jika aktif, seluruh Bupot yang terbaca pada sheet tahun (mis. 2025) ikut masuk ke tab Penghasilan & PPh."
+            "Jika aktif, seluruh Bupot yang terbaca pada sheet tahun ikut masuk ke tab Penghasilan & PPh."
         )
 
         parent = self.validate_button.parentWidget()
@@ -171,7 +171,6 @@ class ImportCoretaxPage(BaseImportCoretaxPage):
         self.worksheet_workbook_imported.emit(result)
 
     def _optimize_interactive_ui(self):
-        """Optimasi seluruh area scroll/tabel yang sering berinteraksi dengan user."""
         optimize_scroll_area(self.scroll_area, vertical_step=26)
 
         optimize_table_interaction(
