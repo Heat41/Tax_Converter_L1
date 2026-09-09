@@ -171,7 +171,12 @@ class WorksheetWorkbookImporter:
             return False
         return self.pph_store.load(result.npwp, result.tahun_pajak) is not None
 
-    def persist(self, result: WorksheetWorkbookImportResult) -> None:
+    def persist(
+        self,
+        result: WorksheetWorkbookImportResult,
+        *,
+        include_bupot: bool = True,
+    ) -> None:
         if not result.is_valid:
             raise ValueError("Hasil import kertas kerja belum valid.")
 
@@ -185,10 +190,15 @@ class WorksheetWorkbookImporter:
                 origin_indices=origins,
             )
 
+        bupot_rows = list(result.bupot_rows)
+        if not include_bupot:
+            existing = self.pph_store.load(result.npwp, result.tahun_pajak)
+            bupot_rows = list(existing.bupot_rows) if existing is not None else []
+
         self.pph_store.save(
             npwp=result.npwp,
             tahun_pajak=result.tahun_pajak,
-            bupot_rows=result.bupot_rows,
+            bupot_rows=bupot_rows,
             components=result.pph_components,
         )
 
@@ -223,30 +233,26 @@ class WorksheetWorkbookImporter:
             setattr(result, attr, value)
 
     def _parse_simulasi_identity(self, df, result):
-        identity = {}
-        for label in ("NAMA :", "NPWP :", "NAMA", "NPWP"):
-            row = self._find_label_row(df, label, columns=(0, 1))
-            if row is None:
-                continue
-            key = "npwp" if "npwp" in label.casefold() else "nama_wp"
-            for col in range(1, min(df.shape[1], 6)):
-                value = self._text(df.iat[row, col])
-                if value and value != ":":
-                    identity[key] = self._digits(value) if key == "npwp" else value
-                    break
-
-        if identity.get("npwp") and result.npwp and identity["npwp"] != result.npwp:
-            result.issues.append(WorksheetWorkbookImportIssue("WKI_006", "ERROR", "NPWP sheet tahun berbeda dengan NPWP SIMULASI I."))
-        elif identity.get("npwp") and not result.npwp:
-            result.npwp = identity["npwp"]
-        if identity.get("nama_wp") and not result.nama_wp:
-            result.nama_wp = identity["nama_wp"]
+        for row in range(min(len(df), 12)):
+            label = self._label(df.iat[row, 0]) if df.shape[1] else ""
+            if "nama" in label and not result.nama_wp:
+                for col in range(1, min(df.shape[1], 6)):
+                    value = self._text(df.iat[row, col])
+                    if value and value != ":":
+                        result.nama_wp = value
+                        break
+            if "npwp" in label and not result.npwp:
+                for col in range(1, min(df.shape[1], 6)):
+                    value = self._digits(df.iat[row, col])
+                    if value:
+                        result.npwp = value
+                        break
 
     def _parse_bupot(self, df, result):
         header_row = None
         for row in range(len(df)):
-            values = [self._label(df.iat[row, col]) if col < df.shape[1] else "" for col in range(min(df.shape[1], 10))]
-            if "jenis" in values and "npwp pemberi kerja" in values and "no bupot" in values and "bruto" in values:
+            labels = [self._label(df.iat[row, col]) for col in range(min(df.shape[1], 10))]
+            if "jenis" in labels and "npwp pemberi kerja" in labels and "no bupot" in labels:
                 header_row = row
                 break
         if header_row is None:
@@ -388,37 +394,32 @@ class WorksheetWorkbookImporter:
 
         for row in range(header_row + 1, len(df)):
             marker = self._label(df.iat[row, 0]) if df.shape[1] else ""
-            if marker in {"total harta", "utang", "total"}:
-                if marker == "total harta":
-                    break
-            kode_ct = self._text(df.iat[row, headers["kode ct"]])
-            nama = self._text(df.iat[row, headers["nama harta"]])
-            if not kode_ct and not nama:
+            if marker.startswith("total harta") or marker == "utang":
+                break
+            code_ct = self._text(df.iat[row, headers["kode ct"]])
+            name = self._text(df.iat[row, headers["nama harta"]])
+            if not code_ct and not name:
                 continue
-            kode_eform = self._text(df.iat[row, headers.get("kode eform", -1)]) if "kode eform" in headers else ""
-            if not kode_eform:
-                kode_eform = CORETAX_TO_EFORM.get(kode_ct, "")
-            try:
-                tahun = int(self._number(df.iat[row, headers["th perolehan"]], default=result.tahun_pajak))
-            except (TypeError, ValueError):
-                tahun = result.tahun_pajak
+            code_eform = self._text(df.iat[row, headers.get("kode eform", -1)]) if "kode eform" in headers else ""
+            if not code_eform:
+                code_eform = CORETAX_TO_EFORM.get(code_ct, "")
             result.harta_rows.append(
                 WorksheetHartaRow(
                     nomor=len(result.harta_rows) + 1,
-                    kode_eform=kode_eform,
-                    kode_ct=kode_ct,
-                    nama_harta=nama,
+                    kode_eform=code_eform,
+                    kode_ct=code_ct,
+                    nama_harta=name,
                     nomor_akun_keterangan=self._text(df.iat[row, headers.get("nomor akun / keterangan", -1)]) if "nomor akun / keterangan" in headers else "",
                     atas_nama=self._text(df.iat[row, headers.get("atas nama", -1)]) if "atas nama" in headers else "",
                     nama_bank=self._text(df.iat[row, headers.get("nama bank", -1)]) if "nama bank" in headers else "",
-                    tahun_perolehan=tahun,
+                    tahun_perolehan=int(self._number(df.iat[row, headers["th perolehan"]], default=result.tahun_pajak) or result.tahun_pajak),
                     nilai_tahun_sebelumnya=self._number(df.iat[row, headers[previous_name]]),
                     nilai_tahun_berjalan=self._number(df.iat[row, headers[current_name]]),
                 )
             )
 
     def _parse_reconciliation(self, df, result):
-        manual = {
+        state = {
             "utang_sebelumnya": 0.0,
             "utang_berjalan": 0.0,
             "pengeluaran_lain_lain": 0.0,
@@ -427,38 +428,41 @@ class WorksheetWorkbookImporter:
             "harta_baru_dari_kredit": 0.0,
             "penambahan_penghasilan_bruto_umkm": 0.0,
             "margin_usaha": 0.0,
+            "harta_sebelumnya_override": 0.0,
         }
 
-        utang_row = self._find_label_row(df, "UTANG", columns=(0, 1))
+        utang_row = self._find_label_row(df, "UTANG", columns=(0, 1, 2))
         if utang_row is not None:
-            total_row = self._find_label_after(df, "TOTAL", utang_row + 1)
-            if total_row is not None and df.shape[1] > 9:
-                manual["utang_sebelumnya"] = self._number(df.iat[total_row, 8])
-                manual["utang_berjalan"] = self._number(df.iat[total_row, 9])
+            total_row = None
+            for row in range(utang_row + 1, min(len(df), utang_row + 12)):
+                if self._label(df.iat[row, 0]) == "total":
+                    total_row = row
+                    break
+            if total_row is not None:
+                if df.shape[1] > 8:
+                    state["utang_sebelumnya"] = self._number(df.iat[total_row, 8])
+                if df.shape[1] > 9:
+                    state["utang_berjalan"] = self._number(df.iat[total_row, 9])
 
-        mapping = {
-            "Pengeluaran lain-lain": "pengeluaran_lain_lain",
-            "Kerugian (keuntungan) penjualan aset": "kerugian_keuntungan_penjualan_aset",
-            "Utang baru atas kredit": "utang_baru_atas_kredit",
-            "Harta baru dari kredit": "harta_baru_dari_kredit",
-            "Penambahan Penghasilan Bruto UMKM": "penambahan_penghasilan_bruto_umkm",
-            "Margin Usaha": "margin_usaha",
+        label_map = {
+            "pengeluaran lain-lain": "pengeluaran_lain_lain",
+            "kerugian (keuntungan) penjualan aset": "kerugian_keuntungan_penjualan_aset",
+            "utang baru atas kredit": "utang_baru_atas_kredit",
+            "harta baru dari kredit": "harta_baru_dari_kredit",
+            "penambahan penghasilan bruto umkm": "penambahan_penghasilan_bruto_umkm",
+            "margin usaha": "margin_usaha",
         }
-        for label, key in mapping.items():
-            row = self._find_label_row(df, label, columns=(0, 1, 2))
-            if row is None or df.shape[1] <= 9:
-                continue
-            value = self._number(df.iat[row, 9])
-            if key == "margin_usaha" and value > 1:
-                value /= 100.0
-            manual[key] = value
+        for row in range(len(df)):
+            labels = [self._label(df.iat[row, col]) for col in range(min(df.shape[1], 3))]
+            for label, key in label_map.items():
+                if label in labels:
+                    value = 0.0
+                    for col in (9, 10, 8, 7, 6):
+                        if col < df.shape[1]:
+                            candidate = df.iat[row, col]
+                            if not pd.isna(candidate) and candidate != "":
+                                value = self._number(candidate)
+                                break
+                    state[key] = value
 
-        result.pph_components["evy_reconciliation"] = manual
-
-    def _find_label_after(self, df, label: str, start_row: int) -> Optional[int]:
-        target = self._label(label)
-        for row in range(start_row, len(df)):
-            for col in range(min(df.shape[1], 3)):
-                if self._label(df.iat[row, col]) == target:
-                    return row
-        return None
+        result.pph_components["evy_reconciliation"] = state
