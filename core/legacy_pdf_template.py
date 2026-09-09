@@ -7,12 +7,13 @@ from pathlib import Path
 from typing import Optional
 
 
+MASTER_TEMPLATE_FILENAME = "01A_SPT OP_Form_1770_Per_19_PJ_2014.pdf"
 DEFAULT_TEMPLATE_PATH = (
     Path(__file__).resolve().parents[1]
     / "resources"
     / "templates"
     / "1770"
-    / "1770_blank.pdf"
+    / MASTER_TEMPLATE_FILENAME
 )
 
 
@@ -26,24 +27,26 @@ class Legacy1770TemplateInfo:
 
     @property
     def is_ready(self) -> bool:
-        return self.exists and self.size_bytes > 0 and self.page_count >= 15
+        return self.exists and self.size_bytes > 0 and self.page_count == 6
 
 
 class Legacy1770TemplateManager:
-    """Stage 8C.1 - pengelola template PDF 1770 resmi.
+    """Pengelola master visual Form 1770 lama untuk Stage 8C.
 
-    Template sumber tidak pernah dimodifikasi. Exporter harus bekerja pada salinan
-    sehingga satu template dapat dipakai berulang untuk banyak WP/tahun pajak.
+    Master produksi sekarang memakai file 6 halaman Bahasa Indonesia:
+      1 = Induk
+      2 = Lampiran I halaman 1
+      3 = Lampiran I halaman 2
+      4 = Lampiran II
+      5 = Lampiran III
+      6 = Lampiran IV
 
-    Nomor halaman PDF menggunakan basis 1 untuk metadata bisnis:
-      10 = Induk Bahasa Indonesia
-      12 = Lampiran I halaman 2
-      13 = Lampiran II
-      14 = Lampiran III
-      15 = Lampiran IV
+    File sumber tidak pernah dimodifikasi langsung. Exporter bekerja pada salinan
+    dan menghasilkan PDF statis/flattened tanpa fitur interaktif.
     """
 
-    INDONESIAN_EXPORT_PAGES = (10, 12, 13, 14, 15)
+    EXPORT_PAGES = (1, 2, 3, 4, 5, 6)
+    INDONESIAN_EXPORT_PAGES = EXPORT_PAGES  # compatibility untuk kode lama
 
     def __init__(self, template_path: Optional[str | Path] = None):
         self.template_path = Path(template_path or DEFAULT_TEMPLATE_PATH)
@@ -67,13 +70,13 @@ class Legacy1770TemplateManager:
         info = self.inspect()
         if not info.exists:
             raise FileNotFoundError(
-                "Template 1770 kosong belum tersedia. Simpan PDF resmi sebagai: "
+                "Master template 1770 enam halaman belum tersedia. Pasang file sebagai: "
                 f"{info.path}"
             )
-        if info.page_count < 15:
+        if info.page_count != 6:
             raise ValueError(
-                "Template 1770 tidak sesuai: minimal harus memiliki 15 halaman "
-                "agar halaman Bahasa Indonesia Induk sampai Lampiran IV tersedia."
+                "Master template 1770 tidak sesuai: file produksi harus tepat 6 halaman "
+                "Bahasa Indonesia (Induk, Lampiran I halaman 1-2, II, III, IV)."
             )
         return info
 
