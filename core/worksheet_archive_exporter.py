@@ -7,7 +7,7 @@ from typing import Any, Iterable
 from openpyxl import Workbook
 from openpyxl.styles import Alignment, Font, PatternFill
 from openpyxl.utils import get_column_letter
-from PySide6.QtCore import QRectF
+from PySide6.QtCore import QMarginsF, QRectF
 from PySide6.QtGui import QFont, QPainter, QPageLayout, QPageSize, QPdfWriter
 
 from core.finalization import FinalizationInput
@@ -75,7 +75,7 @@ class WorksheetArchiveExporter:
         writer = QPdfWriter(str(path))
         writer.setPageSize(QPageSize(QPageSize.A4))
         writer.setResolution(96)
-        writer.setPageMargins((10, 10, 10, 10), QPageLayout.Millimeter)
+        writer.setPageMargins(QMarginsF(10, 10, 10, 10), QPageLayout.Millimeter)
         writer.setTitle(f"Kertas Kerja SPT Tahunan {data.tahun_pajak} - {data.nama_wp}")
         writer.setCreator("TAX_CONVERTER L-1")
 
