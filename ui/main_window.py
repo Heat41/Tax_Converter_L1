@@ -20,6 +20,7 @@ from config.settings import APP_NAME, APP_VERSION
 from ui.performance import optimize_table_interaction, suspended_updates
 from ui.theme import APP_FONT
 from ui.theme_manager import apply_theme, get_saved_theme
+from ui.pages.finalization_page import FinalizationPage
 from ui.pages.import_coretax_page_view import ImportCoretaxPage
 from ui.pages.settings_page import SettingsPage
 from ui.pages.worksheet_pph_stage7_fix import WorksheetPage
@@ -146,12 +147,7 @@ class MainWindow(QMainWindow):
 
         self.pages["import"] = import_page
         self.pages["worksheet"] = worksheet_page
-
-        self.pages["finalisasi"] = self._build_placeholder_page(
-            "Finalisasi",
-            "Halaman finalisasi akan digunakan untuk mengunci hasil dan membuat XML.",
-            "Proses finalisasi, validasi akhir, dan generator XML akan ditambahkan pada Stage 4.",
-        )
+        self.pages["finalisasi"] = FinalizationPage(worksheet_page)
 
         settings_page = SettingsPage(self.current_theme)
         settings_page.theme_changed.connect(self._change_theme)
@@ -321,6 +317,8 @@ class MainWindow(QMainWindow):
 
     def _show_page(self, page_key):
         page = self.pages[page_key]
+        if page_key == "finalisasi" and hasattr(page, "refresh_page"):
+            page.refresh_page()
         self.stack.setCurrentWidget(page)
         for key, button in self.nav_buttons.items():
             button.setProperty("active", key == page_key)
