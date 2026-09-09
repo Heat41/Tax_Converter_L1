@@ -86,8 +86,6 @@ class GenericWorksheetWorkbookImporter(WorksheetWorkbookImporter):
         return str(year)
 
     def parse(self, file_path):
-        # Base parser membutuhkan nama sheet persis tahun. Untuk variasi seperti
-        # "SPT 2025" kita normalisasi lewat pembacaan manual bila diperlukan.
         path = file_path
         try:
             excel = pd.ExcelFile(path)
@@ -101,8 +99,6 @@ class GenericWorksheetWorkbookImporter(WorksheetWorkbookImporter):
                 None,
             )
             if original_name is not None:
-                # pandas tidak menyediakan alias sheet; gunakan parser base-like
-                # dengan pemetaan sementara yang kecil dan eksplisit.
                 original_read_excel = pd.read_excel
 
                 def read_excel_with_alias(source, *args, **kwargs):
@@ -126,7 +122,6 @@ class GenericWorksheetWorkbookImporter(WorksheetWorkbookImporter):
         return super().parse(path)
 
     def _parse_identity(self, df, result):
-        # Tidak bergantung posisi kolom 0/1; cari label identitas pada area atas.
         max_rows = min(len(df), 25)
         max_cols = min(df.shape[1], 12)
         for row in range(max_rows):
@@ -143,7 +138,6 @@ class GenericWorksheetWorkbookImporter(WorksheetWorkbookImporter):
                     if candidate:
                         setattr(result, key, candidate)
                         break
-        # jangan menimpa identitas yang sudah berhasil terbaca
 
     def _candidate_header_blocks(self, df) -> Iterable[Tuple[int, Dict[str, int]]]:
         required = {"jenis", "npwp_pemberi_kerja", "no_bupot", "bruto", "pengurang"}
@@ -155,7 +149,6 @@ class GenericWorksheetWorkbookImporter(WorksheetWorkbookImporter):
             }
             anchor_cols = [col for col, key in canonical_by_col.items() if key == "jenis"]
             for anchor in anchor_cols:
-                # Header satu tabel biasanya berada dalam rentang <= 10 kolom.
                 window = range(max(0, anchor - 1), min(df.shape[1], anchor + 10))
                 mapping = {}
                 for col in window:
@@ -165,11 +158,22 @@ class GenericWorksheetWorkbookImporter(WorksheetWorkbookImporter):
                 if required.issubset(mapping):
                     yield row, mapping
 
+    def _bupot_row_is_terminator(self, df, row: int, headers: Dict[str, int]) -> bool:
+        """Deteksi akhir tabel pada area blok, termasuk kolom NO di sebelah kiri.
+
+        Sebagian template menaruh TOTAL pada kolom yang bukan salah satu header inti
+        Bupot. Karena itu pemeriksaan tidak boleh hanya dilakukan pada kolom
+        JENIS/NPWP/NO BUPOT/BRUTO/PENGURANG.
+        """
+        left = max(0, min(headers.values()) - 2)
+        right = min(df.shape[1], max(headers.values()) + 2)
+        labels = [self._label(df.iat[row, col]) for col in range(left, right)]
+        return any(label == "total" or label.startswith("total ") for label in labels)
+
     def _score_bupot_block(self, df, header_row: int, headers: Dict[str, int]) -> int:
         score = 0
         for row in range(header_row + 1, min(len(df), header_row + 80)):
-            labels = [self._label(df.iat[row, col]) for col in headers.values()]
-            if any(label == "total" or label.startswith("total ") for label in labels):
+            if self._bupot_row_is_terminator(df, row, headers):
                 break
             jenis = self._text(df.iat[row, headers["jenis"]])
             npwp = self._digits(df.iat[row, headers["npwp_pemberi_kerja"]])
@@ -211,8 +215,7 @@ class GenericWorksheetWorkbookImporter(WorksheetWorkbookImporter):
             return
 
         for row in range(header_row + 1, len(df)):
-            row_labels = [self._label(df.iat[row, col]) for col in headers.values()]
-            if any(label == "total" or label.startswith("total ") for label in row_labels):
+            if self._bupot_row_is_terminator(df, row, headers):
                 break
             jenis = self._text(df.iat[row, headers["jenis"]])
             npwp = self._digits(df.iat[row, headers["npwp_pemberi_kerja"]])
