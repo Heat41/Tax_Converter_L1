@@ -8,6 +8,7 @@ from core.seeder import seed_ref_kode_harta
 SCHEMA_FILE_PATH = Path(__file__).resolve().parent.parent / "sql" / "schema_sqlite.sql"
 EXTRA_SCHEMA_FILES = (
     Path(__file__).resolve().parent.parent / "sql" / "schema_pph_state.sql",
+    Path(__file__).resolve().parent.parent / "sql" / "schema_finalization.sql",
 )
 
 
