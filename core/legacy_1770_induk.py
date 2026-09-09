@@ -31,14 +31,12 @@ class IndukFieldMappingResult:
 
 
 class Legacy1770IndukService:
-    """Stage 8C.4 - mapping snapshot FINAL ke AcroForm Induk 1770 Indonesia.
+    """Stage 8C.4 - mapping snapshot FINAL ke bentuk statis Form 1770 lama.
 
-    Nilai mengikuti arti baris Form 1770 lama. File Lisa hanya menjadi acuan
-    visual/struktur; seluruh data yang ditulis tetap berasal dari snapshot FINAL
-    WP aktif dan tidak pernah mengambil identitas atau angka milik Lisa.
-
-    Output PDF hanya lima halaman Bahasa Indonesia: Induk, Lampiran I halaman 2,
-    Lampiran II, Lampiran III, dan Lampiran IV.
+    Template resmi hanya dipakai sebagai bentuk/visual. File hasil tidak boleh
+    memiliki field AcroForm, JavaScript, tombol, checkbox interaktif, atau fitur
+    pengisian PDF lain. Nilai ditanam permanen ke konten halaman (flattened),
+    sehingga perilakunya sama seperti PDF contoh lama milik Lisa.
     """
 
     INDONESIAN_INDUK_PAGE_INDEX = 9  # halaman 10 pada template sumber 16 halaman
@@ -73,21 +71,12 @@ class Legacy1770IndukService:
         if result.errors:
             return result
 
-        # Urutan angka pada Induk 1770 lama:
-        # 1 usaha/pekerjaan bebas, 2 pekerjaan, 3 DN lainnya, 4 LN,
-        # 5 jumlah neto, 6 zakat, 7 neto setelah zakat, 8 kompensasi,
-        # 9 neto setelah kompensasi, 10 PTKP, 11 PKP, dst.
         pekerjaan = float(document.total_netto_bupot or 0)
         lainnya = float(document.penghasilan_neto_lainnya or 0)
         jumlah_neto = pekerjaan + lainnya
         neto_setelah_zakat = jumlah_neto - float(document.zakat or 0)
-
-        # Kompensasi kerugian belum memiliki modul tersendiri. Baris 8 dibiarkan
-        # kosong; untuk menjaga kesinambungan form, angka 9 meneruskan angka 7.
         neto_setelah_kompensasi = neto_setelah_zakat
 
-        # Angka 16 = angka 14 - angka 15. Angka 19 = angka 16 - angka 18.
-        # Saat ini Worksheet hanya memiliki PPh25 sebagai kredit yang dibayar sendiri.
         pph_kurang_lebih_16 = float(document.pph_terutang or 0) - float(document.kredit_pajak or 0)
         pph_kurang_lebih_19 = pph_kurang_lebih_16 - float(document.pph25 or 0)
 
@@ -114,15 +103,9 @@ class Legacy1770IndukService:
             if acroform_name:
                 result.fields[acroform_name] = value
 
-        # AUTO15 adalah angka 5 pada template resmi. Diisi eksplisit agar hasil
-        # tetap benar pada PDF viewer yang tidak menjalankan kalkulasi JavaScript.
         result.fields["AUTO15"] = self._number_or_blank(jumlah_neto)
-
-        # PPhLebihKurang adalah angka 16 pada template resmi.
         result.fields["PPhLebihKurang"] = self._number_or_blank(pph_kurang_lebih_16)
 
-        # PNUsaha tidak boleh diambil dari omzet UMKM karena UMKM dikenai PPh Final
-        # dan akan ditempatkan pada Lampiran III.
         result.issues.append(
             IndukMappingIssue(
                 "INDUK_W01",
@@ -138,6 +121,32 @@ class Legacy1770IndukService:
             )
         )
         return result
+
+    @staticmethod
+    def _remove_interactive_features(writer) -> None:
+        """Buang seluruh fitur interaktif setelah appearance ditanam ke halaman."""
+        # Setelah flatten, widget form sudah menjadi bagian dari page content.
+        # Semua annotation dibuang supaya tidak ada area klik/field tersisa.
+        for page in writer.pages:
+            if "/Annots" in page:
+                del page["/Annots"]
+            if "/AA" in page:
+                del page["/AA"]
+
+        root = writer.root_object
+        for key in ("/AcroForm", "/OpenAction", "/AA"):
+            if key in root:
+                del root[key]
+
+        # Names dapat membawa JavaScript pada PDF interaktif. Hapus hanya cabang
+        # JavaScript bila ada; destination/bookmark lain tidak perlu disentuh.
+        names = root.get("/Names")
+        try:
+            names_obj = names.get_object() if names is not None else None
+            if names_obj is not None and "/JavaScript" in names_obj:
+                del names_obj["/JavaScript"]
+        except (AttributeError, TypeError):
+            pass
 
     def fill_induk(
         self,
@@ -157,16 +166,10 @@ class Legacy1770IndukService:
             from pypdf import PdfReader, PdfWriter
         except ImportError as exc:
             raise RuntimeError(
-                "Library pypdf diperlukan untuk mengisi Form 1770. Install dengan: python -m pip install pypdf"
+                "Library pypdf diperlukan untuk membuat Form 1770. Install dengan: python -m pip install pypdf"
             ) from exc
 
         reader = PdfReader(str(info.path))
-
-        # Penting: pilih dulu lima halaman Bahasa Indonesia lewat append().
-        # Cara ini mempertahankan AcroForm/widget milik halaman terpilih. Versi
-        # sebelumnya mengisi template 16 halaman lalu menyalin halaman dengan
-        # add_page(); widget tetap terlihat tetapi relasi AcroForm/appearance
-        # terputus sehingga hasil PDF tampak kosong.
         export_page_indexes = [int(page_no) - 1 for page_no in manager.INDONESIAN_EXPORT_PAGES]
         writer = PdfWriter()
         writer.append(reader, pages=export_page_indexes)
@@ -174,14 +177,22 @@ class Legacy1770IndukService:
         if not writer.pages:
             raise ValueError("Template 1770 tidak menghasilkan halaman Bahasa Indonesia.")
 
-        # Setelah ekstraksi, Induk Bahasa Indonesia selalu menjadi halaman pertama.
-        # auto_regenerate=False membuat pypdf menulis appearance stream langsung,
-        # sehingga nilai tetap tampak pada viewer yang tidak menjalankan JavaScript.
-        writer.update_page_form_field_values(
-            writer.pages[0],
-            mapping.fields,
-            auto_regenerate=False,
-        )
+        # flatten=True menyalin appearance field ke content stream halaman.
+        # Setelah itu widget/AcroForm dapat dihapus tanpa menghilangkan nilai.
+        try:
+            writer.update_page_form_field_values(
+                writer.pages[0],
+                mapping.fields,
+                auto_regenerate=False,
+                flatten=True,
+            )
+        except TypeError as exc:
+            raise RuntimeError(
+                "Versi pypdf yang digunakan belum mendukung flatten Form PDF. "
+                "Perbarui dengan: python -m pip install -U pypdf"
+            ) from exc
+
+        self._remove_interactive_features(writer)
 
         target = Path(output_path)
         if target.suffix.lower() != ".pdf":
