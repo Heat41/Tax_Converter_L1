@@ -36,6 +36,10 @@ class Legacy1770IndukService:
     Hanya field yang sudah didukung data Worksheet yang diisi. Field yang belum
     memiliki sumber domain tidak ditebak; kondisi tersebut dilaporkan sebagai
     warning agar hasil dapat dikoreksi sebelum Stage 8C dinyatakan selesai.
+
+    Output PDF tidak membawa seluruh template bilingual 16 halaman. Setelah field
+    Induk diisi pada halaman sumber Bahasa Indonesia, exporter hanya mengambil
+    halaman-halaman format lama Bahasa Indonesia yang memang menjadi output akhir.
     """
 
     INDONESIAN_INDUK_PAGE_INDEX = 9  # halaman 10 bila dihitung dari 1
@@ -125,23 +129,38 @@ class Legacy1770IndukService:
             ) from exc
 
         reader = PdfReader(str(info.path))
-        writer = PdfWriter()
-        writer.clone_document_from_reader(reader)
 
-        if len(writer.pages) <= self.INDONESIAN_INDUK_PAGE_INDEX:
+        # Writer sementara mempertahankan struktur AcroForm asli saat field Induk
+        # diperbarui. Hasil akhir kemudian dipangkas menjadi halaman Indonesia saja.
+        filled_writer = PdfWriter()
+        filled_writer.clone_document_from_reader(reader)
+
+        if len(filled_writer.pages) <= self.INDONESIAN_INDUK_PAGE_INDEX:
             raise ValueError("Template 1770 tidak memiliki halaman Induk Bahasa Indonesia.")
 
-        writer.update_page_form_field_values(
-            writer.pages[self.INDONESIAN_INDUK_PAGE_INDEX],
+        filled_writer.update_page_form_field_values(
+            filled_writer.pages[self.INDONESIAN_INDUK_PAGE_INDEX],
             mapping.fields,
             auto_regenerate=True,
         )
+
+        # Output final Stage 8C bukan template bilingual 16 halaman. Ambil hanya
+        # halaman format lama Bahasa Indonesia yang sudah ditetapkan TemplateManager:
+        # Induk, Lampiran I, II, III, dan IV.
+        output_writer = PdfWriter()
+        for page_number in manager.INDONESIAN_EXPORT_PAGES:
+            source_index = int(page_number) - 1
+            if source_index < 0 or source_index >= len(filled_writer.pages):
+                raise ValueError(
+                    f"Template 1770 tidak memiliki halaman Bahasa Indonesia {page_number}."
+                )
+            output_writer.add_page(filled_writer.pages[source_index])
 
         target = Path(output_path)
         if target.suffix.lower() != ".pdf":
             target = target.with_suffix(".pdf")
         target.parent.mkdir(parents=True, exist_ok=True)
         with target.open("wb") as handle:
-            writer.write(handle)
+            output_writer.write(handle)
 
         return mapping
