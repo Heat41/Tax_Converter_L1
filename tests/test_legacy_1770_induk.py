@@ -17,10 +17,11 @@ def _document():
         kredit_pajak=105_486_376,
         pph25=0,
         kurang_lebih_bayar=45_489_624,
+        status_ptkp="TK/0",
     )
 
 
-def test_induk_mapping_follows_legacy_form_calculation_flow():
+def test_induk_mapping_follows_actual_legacy_field_positions():
     result = Legacy1770IndukService().map_document(_document())
 
     assert result.can_fill
@@ -28,28 +29,30 @@ def test_induk_mapping_follows_legacy_form_calculation_flow():
     assert result.fields["Nama Wajib Pajak"] == "EVY BACHTIAR"
     assert result.fields["Tahun Pajak"] == "2025"
 
-    # Angka 2 dan 3.
-    assert result.fields["PNInduk"] == "788920417"
+    # Angka 2 = JumlahBagianCinduk; angka 5 = PNInduk.
+    assert result.fields["JumlahBagianCinduk"] == "788920417"
     assert result.fields["JumlahBagianD"] == ""
+    assert result.fields["PNInduk"] == "788920417"
 
-    # Angka 5, 6, 7 dan 9. Angka 7 harus menggunakan nilai aktual 5 - 6,
-    # bukan nilai kertas kerja yang sudah dibulatkan ribuan.
-    assert result.fields["AUTO15"] == "788920417"
     assert result.fields["ZakatSumbanganWajib"] == "45000000"
     assert result.fields["PNsetelahZakat"] == "743920417"
     assert result.fields["PNsetelahKompen"] == "743920417"
 
-    # Angka 10-16 dan 19.
+    # Angka 11 memakai field PhKP pada template, bukan field PKP yang berada
+    # di area formula/label sebelah kiri.
     assert result.fields["PTKP"] == "54000000"
-    assert result.fields["PKP"] == "689920000"
+    assert result.fields["PhKP"] == "689920000"
     assert result.fields["PPhTerutang"] == "150976000"
     assert result.fields["JumlahPPhTerutang"] == "150976000"
     assert result.fields["IIJBAinduk"] == "105486376"
     assert result.fields["PPhLebihKurang"] == "45489624"
+    assert result.fields["PPh25"] == ""
     assert result.fields["JumlahPPh25"] == ""
     assert result.fields["PPhLebihKurangDibayar"] == "45489624"
 
-    # UMKM final tidak boleh dimasukkan ke angka 1 Induk.
+    # Tidak ada lagi AUTO15 karena nama itu dipakai banyak widget pada template
+    # dan sebelumnya menyebabkan angka tercetak di posisi yang salah.
+    assert "AUTO15" not in result.fields
     assert "PNUsaha" not in result.fields
     warning_codes = {issue.code for issue in result.issues}
     assert {"INDUK_W01", "INDUK_W02"}.issubset(warning_codes)
