@@ -1,7 +1,7 @@
 from pathlib import Path
 
 from PySide6.QtCore import Signal
-from PySide6.QtWidgets import QFileDialog, QMessageBox, QPushButton
+from PySide6.QtWidgets import QCheckBox, QFileDialog, QMessageBox, QPushButton
 
 from core.worksheet_workbook_importer import WorksheetWorkbookImporter
 from ui.performance import (
@@ -60,8 +60,15 @@ class ImportCoretaxPage(BaseImportCoretaxPage):
         )
         self.import_worksheet_button.clicked.connect(self.choose_worksheet_workbook)
 
+        self.import_bupot_checkbox = QCheckBox("Impor Bupot dari sheet tahun secara otomatis")
+        self.import_bupot_checkbox.setChecked(True)
+        self.import_bupot_checkbox.setToolTip(
+            "Jika aktif, seluruh Bupot yang terbaca pada sheet tahun (mis. 2025) ikut masuk ke tab Penghasilan & PPh."
+        )
+
         parent = self.validate_button.parentWidget()
         if parent is not None and parent.layout() is not None:
+            parent.layout().addWidget(self.import_bupot_checkbox)
             parent.layout().addWidget(self.import_worksheet_button)
 
     def choose_worksheet_workbook(self):
@@ -74,6 +81,7 @@ class ImportCoretaxPage(BaseImportCoretaxPage):
         if not file_path:
             return
 
+        include_bupot = self.import_bupot_checkbox.isChecked()
         self.status_label.setText("Membaca kertas kerja yang sudah terisi...")
         self.progress.setVisible(True)
         self.progress.setValue(25)
@@ -101,11 +109,17 @@ class ImportCoretaxPage(BaseImportCoretaxPage):
             exists = False
 
         if exists:
+            bupot_note = (
+                "Bupot dari workbook juga akan mengganti Bupot tersimpan. "
+                if include_bupot
+                else "Bupot tersimpan dipertahankan dan tidak diganti. "
+            )
             answer = QMessageBox.question(
                 self,
                 "Worksheet Sudah Ada",
                 f"Worksheet NPWP {result.npwp} Tahun {result.tahun_pajak} sudah memiliki data tersimpan.\n\n"
                 "Impor kertas kerja ini akan mengganti state Penghasilan/PPh untuk WP dan tahun tersebut. "
+                f"{bupot_note}"
                 "Harta menggunakan isi SIMULASI I sebagai baseline import.\n\nLanjutkan?",
                 QMessageBox.Yes | QMessageBox.No,
                 QMessageBox.No,
@@ -117,7 +131,10 @@ class ImportCoretaxPage(BaseImportCoretaxPage):
 
         self.progress.setValue(70)
         try:
-            self.worksheet_workbook_importer.persist(result)
+            self.worksheet_workbook_importer.persist(
+                result,
+                include_bupot=include_bupot,
+            )
         except Exception as exc:
             self.progress.setVisible(False)
             self.status_label.setText(f"Gagal menyimpan hasil import kertas kerja: {exc}")
@@ -131,16 +148,24 @@ class ImportCoretaxPage(BaseImportCoretaxPage):
                 f"• {issue.message}" for issue in result.warnings
             )
 
+        imported_bupot_count = len(result.bupot_rows) if include_bupot else 0
+        bupot_summary = (
+            f"{imported_bupot_count} Bupot diimpor otomatis"
+            if include_bupot
+            else "Bupot tidak diimpor"
+        )
         self.status_label.setText(
             f"Kertas kerja berhasil diimpor: {result.nama_wp or 'WP'} • Tahun {result.tahun_pajak} • "
-            f"{len(result.bupot_rows)} Bupot • {len(result.harta_rows)} Harta."
+            f"{bupot_summary} • {len(result.harta_rows)} Harta."
         )
         QMessageBox.information(
             self,
             "Import Kertas Kerja Berhasil",
             f"Data kertas kerja berhasil masuk ke Worksheet aplikasi.\n\n"
             f"Nama: {result.nama_wp or '-'}\nNPWP: {result.npwp}\nTahun: {result.tahun_pajak}\n"
-            f"Bupot: {len(result.bupot_rows)} baris\nHarta: {len(result.harta_rows)} baris"
+            f"Bupot terbaca: {len(result.bupot_rows)} baris\n"
+            f"Bupot diimpor: {'YA' if include_bupot else 'TIDAK'}\n"
+            f"Harta: {len(result.harta_rows)} baris"
             f"{warning_text}",
         )
         self.worksheet_workbook_imported.emit(result)
