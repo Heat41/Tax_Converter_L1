@@ -161,32 +161,33 @@ class Legacy1770IndukService:
             ) from exc
 
         reader = PdfReader(str(info.path))
-        filled_writer = PdfWriter()
-        filled_writer.clone_document_from_reader(reader)
 
-        if len(filled_writer.pages) <= self.INDONESIAN_INDUK_PAGE_INDEX:
-            raise ValueError("Template 1770 tidak memiliki halaman Induk Bahasa Indonesia.")
+        # Penting: pilih dulu lima halaman Bahasa Indonesia lewat append().
+        # Cara ini mempertahankan AcroForm/widget milik halaman terpilih. Versi
+        # sebelumnya mengisi template 16 halaman lalu menyalin halaman dengan
+        # add_page(); widget tetap terlihat tetapi relasi AcroForm/appearance
+        # terputus sehingga hasil PDF tampak kosong.
+        export_page_indexes = [int(page_no) - 1 for page_no in manager.INDONESIAN_EXPORT_PAGES]
+        writer = PdfWriter()
+        writer.append(reader, pages=export_page_indexes)
 
-        filled_writer.update_page_form_field_values(
-            filled_writer.pages[self.INDONESIAN_INDUK_PAGE_INDEX],
+        if not writer.pages:
+            raise ValueError("Template 1770 tidak menghasilkan halaman Bahasa Indonesia.")
+
+        # Setelah ekstraksi, Induk Bahasa Indonesia selalu menjadi halaman pertama.
+        # auto_regenerate=False membuat pypdf menulis appearance stream langsung,
+        # sehingga nilai tetap tampak pada viewer yang tidak menjalankan JavaScript.
+        writer.update_page_form_field_values(
+            writer.pages[0],
             mapping.fields,
-            auto_regenerate=True,
+            auto_regenerate=False,
         )
-
-        output_writer = PdfWriter()
-        for page_number in manager.INDONESIAN_EXPORT_PAGES:
-            source_index = int(page_number) - 1
-            if source_index < 0 or source_index >= len(filled_writer.pages):
-                raise ValueError(
-                    f"Template 1770 tidak memiliki halaman Bahasa Indonesia {page_number}."
-                )
-            output_writer.add_page(filled_writer.pages[source_index])
 
         target = Path(output_path)
         if target.suffix.lower() != ".pdf":
             target = target.with_suffix(".pdf")
         target.parent.mkdir(parents=True, exist_ok=True)
         with target.open("wb") as handle:
-            output_writer.write(handle)
+            writer.write(handle)
 
         return mapping
