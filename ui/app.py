@@ -4,7 +4,7 @@ from PySide6.QtWidgets import QApplication
 
 from config.database import init_database
 from config.settings import APP_NAME, APP_VERSION
-from ui.main_window import MainWindow
+from ui.main_window_workflow import MainWindow
 
 
 def main():
