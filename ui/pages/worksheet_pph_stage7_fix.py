@@ -16,8 +16,12 @@ class WorksheetPage(BaseWorksheetPage):
     - rekonsiliasi memberi informasi sumber baseline agar nilai 0 yang sebenarnya
       berarti 'belum tersedia' tidak dianggap sebagai baseline valid;
     - hasil impor workbook Stage 8B.1 langsung mengisi tabel Bupot dari hasil
-      parsing workbook, sehingga UI tidak bergantung pada siklus reload database.
+      parsing workbook, sehingga UI tidak bergantung pada siklus reload database;
+    - tabel Harta / SIMULASI I menyediakan viewport minimal 10 baris data.
     """
+
+    HARTA_VISIBLE_ROWS = 10
+    HARTA_ROW_HEIGHT = 34
 
     @staticmethod
     def _default_reconciliation_manual():
@@ -41,8 +45,25 @@ class WorksheetPage(BaseWorksheetPage):
             self._on_harta_previous_baseline_finished
         )
         self._repolish_widget(self.harta_prev_value)
+        self._configure_harta_visible_rows()
         self._render_reconciliation()
         self._recalculate_pph_summary()
+
+    def _configure_harta_visible_rows(self):
+        """Pastikan tabel Harta menampilkan sekitar 10 baris tanpa mengecilkan row height."""
+        header = self.harta_table.horizontalHeader()
+        header_height = max(header.height(), header.sizeHint().height())
+        scrollbar_height = self.harta_table.horizontalScrollBar().sizeHint().height()
+        frame = self.harta_table.frameWidth() * 2
+        padding = 8
+        target_height = (
+            header_height
+            + (self.HARTA_VISIBLE_ROWS * self.HARTA_ROW_HEIGHT)
+            + scrollbar_height
+            + frame
+            + padding
+        )
+        self.harta_table.setMinimumHeight(target_height)
 
     def load_workbook_import_result(self, import_result):
         """Muat hasil Stage 8B.1 langsung ke seluruh Worksheet.
