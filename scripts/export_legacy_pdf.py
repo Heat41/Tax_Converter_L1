@@ -4,12 +4,13 @@ import argparse
 import sys
 from pathlib import Path
 
-# Saat file dijalankan langsung dengan `python scripts/export_legacy_pdf.py`,
-# Python memasukkan folder `scripts` ke sys.path, bukan root repository.
-# Tambahkan root project agar package config/core dapat diimport dengan aman.
-PROJECT_ROOT = Path(__file__).resolve().parents[1]
-if str(PROJECT_ROOT) not in sys.path:
-    sys.path.insert(0, str(PROJECT_ROOT))
+# Agar script tetap bisa dijalankan langsung dengan:
+# python scripts/export_legacy_pdf.py ...
+ROOT_DIR = Path(__file__).resolve().parents[1]
+if str(ROOT_DIR) not in sys.path:
+    sys.path.insert(0, str(ROOT_DIR))
+
+from PySide6.QtGui import QGuiApplication
 
 from config.database import init_database
 from core.legacy_1770 import Legacy1770DocumentService
@@ -25,24 +26,35 @@ def main() -> int:
     parser.add_argument("--output", required=True, help="Path PDF output")
     args = parser.parse_args()
 
-    init_database()
-    document = Legacy1770DocumentService().build_active_final(args.npwp, args.tahun)
-    if not document.can_export_pdf:
-        print("Export diblokir:")
-        for issue in document.errors:
-            print(f"- [{issue.code}] {issue.message}")
-        return 2
+    # QPdfWriter/QPainter membutuhkan QGuiApplication agar akses font database
+    # aman saat script dijalankan sebagai CLI di luar aplikasi desktop utama.
+    gui_app = QGuiApplication.instance()
+    owns_gui_app = gui_app is None
+    if gui_app is None:
+        gui_app = QGuiApplication([sys.argv[0]])
 
-    if document.warnings:
-        print("Peringatan:")
-        for issue in document.warnings:
-            print(f"- [{issue.code}] {issue.message}")
+    try:
+        init_database()
+        document = Legacy1770DocumentService().build_active_final(args.npwp, args.tahun)
+        if not document.can_export_pdf:
+            print("Export diblokir:")
+            for issue in document.errors:
+                print(f"- [{issue.code}] {issue.message}")
+            return 2
 
-    output = Legacy1770PdfExporter().export(document, Path(args.output))
-    print(f"PDF berhasil dibuat: {output}")
-    print(f"Revision FINAL: {document.revision}")
-    print(f"Snapshot Hash: {document.snapshot_hash}")
-    return 0
+        if document.warnings:
+            print("Peringatan:")
+            for issue in document.warnings:
+                print(f"- [{issue.code}] {issue.message}")
+
+        output = Legacy1770PdfExporter().export(document, Path(args.output))
+        print(f"PDF berhasil dibuat: {output}")
+        print(f"Revision FINAL: {document.revision}")
+        print(f"Snapshot Hash: {document.snapshot_hash}")
+        return 0
+    finally:
+        if owns_gui_app:
+            gui_app.quit()
 
 
 if __name__ == "__main__":
