@@ -7,7 +7,7 @@ from PySide6.QtGui import QGuiApplication
 
 from core.finalization import FinalizationInput
 from core.mapping.worksheet_harta_mapper import WorksheetHartaRow
-from core.worksheet_archive_exporter import WorksheetArchiveExporter
+from core.worksheet_archive_exporter_styled import StyledWorksheetArchiveExporter
 
 
 class _Analysis:
@@ -54,10 +54,10 @@ def test_export_pdf_archive(tmp_path: Path):
         app = QGuiApplication([sys.argv[0]])
     try:
         path = tmp_path / "arsip.pdf"
-        result = WorksheetArchiveExporter().export_pdf(_input(), path)
+        result = StyledWorksheetArchiveExporter().export_pdf(_input(), path)
         assert result.output_path == path
         assert path.exists()
-        assert path.stat().st_size > 100
+        assert path.stat().st_size > 1000
         assert path.read_bytes().startswith(b"%PDF")
     finally:
         if owns_app:
