@@ -1,7 +1,15 @@
 from __future__ import annotations
 
 import argparse
+import sys
 from pathlib import Path
+
+# Saat file dijalankan langsung dengan `python scripts/export_legacy_pdf.py`,
+# Python memasukkan folder `scripts` ke sys.path, bukan root repository.
+# Tambahkan root project agar package config/core dapat diimport dengan aman.
+PROJECT_ROOT = Path(__file__).resolve().parents[1]
+if str(PROJECT_ROOT) not in sys.path:
+    sys.path.insert(0, str(PROJECT_ROOT))
 
 from config.database import init_database
 from core.legacy_1770 import Legacy1770DocumentService
