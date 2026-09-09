@@ -138,7 +138,9 @@ class FinalizationService:
             if b.bruto < 0 or b.pengurang < 0:
                 res.issues.append(ValidationIssue("BPT_001", ValidationSeverity.ERROR, f"Nilai bruto/pengurang negatif pada bupot baris {idx+1}", "bupot"))
 
-        if data.analisis_result and abs(data.analisis_result.selisih_pengeluaran_vs_penghasilan) > 1.0:
+        if data.analisis_result is None:
+            res.issues.append(ValidationIssue("ANL_000", ValidationSeverity.ERROR, "Analisis Penghasilan vs Harta belum tersedia", "analisis"))
+        elif abs(data.analisis_result.selisih_pengeluaran_vs_penghasilan) > 1.0:
             res.issues.append(ValidationIssue("ANL_001", ValidationSeverity.WARNING, "Rekonsiliasi tidak seimbang (Selisih bukan 0)", "rekonsiliasi"))
 
         res.issues.append(ValidationIssue("INF_001", ValidationSeverity.INFO, f"Jumlah Harta: {len(data.harta_current_rows)} baris"))
