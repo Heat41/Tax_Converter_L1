@@ -6,7 +6,7 @@ from openpyxl import load_workbook
 
 from core.finalization import FinalizationInput
 from core.mapping.worksheet_harta_mapper import WorksheetHartaRow
-from core.worksheet_archive_exporter_styled import StyledWorksheetArchiveExporter
+from core.worksheet_archive_exporter_polished import PolishedWorksheetArchiveExporter
 from core.worksheet_pph_state import WorksheetBupotRow
 from core.worksheet_workbook_generic import GenericWorksheetWorkbookImporter
 
@@ -37,7 +37,7 @@ def _input(*, dirty=False):
                 kode_eform="014",
                 kode_ct="0104",
                 nama_harta="Deposito",
-                nomor_akun_keterangan="123456",
+                nomor_akun_keterangan="001234567890123456",
                 atas_nama="WP ARSIP TEST",
                 nama_bank="BANK TEST",
                 tahun_perolehan=2024,
@@ -75,7 +75,7 @@ def _input(*, dirty=False):
 
 def test_export_excel_is_round_trip_compatible(tmp_path: Path):
     path = tmp_path / "arsip.xlsx"
-    result = StyledWorksheetArchiveExporter().export_excel(_input(), path)
+    result = PolishedWorksheetArchiveExporter().export_excel(_input(), path)
 
     assert result.output_path == path
     assert path.exists()
@@ -83,11 +83,23 @@ def test_export_excel_is_round_trip_compatible(tmp_path: Path):
     assert result.harta_count == 1
 
     wb = load_workbook(path)
-    assert "TblBupotArsip" in wb["2025"].tables
-    assert "TblUmkmArsip" in wb["2025"].tables
-    assert "TblHartaArsip" in wb["SIMULASI I"].tables
-    assert wb["2025"].sheet_view.showGridLines is False
-    assert wb["SIMULASI I"].sheet_view.showGridLines is False
+    annual = wb["2025"]
+    simulasi = wb["SIMULASI I"]
+    assert "TblBupotArsip" in annual.tables
+    assert "TblUmkmArsip" in annual.tables
+    assert "TblHartaArsip" in simulasi.tables
+    assert annual.sheet_view.showGridLines is False
+    assert simulasi.sheet_view.showGridLines is False
+
+    # Identifiers tidak boleh berubah menjadi scientific notation / angka.
+    assert annual["B5"].value == "6101015612710001"
+    assert annual["B5"].number_format == "@"
+    assert annual["C9"].value == "0011050945093000"
+    assert annual["C9"].number_format == "@"
+    assert simulasi["E9"].value == "001234567890123456"
+    assert simulasi["E9"].number_format == "@"
+    assert simulasi.column_dimensions["D"].width >= 30
+    assert simulasi.column_dimensions["E"].width >= 25
 
     imported = GenericWorksheetWorkbookImporter().parse(path)
     assert imported.is_valid
@@ -95,14 +107,16 @@ def test_export_excel_is_round_trip_compatible(tmp_path: Path):
     assert imported.tahun_pajak == 2025
     assert len(imported.bupot_rows) == 1
     assert imported.bupot_rows[0].no_bupot == "BUPOT-001"
+    assert imported.bupot_rows[0].npwp_pemberi_kerja == "0011050945093000"
     assert len(imported.harta_rows) == 1
     assert imported.harta_rows[0].kode_ct == "0104"
+    assert imported.harta_rows[0].nomor_akun_keterangan == "001234567890123456"
     assert imported.harta_rows[0].nilai_tahun_berjalan == 125_000_000
 
 
 def test_export_is_blocked_when_saved_state_is_dirty(tmp_path: Path):
     try:
-        StyledWorksheetArchiveExporter().export_excel(_input(dirty=True), tmp_path / "dirty.xlsx")
+        PolishedWorksheetArchiveExporter().export_excel(_input(dirty=True), tmp_path / "dirty.xlsx")
     except ValueError as exc:
         assert "Simpan perubahan" in str(exc)
     else:
