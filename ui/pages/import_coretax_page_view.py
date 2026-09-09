@@ -3,7 +3,7 @@ from pathlib import Path
 from PySide6.QtCore import Signal
 from PySide6.QtWidgets import QCheckBox, QFileDialog, QMessageBox, QPushButton
 
-from core.worksheet_workbook_importer import WorksheetWorkbookImporter
+from core.worksheet_workbook_importer_evy import WorksheetWorkbookImporter
 from ui.performance import (
     optimize_scroll_area,
     optimize_table_interaction,
