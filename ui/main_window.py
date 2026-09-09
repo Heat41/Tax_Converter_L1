@@ -144,6 +144,9 @@ class MainWindow(QMainWindow):
         import_page.harta_preview_changed.connect(
             worksheet_page.load_harta_preview
         )
+        import_page.worksheet_workbook_imported.connect(
+            self._on_worksheet_workbook_imported
+        )
 
         self.pages["import"] = import_page
         self.pages["worksheet"] = worksheet_page
@@ -171,6 +174,14 @@ class MainWindow(QMainWindow):
         layout.addWidget(self.sidebar)
         layout.addWidget(self.content, 1)
         self.setCentralWidget(root)
+
+    def _on_worksheet_workbook_imported(self, import_result):
+        worksheet = self.pages.get("worksheet")
+        pipeline = getattr(import_result, "pipeline_result", None)
+        if worksheet is not None and pipeline is not None:
+            worksheet.load_harta_preview(pipeline)
+            self._show_page("worksheet")
+            self.refresh_dashboard()
 
     def _build_dashboard_page(self):
         page = QWidget()
@@ -214,16 +225,16 @@ class MainWindow(QMainWindow):
         action_layout.addWidget(heading)
 
         desc = QLabel(
-            "Impor data Coretax, periksa Worksheet, lakukan rekonsiliasi, lalu finalisasi hasil konversi."
+            "Impor data Coretax atau kertas kerja yang sudah terisi, periksa Worksheet, lakukan rekonsiliasi, lalu finalisasi hasil konversi."
         )
         desc.setObjectName("pageSubTitle")
         desc.setWordWrap(True)
         action_layout.addWidget(desc)
 
-        button = QPushButton("Impor Data Coretax")
+        button = QPushButton("Impor Data Coretax / Kertas Kerja")
         button.setObjectName("primaryButton")
         button.setCursor(Qt.PointingHandCursor)
-        button.setMinimumWidth(190)
+        button.setMinimumWidth(220)
         button.clicked.connect(lambda: self._show_page("import"))
         action_layout.addWidget(button, alignment=Qt.AlignLeft)
         main.addWidget(action)
