@@ -1,8 +1,16 @@
 from __future__ import annotations
 
-from PySide6.QtWidgets import QTableWidgetItem
+from PySide6.QtCore import Qt
+from PySide6.QtWidgets import (
+    QAbstractScrollArea,
+    QFrame,
+    QScrollArea,
+    QSizePolicy,
+    QTableWidgetItem,
+)
 
 from ui.pages.worksheet_pph_stage7 import WorksheetPage as BaseWorksheetPage
+from ui.performance import optimize_scroll_area
 
 
 class WorksheetPage(BaseWorksheetPage):
@@ -17,7 +25,10 @@ class WorksheetPage(BaseWorksheetPage):
       berarti 'belum tersedia' tidak dianggap sebagai baseline valid;
     - hasil impor workbook Stage 8B.1 langsung mengisi tabel Bupot dari hasil
       parsing workbook, sehingga UI tidak bergantung pada siklus reload database;
-    - tabel Harta / SIMULASI I menyediakan viewport minimal 10 baris data.
+    - tabel Harta / SIMULASI I menyediakan viewport minimal 10 baris data;
+    - halaman Harta / SIMULASI I memiliki vertical page scrolling seperti halaman
+      Penghasilan dan Analisis, sehingga toolbar dan tabel tetap dapat diakses pada
+      tinggi window yang terbatas.
     """
 
     HARTA_VISIBLE_ROWS = 10
@@ -46,6 +57,7 @@ class WorksheetPage(BaseWorksheetPage):
         )
         self._repolish_widget(self.harta_prev_value)
         self._configure_harta_visible_rows()
+        self._install_harta_page_scrolling()
         self._render_reconciliation()
         self._recalculate_pph_summary()
 
@@ -64,6 +76,44 @@ class WorksheetPage(BaseWorksheetPage):
             + padding
         )
         self.harta_table.setMinimumHeight(target_height)
+
+    def _install_harta_page_scrolling(self):
+        """Bungkus seluruh isi tab Harta dengan scroll vertikal level halaman.
+
+        Tabel tetap mempunyai scroll horizontal sendiri untuk kolom yang lebar.
+        Scroll vertikal ini khusus untuk bergerak dari info/header ke toolbar dan
+        area tabel ketika tinggi jendela tidak cukup menampilkan semuanya sekaligus.
+        """
+        tab_index = self.tabs.indexOf(self.harta_tab)
+        if tab_index < 0:
+            return
+
+        tab_text = self.tabs.tabText(tab_index)
+        tab_icon = self.tabs.tabIcon(tab_index)
+        tab_tooltip = self.tabs.tabToolTip(tab_index)
+
+        self.tabs.removeTab(tab_index)
+
+        self.harta_scroll_area = QScrollArea()
+        self.harta_scroll_area.setObjectName("hartaPageScrollArea")
+        self.harta_scroll_area.setWidgetResizable(True)
+        self.harta_scroll_area.setFrameShape(QFrame.NoFrame)
+        self.harta_scroll_area.setHorizontalScrollBarPolicy(Qt.ScrollBarAlwaysOff)
+        self.harta_scroll_area.setVerticalScrollBarPolicy(Qt.ScrollBarAlwaysOn)
+        self.harta_scroll_area.setSizeAdjustPolicy(QAbstractScrollArea.AdjustIgnored)
+        self.harta_scroll_area.setMinimumWidth(0)
+        self.harta_scroll_area.setSizePolicy(QSizePolicy.Expanding, QSizePolicy.Expanding)
+
+        # Tinggi minimum konten memaksa QScrollArea menyediakan range vertikal saat
+        # aplikasi berada pada mode windowed. Lebar tetap mengikuti viewport.
+        self.harta_tab.setMinimumWidth(0)
+        self.harta_tab.setMinimumHeight(720)
+        self.harta_tab.setSizePolicy(QSizePolicy.Expanding, QSizePolicy.MinimumExpanding)
+        self.harta_scroll_area.setWidget(self.harta_tab)
+        optimize_scroll_area(self.harta_scroll_area, vertical_step=24)
+
+        self.tabs.insertTab(tab_index, self.harta_scroll_area, tab_icon, tab_text)
+        self.tabs.setTabToolTip(tab_index, tab_tooltip)
 
     def load_workbook_import_result(self, import_result):
         """Muat hasil Stage 8B.1 langsung ke seluruh Worksheet.
