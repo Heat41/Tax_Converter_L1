@@ -103,7 +103,6 @@ class FinalizationService:
     def validate(self, data: FinalizationInput) -> FinalizationValidationResult:
         res = FinalizationValidationResult()
 
-        # BLOCKING: Identitas
         if not data.npwp or len(str(data.npwp)) < 15:
             res.issues.append(ValidationIssue("ID_001", ValidationSeverity.ERROR, "NPWP kosong atau tidak valid", "npwp"))
         if not data.nama_wp:
@@ -111,7 +110,6 @@ class FinalizationService:
         if not data.tahun_pajak or data.tahun_pajak < 2000:
             res.issues.append(ValidationIssue("ID_003", ValidationSeverity.ERROR, "Tahun Pajak invalid", "tahun_pajak"))
 
-        # BLOCKING: Dirty states
         if data.is_harta_dirty:
             res.issues.append(ValidationIssue("DIRTY_001", ValidationSeverity.ERROR, "Perubahan Harta belum disimpan", "harta"))
         if data.is_pph_dirty:
@@ -119,7 +117,6 @@ class FinalizationService:
         if data.is_analisis_dirty:
             res.issues.append(ValidationIssue("DIRTY_003", ValidationSeverity.ERROR, "Perubahan Analisis belum disimpan", "analisis"))
 
-        # BLOCKING: Harta
         if not data.harta_current_rows:
             res.issues.append(ValidationIssue("HRT_001", ValidationSeverity.ERROR, "Harta Current tidak tersedia", "harta"))
         else:
@@ -134,32 +131,29 @@ class FinalizationService:
                 except (ValueError, TypeError):
                     res.issues.append(ValidationIssue("HRT_004", ValidationSeverity.ERROR, f"Nilai numerik invalid pada baris {row.nomor}", "nilai_tahun_berjalan"))
 
-        # BLOCKING: PPh state
         if not data.status_ptkp:
             res.issues.append(ValidationIssue("PPH_001", ValidationSeverity.ERROR, "Status PTKP kosong", "status_ptkp"))
-        
-        # Bupot validasi
+
         for idx, b in enumerate(data.bupot_rows):
             if b.bruto < 0 or b.pengurang < 0:
                 res.issues.append(ValidationIssue("BPT_001", ValidationSeverity.ERROR, f"Nilai bruto/pengurang negatif pada bupot baris {idx+1}", "bupot"))
 
-        # WARNINGS
         if data.analisis_result and abs(data.analisis_result.selisih_pengeluaran_vs_penghasilan) > 1.0:
             res.issues.append(ValidationIssue("ANL_001", ValidationSeverity.WARNING, "Rekonsiliasi tidak seimbang (Selisih bukan 0)", "rekonsiliasi"))
 
-        # INFOS
         res.issues.append(ValidationIssue("INF_001", ValidationSeverity.INFO, f"Jumlah Harta: {len(data.harta_current_rows)} baris"))
+
         def safe_float(v):
             try:
                 return float(v)
             except (ValueError, TypeError):
                 return 0.0
-                
+
         total_harta = sum(safe_float(r.nilai_tahun_berjalan) for r in data.harta_current_rows) if data.harta_current_rows else 0.0
         res.issues.append(ValidationIssue("INF_002", ValidationSeverity.INFO, f"Total Nilai Harta: {total_harta:,.2f}"))
         res.issues.append(ValidationIssue("INF_003", ValidationSeverity.INFO, f"Jumlah Bupot: {len(data.bupot_rows)} baris"))
         res.issues.append(ValidationIssue("INF_004", ValidationSeverity.INFO, f"Status PTKP: {data.status_ptkp}"))
-        
+
         if data.analisis_result:
             res.issues.append(ValidationIssue("INF_005", ValidationSeverity.INFO, f"Penghasilan Netto: {data.analisis_result.penghasilan_netto:,.2f}"))
             res.issues.append(ValidationIssue("INF_006", ValidationSeverity.INFO, f"Total Pengeluaran: {data.analisis_result.total_pengeluaran:,.2f}"))
@@ -167,7 +161,6 @@ class FinalizationService:
         return res
 
     def build_snapshot(self, data: FinalizationInput) -> tuple[str, str]:
-        """Build canonical JSON payload and its SHA-256 hash."""
         payload = FinalSnapshotPayload(
             npwp=data.npwp,
             nama_wp=data.nama_wp,
@@ -182,73 +175,41 @@ class FinalizationService:
             status_ptkp=data.status_ptkp,
             pph_calc_result=data.pph_calc_result,
             analisis_result=asdict(data.analisis_result) if data.analisis_result else {},
-            timestamp=datetime.now(timezone.utc).isoformat()
+            timestamp=datetime.now(timezone.utc).isoformat(),
         )
 
         payload_dict = asdict(payload)
-        # Hashing logic requires ignoring timestamp for deterministic hash of payload content
-        # Or we hash including timestamp? Usually, snapshot hash includes content. 
-        # But we'll include it. If we want same payload = same hash, we must exclude timestamp or fix it.
-        # Let's create a hashable dict without the timestamp.
         hashable_dict = payload_dict.copy()
         hashable_dict.pop("timestamp", None)
-        
+
         json_str = json.dumps(payload_dict, ensure_ascii=False, sort_keys=True, separators=(",", ":"))
         hash_str = json.dumps(hashable_dict, ensure_ascii=False, sort_keys=True, separators=(",", ":"))
         snapshot_hash = hashlib.sha256(hash_str.encode("utf-8")).hexdigest()
-        
         return json_str, snapshot_hash
 
     def finalize(self, data: FinalizationInput) -> FinalizationResult:
         val_res = self.validate(data)
         if not val_res.can_finalize:
-            return FinalizationResult(
-                success=False,
-                snapshot_id=None,
-                revision=None,
-                snapshot_hash=None,
-                validation_result=val_res,
-                message="Terdapat error blocking yang mencegah finalisasi."
-            )
+            return FinalizationResult(False, None, None, None, val_res, "Terdapat error blocking yang mencegah finalisasi.")
 
         snapshot_json, snapshot_hash = self.build_snapshot(data)
         val_json = json.dumps([asdict(i) for i in val_res.issues], ensure_ascii=False)
 
         conn = get_db_connection(self.db_path)
         try:
-            # Check for existing active FINAL
             active_final = conn.execute(
-                """
-                SELECT id 
-                FROM worksheet_final_snapshots 
-                WHERE npwp = ? AND tahun_pajak = ? AND status = 'FINAL'
-                """,
-                (data.npwp, data.tahun_pajak)
+                "SELECT id FROM worksheet_final_snapshots WHERE npwp = ? AND tahun_pajak = ? AND status = 'FINAL' LIMIT 1",
+                (data.npwp, data.tahun_pajak),
             ).fetchone()
-            
             if active_final:
-                return FinalizationResult(
-                    success=False,
-                    snapshot_id=None,
-                    revision=None,
-                    snapshot_hash=None,
-                    validation_result=val_res,
-                    message="ACTIVE_FINAL_EXISTS: Terdapat finalisasi aktif. Harap batal finalisasi (VOID) terlebih dahulu."
-                )
+                return FinalizationResult(False, None, None, None, val_res, "ACTIVE_FINAL_EXISTS: Terdapat finalisasi aktif. Harap batal finalisasi (VOID) terlebih dahulu.")
 
-            # Determine next revision
-            cursor = conn.execute(
-                """
-                SELECT MAX(revision) as max_rev 
-                FROM worksheet_final_snapshots 
-                WHERE npwp = ? AND tahun_pajak = ?
-                """,
-                (data.npwp, data.tahun_pajak)
-            )
-            row = cursor.fetchone()
+            row = conn.execute(
+                "SELECT MAX(revision) AS max_rev FROM worksheet_final_snapshots WHERE npwp = ? AND tahun_pajak = ?",
+                (data.npwp, data.tahun_pajak),
+            ).fetchone()
             next_rev = (row["max_rev"] or 0) + 1
 
-            # Insert new snapshot
             cur = conn.execute(
                 """
                 INSERT INTO worksheet_final_snapshots (
@@ -256,33 +217,47 @@ class FinalizationService:
                     snapshot_schema_version, snapshot_json, validation_json, snapshot_hash
                 ) VALUES (?, ?, ?, ?, 'FINAL', 1, ?, ?, ?)
                 """,
-                (data.npwp, data.nama_wp, data.tahun_pajak, next_rev, snapshot_json, val_json, snapshot_hash)
+                (data.npwp, data.nama_wp, data.tahun_pajak, next_rev, snapshot_json, val_json, snapshot_hash),
             )
             snapshot_id = cur.lastrowid
-            
-            # Since we allow multiple FINAL per NPWP+Year according to the prompt:
-            # "Jangan otomatis VOID snapshot lama saat finalize biasa kecuali desain memang membutuhkan satu active FINAL."
-            # We'll just leave previous FINAL alone, or UI can manage it.
-            
             conn.commit()
-            return FinalizationResult(
-                success=True,
-                snapshot_id=snapshot_id,
-                revision=next_rev,
-                snapshot_hash=snapshot_hash,
-                validation_result=val_res,
-                message="Finalisasi berhasil disimpan."
-            )
+            return FinalizationResult(True, snapshot_id, next_rev, snapshot_hash, val_res, "Finalisasi berhasil disimpan.")
         except Exception as e:
             conn.rollback()
-            return FinalizationResult(
-                success=False,
-                snapshot_id=None,
-                revision=None,
-                snapshot_hash=None,
-                validation_result=val_res,
-                message=f"Database error: {str(e)}"
-            )
+            return FinalizationResult(False, None, None, None, val_res, f"Database error: {str(e)}")
+        finally:
+            conn.close()
+
+    def get_active_snapshot(self, npwp: str, tahun_pajak: int):
+        conn = get_db_connection(self.db_path)
+        try:
+            return conn.execute(
+                """
+                SELECT id, npwp, nama_wp, tahun_pajak, revision, status,
+                       snapshot_hash, finalized_at, voided_at, void_reason
+                FROM worksheet_final_snapshots
+                WHERE npwp = ? AND tahun_pajak = ? AND status = 'FINAL'
+                ORDER BY revision DESC
+                LIMIT 1
+                """,
+                (str(npwp), int(tahun_pajak)),
+            ).fetchone()
+        finally:
+            conn.close()
+
+    def list_snapshots(self, npwp: str, tahun_pajak: int):
+        conn = get_db_connection(self.db_path)
+        try:
+            return conn.execute(
+                """
+                SELECT id, npwp, nama_wp, tahun_pajak, revision, status,
+                       snapshot_hash, finalized_at, voided_at, void_reason
+                FROM worksheet_final_snapshots
+                WHERE npwp = ? AND tahun_pajak = ?
+                ORDER BY revision DESC
+                """,
+                (str(npwp), int(tahun_pajak)),
+            ).fetchall()
         finally:
             conn.close()
 
@@ -295,11 +270,11 @@ class FinalizationService:
 
             conn.execute(
                 """
-                UPDATE worksheet_final_snapshots 
-                SET status = 'VOID', voided_at = CURRENT_TIMESTAMP, void_reason = ? 
+                UPDATE worksheet_final_snapshots
+                SET status = 'VOID', voided_at = CURRENT_TIMESTAMP, void_reason = ?
                 WHERE id = ?
                 """,
-                (reason, snapshot_id)
+                (reason, snapshot_id),
             )
             conn.commit()
             return True
