@@ -33,16 +33,15 @@ class IndukFieldMappingResult:
 class Legacy1770IndukService:
     """Stage 8C.4 - mapping snapshot FINAL ke AcroForm Induk 1770 Indonesia.
 
-    Hanya field yang sudah didukung data Worksheet yang diisi. Field yang belum
-    memiliki sumber domain tidak ditebak; kondisi tersebut dilaporkan sebagai
-    warning agar hasil dapat dikoreksi sebelum Stage 8C dinyatakan selesai.
+    Nilai mengikuti arti baris Form 1770 lama. File Lisa hanya menjadi acuan
+    visual/struktur; seluruh data yang ditulis tetap berasal dari snapshot FINAL
+    WP aktif dan tidak pernah mengambil identitas atau angka milik Lisa.
 
-    Output PDF tidak membawa seluruh template bilingual 16 halaman. Setelah field
-    Induk diisi pada halaman sumber Bahasa Indonesia, exporter hanya mengambil
-    halaman-halaman format lama Bahasa Indonesia yang memang menjadi output akhir.
+    Output PDF hanya lima halaman Bahasa Indonesia: Induk, Lampiran I halaman 2,
+    Lampiran II, Lampiran III, dan Lampiran IV.
     """
 
-    INDONESIAN_INDUK_PAGE_INDEX = 9  # halaman 10 bila dihitung dari 1
+    INDONESIAN_INDUK_PAGE_INDEX = 9  # halaman 10 pada template sumber 16 halaman
 
     @staticmethod
     def _number(value: object) -> str:
@@ -53,6 +52,14 @@ class Legacy1770IndukService:
         if abs(number - round(number)) < 0.000001:
             return str(int(round(number)))
         return (f"{number:.2f}").rstrip("0").rstrip(".")
+
+    @classmethod
+    def _number_or_blank(cls, value: object) -> str:
+        try:
+            number = float(value or 0)
+        except (TypeError, ValueError):
+            number = 0.0
+        return "" if abs(number) < 0.000001 else cls._number(number)
 
     def map_document(self, document: Legacy1770Document) -> IndukFieldMappingResult:
         result = IndukFieldMappingResult()
@@ -66,22 +73,40 @@ class Legacy1770IndukService:
         if result.errors:
             return result
 
+        # Urutan angka pada Induk 1770 lama:
+        # 1 usaha/pekerjaan bebas, 2 pekerjaan, 3 DN lainnya, 4 LN,
+        # 5 jumlah neto, 6 zakat, 7 neto setelah zakat, 8 kompensasi,
+        # 9 neto setelah kompensasi, 10 PTKP, 11 PKP, dst.
+        pekerjaan = float(document.total_netto_bupot or 0)
+        lainnya = float(document.penghasilan_neto_lainnya or 0)
+        jumlah_neto = pekerjaan + lainnya
+        neto_setelah_zakat = jumlah_neto - float(document.zakat or 0)
+
+        # Kompensasi kerugian belum memiliki modul tersendiri. Baris 8 dibiarkan
+        # kosong; untuk menjaga kesinambungan form, angka 9 meneruskan angka 7.
+        neto_setelah_kompensasi = neto_setelah_zakat
+
+        # Angka 16 = angka 14 - angka 15. Angka 19 = angka 16 - angka 18.
+        # Saat ini Worksheet hanya memiliki PPh25 sebagai kredit yang dibayar sendiri.
+        pph_kurang_lebih_16 = float(document.pph_terutang or 0) - float(document.kredit_pajak or 0)
+        pph_kurang_lebih_19 = pph_kurang_lebih_16 - float(document.pph25 or 0)
+
         values = {
             "npwp": document.npwp,
             "nama_wp": document.nama_wp,
             "tahun_pajak": str(document.tahun_pajak),
-            # Untuk data pekerjaan, sumber yang tersedia adalah total NETTO Bupot.
-            "penghasilan_pekerjaan": self._number(document.total_netto_bupot),
-            "penghasilan_lainnya": self._number(document.penghasilan_neto_lainnya),
-            "zakat": self._number(document.zakat),
-            "neto_setelah_zakat": self._number(document.penghasilan_neto_gabungan),
-            "ptkp": self._number(document.ptkp),
-            "pkp": self._number(document.pkp),
-            "pph_terutang": self._number(document.pph_terutang),
-            "jumlah_pph_terutang": self._number(document.pph_terutang),
-            "kredit_pajak": self._number(document.kredit_pajak),
-            "pph25": self._number(document.pph25),
-            "kurang_lebih_bayar": self._number(document.kurang_lebih_bayar),
+            "penghasilan_pekerjaan": self._number_or_blank(pekerjaan),
+            "penghasilan_lainnya": self._number_or_blank(lainnya),
+            "zakat": self._number_or_blank(document.zakat),
+            "neto_setelah_zakat": self._number_or_blank(neto_setelah_zakat),
+            "neto_setelah_kompensasi": self._number_or_blank(neto_setelah_kompensasi),
+            "ptkp": self._number_or_blank(document.ptkp),
+            "pkp": self._number_or_blank(document.pkp),
+            "pph_terutang": self._number_or_blank(document.pph_terutang),
+            "jumlah_pph_terutang": self._number_or_blank(document.pph_terutang),
+            "kredit_pajak": self._number_or_blank(document.kredit_pajak),
+            "pph25": self._number_or_blank(document.pph25),
+            "kurang_lebih_bayar": self._number_or_blank(pph_kurang_lebih_19),
         }
 
         for logical_name, value in values.items():
@@ -89,20 +114,27 @@ class Legacy1770IndukService:
             if acroform_name:
                 result.fields[acroform_name] = value
 
-        # Belum ada sumber yang sah untuk neto usaha dan kompensasi kerugian.
-        # Jangan menganggap kosong = nol secara diam-diam.
+        # AUTO15 adalah angka 5 pada template resmi. Diisi eksplisit agar hasil
+        # tetap benar pada PDF viewer yang tidak menjalankan kalkulasi JavaScript.
+        result.fields["AUTO15"] = self._number_or_blank(jumlah_neto)
+
+        # PPhLebihKurang adalah angka 16 pada template resmi.
+        result.fields["PPhLebihKurang"] = self._number_or_blank(pph_kurang_lebih_16)
+
+        # PNUsaha tidak boleh diambil dari omzet UMKM karena UMKM dikenai PPh Final
+        # dan akan ditempatkan pada Lampiran III.
         result.issues.append(
             IndukMappingIssue(
                 "INDUK_W01",
                 "WARNING",
-                "Penghasilan neto usaha (PNUsaha) belum memiliki sumber domain tersendiri; field dibiarkan kosong.",
+                "Penghasilan neto usaha non-final (PNUsaha) belum memiliki sumber domain tersendiri; angka 1 dibiarkan kosong. Penghasilan UMKM final tidak dipindahkan ke angka 1.",
             )
         )
         result.issues.append(
             IndukMappingIssue(
                 "INDUK_W02",
                 "WARNING",
-                "Kompensasi kerugian belum dimodelkan; PNsetelahKompen tidak diisi otomatis.",
+                "Kompensasi kerugian belum dimodelkan; angka 8 dibiarkan kosong dan angka 9 meneruskan nilai angka 7.",
             )
         )
         return result
@@ -129,9 +161,6 @@ class Legacy1770IndukService:
             ) from exc
 
         reader = PdfReader(str(info.path))
-
-        # Writer sementara mempertahankan struktur AcroForm asli saat field Induk
-        # diperbarui. Hasil akhir kemudian dipangkas menjadi halaman Indonesia saja.
         filled_writer = PdfWriter()
         filled_writer.clone_document_from_reader(reader)
 
@@ -144,9 +173,6 @@ class Legacy1770IndukService:
             auto_regenerate=True,
         )
 
-        # Output final Stage 8C bukan template bilingual 16 halaman. Ambil hanya
-        # halaman format lama Bahasa Indonesia yang sudah ditetapkan TemplateManager:
-        # Induk, Lampiran I, II, III, dan IV.
         output_writer = PdfWriter()
         for page_number in manager.INDONESIAN_EXPORT_PAGES:
             source_index = int(page_number) - 1
