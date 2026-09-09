@@ -74,11 +74,11 @@ class Legacy1770Document:
 
 
 class Legacy1770DocumentService:
-    """Stage 8C.1: bentuk model dokumen 1770 lama dari snapshot FINAL.
+    """Bentuk model dokumen 1770 lama dari snapshot FINAL.
 
-    Model ini mengikuti struktur 5 halaman acuan Lisa tanpa mengarang data yang
-    belum dimiliki aplikasi. Field yang belum tersedia diberi warning dan tetap
-    kosong pada renderer PDF.
+    Model mengikuti struktur 5 halaman acuan format lama. Data pribadi dari file
+    pembanding tidak pernah disalin; seluruh nilai berasal dari snapshot FINAL WP
+    yang sedang diproses.
     """
 
     def __init__(self, db_path: Optional[Path | str] = None):
@@ -147,8 +147,12 @@ class Legacy1770DocumentService:
         document.pph_terutang = self._float(pph.get("pph_terutang"))
         document.kredit_pajak = self._float(pph.get("kredit_pajak"))
         document.pph25 = self._float(pph.get("pph25"))
+
+        # Form 1770 lama menampilkan nilai rupiah aktual pada angka 16/19.
+        # Nilai pembulatan ratusan milik kertas kerja tidak boleh menggantikan
+        # nilai asli kurang/lebih bayar pada form resmi.
         document.kurang_lebih_bayar = self._float(
-            pph.get("kurang_lebih_bayar_pembulatan", pph.get("kurang_lebih_bayar"))
+            pph.get("kurang_lebih_bayar", pph.get("kurang_lebih_bayar_pembulatan"))
         )
 
         document.umkm_bruto = sum(self._float(v) for v in (umkm.get("bruto_bulanan") or []))
