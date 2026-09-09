@@ -14,7 +14,9 @@ class WorksheetPage(BaseWorksheetPage):
     - Total Harta Tahun Sebelumnya dapat diisi sebagai baseline manual bila file
       Coretax tahun berjalan tidak membawa nilai tahun sebelumnya;
     - rekonsiliasi memberi informasi sumber baseline agar nilai 0 yang sebenarnya
-      berarti 'belum tersedia' tidak dianggap sebagai baseline valid.
+      berarti 'belum tersedia' tidak dianggap sebagai baseline valid;
+    - hasil impor workbook Stage 8B.1 langsung mengisi tabel Bupot dari hasil
+      parsing workbook, sehingga UI tidak bergantung pada siklus reload database.
     """
 
     @staticmethod
@@ -41,6 +43,52 @@ class WorksheetPage(BaseWorksheetPage):
         self._repolish_widget(self.harta_prev_value)
         self._render_reconciliation()
         self._recalculate_pph_summary()
+
+    def load_workbook_import_result(self, import_result):
+        """Muat hasil Stage 8B.1 langsung ke seluruh Worksheet.
+
+        Persistence tetap dilakukan oleh WorksheetWorkbookImporter. Method ini
+        khusus menyinkronkan state UI setelah import. Bupot memakai baris hasil
+        parser secara langsung agar data yang baru diimpor langsung terlihat.
+        """
+        pipeline = getattr(import_result, "pipeline_result", None)
+        if pipeline is not None:
+            self.load_harta_preview(pipeline)
+
+        rows = list(getattr(import_result, "bupot_rows", None) or [])
+        if hasattr(self, "_render_bupot_rows"):
+            self._render_bupot_rows(rows)
+            self._bupot_saved_rows = list(rows)
+            self._bupot_restored_from_db = bool(rows)
+            self._bupot_last_save_error = None
+            self._validate_and_refresh_bupot()
+
+        # Komponen PPh/penghasilan sudah dipersist sebelum signal diterima.
+        # Muat ulang sekali setelah identitas Harta tersambung agar seluruh card
+        # turunan (PTKP, UMKM, penghasilan lainnya, analisis) memakai state yang sama.
+        if pipeline is not None and hasattr(self, "_load_pph_state_for_current_wp"):
+            self._load_pph_state_for_current_wp()
+            # _load_pph_state_for_current_wp membaca database; render ulang hasil
+            # parser setelahnya agar Bupot workbook menjadi sumber tampilan langsung.
+            if rows:
+                self._render_bupot_rows(rows)
+                self._bupot_saved_rows = list(rows)
+                self._bupot_restored_from_db = True
+                self._validate_and_refresh_bupot()
+
+        if hasattr(self, "toast_notification"):
+            if rows:
+                self.toast_notification.show_message(
+                    f"{len(rows)} baris Bupot dari kertas kerja dimuat otomatis.",
+                    "success",
+                    3200,
+                )
+            else:
+                self.toast_notification.show_message(
+                    "Kertas kerja berhasil dimuat, tetapi tidak ada baris Bupot yang terbaca.",
+                    "warning",
+                    4200,
+                )
 
     @staticmethod
     def _repolish_widget(widget):
