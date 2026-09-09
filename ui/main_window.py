@@ -24,6 +24,7 @@ from ui.pages.finalization_page import FinalizationPage
 from ui.pages.import_coretax_page_view import ImportCoretaxPage
 from ui.pages.settings_page import SettingsPage
 from ui.pages.worksheet_pph_stage7_fix import WorksheetPage
+from ui.worksheet_export_actions import WorksheetExportActions
 
 
 class MainWindow(QMainWindow):
@@ -141,6 +142,7 @@ class MainWindow(QMainWindow):
 
         import_page = ImportCoretaxPage()
         worksheet_page = WorksheetPage()
+        self.worksheet_export_actions = WorksheetExportActions(worksheet_page, self)
         import_page.harta_preview_changed.connect(
             worksheet_page.load_harta_preview
         )
