@@ -15,7 +15,7 @@ from core.legacy_pdf_template import DEFAULT_TEMPLATE_PATH
 
 def main() -> int:
     parser = argparse.ArgumentParser(
-        description="Buat PDF uji Stage 8C.4 (Form 1770 Induk) dari snapshot FINAL."
+        description="Buat PDF uji Stage 8C.4 (Form 1770 Bahasa Indonesia) dari snapshot FINAL."
     )
     parser.add_argument("npwp", help="NPWP Wajib Pajak")
     parser.add_argument("tahun", type=int, help="Tahun Pajak")
@@ -50,8 +50,9 @@ def main() -> int:
             print(f"[{issue.severity}] {issue.code}: {issue.message}")
         return 3
 
-    print(f"OK - PDF uji Induk dibuat: {output}")
-    print(f"Field diisi: {len(mapping.fields)}")
+    print(f"OK - PDF uji 1770 Bahasa Indonesia dibuat: {output}")
+    print("Output hanya berisi format Bahasa Indonesia: Induk + Lampiran I, II, III, IV.")
+    print(f"Field Induk diisi: {len(mapping.fields)}")
     for field_name, value in mapping.fields.items():
         print(f"  {field_name} = {value}")
 
@@ -60,7 +61,7 @@ def main() -> int:
         for issue in mapping.issues:
             print(f"[{issue.severity}] {issue.code}: {issue.message}")
 
-    print("\nBuka PDF lalu periksa halaman 10 (Form 1770 Induk Bahasa Indonesia).")
+    print("\nBuka halaman 1 output untuk memeriksa Form 1770 Induk Bahasa Indonesia.")
     return 0
 
 
