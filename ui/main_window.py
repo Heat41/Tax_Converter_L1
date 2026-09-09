@@ -177,11 +177,18 @@ class MainWindow(QMainWindow):
 
     def _on_worksheet_workbook_imported(self, import_result):
         worksheet = self.pages.get("worksheet")
-        pipeline = getattr(import_result, "pipeline_result", None)
-        if worksheet is not None and pipeline is not None:
-            worksheet.load_harta_preview(pipeline)
-            self._show_page("worksheet")
-            self.refresh_dashboard()
+        if worksheet is None:
+            return
+
+        if hasattr(worksheet, "load_workbook_import_result"):
+            worksheet.load_workbook_import_result(import_result)
+        else:
+            pipeline = getattr(import_result, "pipeline_result", None)
+            if pipeline is not None:
+                worksheet.load_harta_preview(pipeline)
+
+        self._show_page("worksheet")
+        self.refresh_dashboard()
 
     def _build_dashboard_page(self):
         page = QWidget()
