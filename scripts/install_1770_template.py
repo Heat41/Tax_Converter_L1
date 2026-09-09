@@ -12,8 +12,10 @@ from core.legacy_pdf_template import DEFAULT_TEMPLATE_PATH, Legacy1770TemplateMa
 
 
 def main() -> int:
-    parser = argparse.ArgumentParser(description="Pasang template PDF 1770 kosong resmi DJP.")
-    parser.add_argument("--source", required=True, help="Path PDF 1770 kosong")
+    parser = argparse.ArgumentParser(
+        description="Pasang master visual PDF 1770 lama 6 halaman Bahasa Indonesia."
+    )
+    parser.add_argument("--source", required=True, help="Path file PDF master 1770 6 halaman")
     args = parser.parse_args()
 
     source = Path(args.source)
@@ -24,7 +26,6 @@ def main() -> int:
         print("File sumber harus PDF.")
         return 2
 
-    target = DEFAULT_TEMPLATE_PATH
     manager = Legacy1770TemplateManager(source)
     try:
         info = manager.require_ready()
@@ -32,14 +33,16 @@ def main() -> int:
         print(f"Template tidak valid: {exc}")
         return 2
 
+    target = DEFAULT_TEMPLATE_PATH
     target.parent.mkdir(parents=True, exist_ok=True)
     target.write_bytes(source.read_bytes())
     installed = Legacy1770TemplateManager(target).require_ready()
 
-    print(f"Template berhasil dipasang: {installed.path}")
+    print(f"Master template berhasil dipasang: {installed.path}")
     print(f"Halaman: {installed.page_count}")
     print(f"Ukuran: {installed.size_bytes} byte")
     print(f"SHA256: {installed.sha256}")
+    print("Urutan: 1 Induk, 2-3 Lampiran I, 4 Lampiran II, 5 Lampiran III, 6 Lampiran IV")
     return 0
 
 
