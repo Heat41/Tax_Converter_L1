@@ -6,7 +6,7 @@ from PySide6.QtCore import Qt
 from PySide6.QtWidgets import QFileDialog, QHBoxLayout, QLabel, QMessageBox, QPushButton
 
 from core.finalization_adapter import FinalizationAdapter
-from core.worksheet_archive_exporter import WorksheetArchiveExporter
+from core.worksheet_archive_exporter_styled import StyledWorksheetArchiveExporter
 
 
 class WorksheetExportActions:
@@ -20,7 +20,7 @@ class WorksheetExportActions:
     def __init__(self, worksheet, parent=None):
         self.worksheet = worksheet
         self.parent = parent or worksheet
-        self.exporter = WorksheetArchiveExporter()
+        self.exporter = StyledWorksheetArchiveExporter()
         self._install()
 
     def _install(self):
@@ -39,7 +39,7 @@ class WorksheetExportActions:
         self.excel_button.setObjectName("secondaryButton")
         self.excel_button.setCursor(Qt.PointingHandCursor)
         self.excel_button.setToolTip(
-            "Export Kertas Kerja ke .xlsx. File dapat dibuka di Excel dan diimpor kembali ke aplikasi."
+            "Export Kertas Kerja ke .xlsx dengan tabel dan format arsip. File tetap dapat dibuka di Excel dan diimpor kembali ke aplikasi."
         )
         self.excel_button.clicked.connect(self.export_excel)
 
@@ -47,7 +47,7 @@ class WorksheetExportActions:
         self.pdf_button.setObjectName("secondaryButton")
         self.pdf_button.setCursor(Qt.PointingHandCursor)
         self.pdf_button.setToolTip(
-            "Export versi arsip baca-saja Kertas Kerja. Ini bukan Form 1770 Format Lama."
+            "Export versi arsip baca-saja Kertas Kerja dengan tabel terstruktur. Ini bukan Form 1770 Format Lama."
         )
         self.pdf_button.clicked.connect(self.export_pdf)
 
