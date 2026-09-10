@@ -15,6 +15,7 @@ class WorksheetBupotRow:
     no_bupot: str = ""
     bruto: float = 0.0
     pengurang: float = 0.0
+    pph_dipotong: float = 0.0
 
     @property
     def netto(self) -> float:
@@ -90,6 +91,7 @@ class WorksheetPPhStateStore:
                     "no_bupot": row.no_bupot,
                     "bruto": float(row.bruto),
                     "pengurang": float(row.pengurang),
+                    "pph_dipotong": float(getattr(row, "pph_dipotong", 0.0) or 0.0),
                 }
                 for row in bupot_rows
             ],
@@ -154,6 +156,7 @@ class WorksheetPPhStateStore:
                 no_bupot=str(item.get("no_bupot") or ""),
                 bruto=float(item.get("bruto") or 0),
                 pengurang=float(item.get("pengurang") or 0),
+                pph_dipotong=float(item.get("pph_dipotong") or 0),
             )
             for item in raw_rows
         ]
