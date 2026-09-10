@@ -60,12 +60,12 @@ class Legacy1770IndukService:
         (317.33, 880.20, 375.07, 893.88),
     )
 
-    # Fine-tuned langsung dari master bersih/render aktual. Digit tanggungan
-    # (contoh TK/0) harus berada DI DALAM kotak kecil setelah label TK/K/K-I.
+    # Posisi kotak PTKP dikunci terhadap master bersih aktual.
+    # Nilai adalah bounding box kotak kecil setelah label TK /, K /, dan K/I /.
     PTKP_STATUS_RECTS: Dict[str, Rect] = {
-        "TK": (221.0, 420.5, 237.0, 436.3),
-        "K": (268.6, 420.5, 284.5, 436.3),
-        "KI": (317.4, 420.5, 333.3, 436.3),
+        "TK": (230.9, 419.0, 245.3, 434.3),
+        "K": (274.1, 419.0, 288.5, 434.3),
+        "KI": (317.3, 419.0, 331.7, 434.3),
     }
 
     SIGN_16_RECTS: Sequence[Rect] = (
