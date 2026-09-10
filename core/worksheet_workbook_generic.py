@@ -39,6 +39,12 @@ class GenericWorksheetWorkbookImporter(WorksheetWorkbookImporter):
         "pengurang": {
             "pengurang", "pengurang bruto", "biaya pengurang", "pengurang penghasilan bruto",
         },
+        "pph_dipotong": {
+            "pph dipotong", "pph dipungut", "pph dipotong/dipungut",
+            "pph dipotong / dipungut", "jumlah pph", "jumlah pph dipotong",
+            "jumlah pph dipungut", "jumlah pph dipotong/dipungut",
+            "kredit pajak", "pph terpotong",
+        },
         "kode_ct": {"kode ct", "kode coretax", "kode harta ct", "kode harta coretax"},
         "kode_eform": {"kode eform", "kode e-form", "kode lama", "kode harta eform"},
         "nama_harta": {"nama harta", "uraian harta", "jenis harta"},
@@ -141,6 +147,7 @@ class GenericWorksheetWorkbookImporter(WorksheetWorkbookImporter):
 
     def _candidate_header_blocks(self, df) -> Iterable[Tuple[int, Dict[str, int]]]:
         required = {"jenis", "npwp_pemberi_kerja", "no_bupot", "bruto", "pengurang"}
+        supported = required | {"pph_dipotong"}
         for row in range(len(df)):
             canonical_by_col = {
                 col: self._canonical_header(df.iat[row, col])
@@ -149,11 +156,11 @@ class GenericWorksheetWorkbookImporter(WorksheetWorkbookImporter):
             }
             anchor_cols = [col for col, key in canonical_by_col.items() if key == "jenis"]
             for anchor in anchor_cols:
-                window = range(max(0, anchor - 1), min(df.shape[1], anchor + 10))
+                window = range(max(0, anchor - 1), min(df.shape[1], anchor + 12))
                 mapping = {}
                 for col in window:
                     key = canonical_by_col.get(col)
-                    if key in required and key not in mapping:
+                    if key in supported and key not in mapping:
                         mapping[key] = col
                 if required.issubset(mapping):
                     yield row, mapping
@@ -180,13 +187,20 @@ class GenericWorksheetWorkbookImporter(WorksheetWorkbookImporter):
             no_bupot = self._text(df.iat[row, headers["no_bupot"]])
             bruto = self._number(df.iat[row, headers["bruto"]])
             pengurang = self._number(df.iat[row, headers["pengurang"]])
-            if any((jenis, npwp, no_bupot, bruto, pengurang)):
+            pph_dipotong = (
+                self._number(df.iat[row, headers["pph_dipotong"]])
+                if "pph_dipotong" in headers
+                else 0.0
+            )
+            if any((jenis, npwp, no_bupot, bruto, pengurang, pph_dipotong)):
                 score += 1
                 if npwp:
                     score += 2
                 if no_bupot:
                     score += 2
                 if bruto or pengurang:
+                    score += 1
+                if pph_dipotong:
                     score += 1
         return score
 
@@ -222,14 +236,26 @@ class GenericWorksheetWorkbookImporter(WorksheetWorkbookImporter):
             no_bupot = self._text(df.iat[row, headers["no_bupot"]])
             bruto = self._number(df.iat[row, headers["bruto"]])
             pengurang = self._number(df.iat[row, headers["pengurang"]])
-            if not any((jenis, npwp, no_bupot, bruto, pengurang)):
+            pph_dipotong = (
+                self._number(df.iat[row, headers["pph_dipotong"]])
+                if "pph_dipotong" in headers
+                else 0.0
+            )
+            if not any((jenis, npwp, no_bupot, bruto, pengurang, pph_dipotong)):
                 continue
             result.bupot_rows.append(
-                self._make_bupot_row(jenis, npwp, no_bupot, bruto, pengurang)
+                self._make_bupot_row(
+                    jenis,
+                    npwp,
+                    no_bupot,
+                    bruto,
+                    pengurang,
+                    pph_dipotong,
+                )
             )
 
     @staticmethod
-    def _make_bupot_row(jenis, npwp, no_bupot, bruto, pengurang):
+    def _make_bupot_row(jenis, npwp, no_bupot, bruto, pengurang, pph_dipotong=0.0):
         from core.worksheet_pph_state import WorksheetBupotRow
         return WorksheetBupotRow(
             jenis=jenis,
@@ -237,6 +263,7 @@ class GenericWorksheetWorkbookImporter(WorksheetWorkbookImporter):
             no_bupot=no_bupot,
             bruto=bruto,
             pengurang=pengurang,
+            pph_dipotong=pph_dipotong,
         )
 
     def _parse_harta(self, df, result):
