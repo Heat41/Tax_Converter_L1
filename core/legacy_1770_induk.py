@@ -60,12 +60,14 @@ class Legacy1770IndukService:
         (317.33, 880.20, 375.07, 893.88),
     )
 
-    # Posisi kotak PTKP dikunci terhadap master bersih aktual.
-    # Nilai adalah bounding box kotak kecil setelah label TK /, K /, dan K/I /.
+    # Hasil kalibrasi marker debug: B3 tepat di pusat kotak TK.
+    # Grid debug mendefinisikan B3=(230, 428), sehingga kotak target dibuat
+    # simetris mengelilingi titik tersebut. K dan K/I mengikuti jarak horizontal
+    # yang sama pada master bersih.
     PTKP_STATUS_RECTS: Dict[str, Rect] = {
-        "TK": (230.9, 419.0, 245.3, 434.3),
-        "K": (274.1, 419.0, 288.5, 434.3),
-        "KI": (317.3, 419.0, 331.7, 434.3),
+        "TK": (223.0, 421.0, 237.0, 435.0),
+        "K": (267.0, 421.0, 281.0, 435.0),
+        "KI": (311.0, 421.0, 325.0, 435.0),
     }
 
     SIGN_16_RECTS: Sequence[Rect] = (
