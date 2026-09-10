@@ -9,7 +9,7 @@ if str(ROOT) not in sys.path:
     sys.path.insert(0, str(ROOT))
 
 from core.legacy_1770 import Legacy1770DocumentService
-from core.legacy_1770_induk import Legacy1770IndukService
+from core.legacy_1770_induk_finetuned import Legacy1770IndukService
 from core.legacy_pdf_template import DEFAULT_TEMPLATE_PATH
 
 
@@ -27,7 +27,7 @@ def main() -> int:
     parser.add_argument(
         "--template",
         default=str(DEFAULT_TEMPLATE_PATH),
-        help="Path template resmi 1770 kosong.",
+        help="Path master bersih 1770 enam halaman.",
     )
     args = parser.parse_args()
 
@@ -51,8 +51,8 @@ def main() -> int:
         return 3
 
     print(f"OK - PDF uji 1770 Bahasa Indonesia dibuat: {output}")
-    print("Output hanya berisi format Bahasa Indonesia: Induk + Lampiran I, II, III, IV.")
-    print(f"Field Induk diisi: {len(mapping.fields)}")
+    print("Output memakai master bersih 6 halaman dan bersifat statis/non-interaktif.")
+    print(f"Field/logical value Induk: {len(mapping.fields)}")
     for field_name, value in mapping.fields.items():
         print(f"  {field_name} = {value}")
 
@@ -61,7 +61,7 @@ def main() -> int:
         for issue in mapping.issues:
             print(f"[{issue.severity}] {issue.code}: {issue.message}")
 
-    print("\nBuka halaman 1 output untuk memeriksa Form 1770 Induk Bahasa Indonesia.")
+    print("\nBuka halaman 1 untuk memeriksa fine tuning terakhir Form 1770 Induk.")
     return 0
 
 
