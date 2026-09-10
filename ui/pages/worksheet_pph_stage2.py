@@ -13,6 +13,10 @@ class WorksheetPage(BaseWorksheetPage):
     """Stage 2 Penghasilan & PPh: validasi dan persistence Bupot."""
 
     INVALID_BACKGROUND = QColor("#FFEBEE")
+    # Detail PPh per Bupot belum menjadi kolom editable pada grid lama. Nilainya
+    # tetap dibawa sebagai metadata row agar import -> edit -> save tidak
+    # menghilangkan nilai yang sudah dibaca dari workbook.
+    BUPOT_PPH_ROLE = Qt.UserRole + 1
 
     def __init__(self, parent=None):
         self.pph_state_store = WorksheetPPhStateStore()
@@ -133,6 +137,10 @@ class WorksheetPage(BaseWorksheetPage):
                 for row_index, row in enumerate(rows):
                     no_item = QTableWidgetItem(str(row_index + 1))
                     no_item.setFlags(no_item.flags() & ~Qt.ItemIsEditable)
+                    no_item.setData(
+                        self.BUPOT_PPH_ROLE,
+                        float(getattr(row, "pph_dipotong", 0.0) or 0.0),
+                    )
                     self.bupot_table.setItem(row_index, 0, no_item)
 
                     text_values = (
@@ -168,6 +176,11 @@ class WorksheetPage(BaseWorksheetPage):
 
     def _add_bupot_row(self):
         super()._add_bupot_row()
+        row_index = self.bupot_table.rowCount() - 1
+        if row_index >= 0:
+            no_item = self.bupot_table.item(row_index, 0)
+            if no_item is not None and no_item.data(self.BUPOT_PPH_ROLE) is None:
+                no_item.setData(self.BUPOT_PPH_ROLE, 0.0)
         self._validate_and_refresh_bupot()
 
     def _remove_bupot_row(self):
@@ -179,6 +192,15 @@ class WorksheetPage(BaseWorksheetPage):
         if self._rendering_bupot:
             return
         self._validate_and_refresh_bupot()
+
+    def _row_pph_dipotong(self, row_index: int) -> float:
+        no_item = self.bupot_table.item(row_index, 0)
+        if no_item is None:
+            return 0.0
+        try:
+            return float(no_item.data(self.BUPOT_PPH_ROLE) or 0.0)
+        except (TypeError, ValueError):
+            return 0.0
 
     def _snapshot_bupot_rows(self):
         rows = []
@@ -192,6 +214,7 @@ class WorksheetPage(BaseWorksheetPage):
                     no_bupot=self._cell_text(row_index, 3),
                     bruto=self._money_value(row_index, 4),
                     pengurang=self._money_value(row_index, 5),
+                    pph_dipotong=self._row_pph_dipotong(row_index),
                 )
             )
         return rows
