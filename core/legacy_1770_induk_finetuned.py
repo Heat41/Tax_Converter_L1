@@ -19,6 +19,11 @@ class Legacy1770IndukService(BaseLegacy1770IndukService):
         "KI": (324.5, 428.0),
     }
 
+    # Fine tuning checkbox PERNYATAAN - WAJIB PAJAK.
+    # Posisi lama tepat mengenai garis atas kotak; area target diturunkan 6.4 pt
+    # tanpa mengubah posisi horizontal maupun checkbox KUASA.
+    DECLARATION_WP_RECT = (103.7, 848.2, 118.4, 861.6)
+
     @classmethod
     def _draw_ptkp_status(cls, canvas, status: str, width: float, height: float) -> None:
         """Cetak digit tanggungan langsung dari titik pusat hasil kalibrasi.
