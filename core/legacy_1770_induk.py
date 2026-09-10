@@ -34,21 +34,12 @@ class IndukFieldMappingResult:
 
 
 class Legacy1770IndukService:
-    """Stage 8C.4 - cetak Induk 1770 secara statis pada master bersih 6 halaman.
-
-    Master produksi tidak lagi memakai AcroForm. Semua posisi di bawah dikunci
-    terhadap master ``1770_master_bersih_6_halaman.pdf`` berukuran 612 x 936 pt.
-    Nilai ditulis sebagai content stream PDF melalui overlay ReportLab, kemudian
-    digabung ke halaman pertama. Dengan cara ini output menyerupai PDF hasil cetak
-    format lama dan tidak mempunyai field/fitur interaktif.
-    """
+    """Stage 8C.4 - cetak Induk 1770 secara statis pada master bersih 6 halaman."""
 
     INDUK_PAGE_INDEX = 0
     BASE_WIDTH = 612.0
     BASE_HEIGHT = 936.0
 
-    # Koordinat menggunakan origin kiri-atas seperti tampilan master. Helper
-    # _to_reportlab_rect() mengubahnya ke origin kiri-bawah milik ReportLab.
     YEAR_RECT: Rect = (432.58, 21.26, 547.92, 39.26)
     PERIOD_START_RECT: Rect = (432.58, 48.26, 490.30, 64.10)
     PERIOD_END_RECT: Rect = (504.58, 48.26, 562.80, 64.10)
@@ -61,7 +52,6 @@ class Legacy1770IndukService:
     )
     NAME_RECT: Rect = (216.53, 134.54, 547.92, 148.22)
 
-    # Identitas pada blok PERNYATAAN di bagian bawah halaman.
     DECLARATION_NAME_RECT: Rect = (104.16, 864.60, 418.27, 878.28)
     DECLARATION_NPWP_GROUP_RECTS: Sequence[Rect] = (
         (104.04, 880.20, 159.02, 893.88),
@@ -70,14 +60,14 @@ class Legacy1770IndukService:
         (317.33, 880.20, 375.07, 893.88),
     )
 
-    # Kotak status PTKP pada angka 10. Isinya angka tanggungan, bukan tanda X.
+    # Fine-tuned langsung dari master bersih/render aktual. Digit tanggungan
+    # (contoh TK/0) harus berada DI DALAM kotak kecil setelah label TK/K/K-I.
     PTKP_STATUS_RECTS: Dict[str, Rect] = {
-        "TK": (230.70, 418.80, 245.70, 434.70),
-        "K": (273.90, 418.80, 288.90, 434.70),
-        "KI": (317.10, 418.80, 332.10, 434.70),
+        "TK": (221.0, 420.5, 237.0, 436.3),
+        "K": (268.6, 420.5, 284.5, 436.3),
+        "KI": (317.4, 420.5, 333.3, 436.3),
     }
 
-    # Pilihan a/b angka 16 dan 19. Positif = kurang bayar (baris a), negatif = lebih bayar (baris b).
     SIGN_16_RECTS: Sequence[Rect] = (
         (103.50, 537.30, 118.80, 548.60),
         (103.50, 549.00, 118.80, 560.30),
@@ -87,7 +77,6 @@ class Legacy1770IndukService:
         (118.20, 634.00, 132.90, 644.70),
     )
 
-    # Area nilai rupiah pada kolom kanan. Hanya baris yang didukung domain saat ini.
     ROW_RECTS: Dict[str, Rect] = {
         "2": (446.98, 269.69, 567.72, 286.13),
         "3": (446.98, 288.05, 567.72, 304.49),
@@ -104,6 +93,8 @@ class Legacy1770IndukService:
         "18": (446.98, 599.50, 567.72, 615.94),
         "19": (446.98, 622.90, 567.72, 643.90),
     }
+
+    DECLARATION_WP_RECT: Rect = (103.7, 841.8, 118.4, 855.2)
 
     @staticmethod
     def _number(value: object) -> str:
@@ -136,7 +127,6 @@ class Legacy1770IndukService:
 
     def map_document(self, document: Legacy1770Document) -> IndukFieldMappingResult:
         result = IndukFieldMappingResult()
-
         if not document.npwp:
             result.issues.append(IndukMappingIssue("INDUK_001", "ERROR", "NPWP FINAL tidak tersedia."))
         if not document.nama_wp:
@@ -150,12 +140,9 @@ class Legacy1770IndukService:
         lainnya = float(document.penghasilan_neto_lainnya or 0)
         jumlah_neto = pekerjaan + lainnya
         neto_setelah_zakat = jumlah_neto - float(document.zakat or 0)
-        neto_setelah_kompensasi = neto_setelah_zakat
         pph_kurang_lebih_16 = float(document.pph_terutang or 0) - float(document.kredit_pajak or 0)
         pph_kurang_lebih_19 = pph_kurang_lebih_16 - float(document.pph25 or 0)
 
-        # Dictionary ini tetap dipertahankan untuk audit/log/test mapping. Nama key
-        # merepresentasikan arti data, bukan field AcroForm pada master bersih.
         result.fields = {
             "NPWP": str(document.npwp),
             "Nama Wajib Pajak": str(document.nama_wp),
@@ -165,7 +152,7 @@ class Legacy1770IndukService:
             "PNInduk": self._number_or_blank(jumlah_neto),
             "ZakatSumbanganWajib": self._number_or_blank(document.zakat),
             "PNsetelahZakat": self._number_or_blank(neto_setelah_zakat),
-            "PNsetelahKompen": self._number_or_blank(neto_setelah_kompensasi),
+            "PNsetelahKompen": self._number_or_blank(neto_setelah_zakat),
             "PTKP": self._number_or_blank(document.ptkp),
             "PhKP": self._number_or_blank(document.pkp),
             "PPhTerutang": self._number_or_blank(document.pph_terutang),
@@ -176,21 +163,14 @@ class Legacy1770IndukService:
             "JumlahPPh25": self._number_or_blank(document.pph25),
             "PPhLebihKurangDibayar": self._number_or_blank(pph_kurang_lebih_19),
         }
-
-        result.issues.append(
-            IndukMappingIssue(
-                "INDUK_W01",
-                "WARNING",
-                "Penghasilan neto usaha non-final belum memiliki sumber domain tersendiri; angka 1 dibiarkan kosong. UMKM final akan masuk Lampiran III.",
-            )
-        )
-        result.issues.append(
-            IndukMappingIssue(
-                "INDUK_W02",
-                "WARNING",
-                "Kompensasi kerugian belum dimodelkan; angka 8 dibiarkan kosong dan angka 9 meneruskan angka 7.",
-            )
-        )
+        result.issues.append(IndukMappingIssue(
+            "INDUK_W01", "WARNING",
+            "Penghasilan neto usaha non-final belum memiliki sumber domain tersendiri; angka 1 dibiarkan kosong. UMKM final akan masuk Lampiran III.",
+        ))
+        result.issues.append(IndukMappingIssue(
+            "INDUK_W02", "WARNING",
+            "Kompensasi kerugian belum dimodelkan; angka 8 dibiarkan kosong dan angka 9 meneruskan angka 7.",
+        ))
         return result
 
     @classmethod
@@ -198,12 +178,7 @@ class Legacy1770IndukService:
         sx = width / cls.BASE_WIDTH
         sy = height / cls.BASE_HEIGHT
         x0, y0, x1, y1 = rect
-        return (
-            x0 * sx,
-            height - (y1 * sy),
-            x1 * sx,
-            height - (y0 * sy),
-        )
+        return (x0 * sx, height - (y1 * sy), x1 * sx, height - (y0 * sy))
 
     @staticmethod
     def _baseline(rect: Rect, font_size: float) -> float:
@@ -235,16 +210,7 @@ class Legacy1770IndukService:
         canvas.drawCentredString((target[0] + target[2]) / 2.0, cls._baseline(target, font_size), text)
 
     @classmethod
-    def _draw_four_group_comb(
-        cls,
-        canvas,
-        groups: Sequence[Rect],
-        text: str,
-        width: float,
-        height: float,
-        *,
-        font_size: float = 7.4,
-    ) -> None:
+    def _draw_four_group_comb(cls, canvas, groups: Sequence[Rect], text: str, width: float, height: float, *, font_size: float = 7.4) -> None:
         chars = [ch for ch in str(text or "") if ch.isdigit()]
         if not chars:
             return
@@ -285,18 +251,15 @@ class Legacy1770IndukService:
         normalized = str(status or "").upper().replace(" ", "")
         if not normalized:
             return
-
         if normalized.startswith("K/I/"):
             key = "KI"
         elif normalized.startswith("K/"):
             key = "K"
         else:
             key = "TK"
-
-        dependent = normalized.split("/")[-1]
-        dependent = "".join(ch for ch in dependent if ch.isdigit())[:1]
+        dependent = "".join(ch for ch in normalized.split("/")[-1] if ch.isdigit())[:1]
         if dependent:
-            cls._draw_center(canvas, cls.PTKP_STATUS_RECTS[key], dependent, width, height, 7.0, bold=False)
+            cls._draw_center(canvas, cls.PTKP_STATUS_RECTS[key], dependent, width, height, 6.2, bold=False)
 
     @classmethod
     def _draw_sign(cls, canvas, rects: Sequence[Rect], value: float, width: float, height: float) -> None:
@@ -309,26 +272,21 @@ class Legacy1770IndukService:
         try:
             from reportlab.pdfgen import canvas as reportlab_canvas
         except ImportError as exc:
-            raise RuntimeError(
-                "Library reportlab diperlukan untuk mencetak Form 1770 statis. "
-                "Install dengan: python -m pip install reportlab"
-            ) from exc
+            raise RuntimeError("Library reportlab diperlukan untuk mencetak Form 1770 statis. Install dengan: python -m pip install reportlab") from exc
 
         width = float(page.mediabox.width)
         height = float(page.mediabox.height)
         packet = BytesIO()
         c = reportlab_canvas.Canvas(packet, pagesize=(width, height))
 
-        # Header tahun dan periode pajak.
         self._draw_year_four_digits(c, self.YEAR_RECT, document.tahun_pajak, width, height)
         self._draw_period_four_digits(c, self.PERIOD_START_RECT, 1, document.tahun_pajak, width, height)
         self._draw_period_four_digits(c, self.PERIOD_END_RECT, 12, document.tahun_pajak, width, height)
-
-        # Identitas utama dan identitas pada bagian pernyataan.
         self._draw_four_group_comb(c, self.NPWP_GROUP_RECTS, document.npwp, width, height)
         self._draw_left(c, self.NAME_RECT, str(document.nama_wp).upper(), width, height, 7.3)
         self._draw_left(c, self.DECLARATION_NAME_RECT, str(document.nama_wp).upper(), width, height, 7.1)
         self._draw_four_group_comb(c, self.DECLARATION_NPWP_GROUP_RECTS, document.npwp, width, height, font_size=7.2)
+        self._draw_center(c, self.DECLARATION_WP_RECT, "X", width, height, 7.0, bold=True)
 
         pekerjaan = float(document.total_netto_bupot or 0)
         lainnya = float(document.penghasilan_neto_lainnya or 0)
@@ -339,19 +297,10 @@ class Legacy1770IndukService:
         kurang_lebih_19 = kurang_lebih_16 - kredit_sendiri
 
         row_values = {
-            "2": pekerjaan,
-            "3": lainnya,
-            "5": jumlah_neto,
-            "6": document.zakat,
-            "7": neto_setelah_zakat,
-            "9": neto_setelah_zakat,
-            "10": document.ptkp,
-            "11": document.pkp,
-            "12": document.pph_terutang,
-            "14": document.pph_terutang,
-            "15": document.kredit_pajak,
-            "16": abs(kurang_lebih_16),
-            "18": kredit_sendiri,
+            "2": pekerjaan, "3": lainnya, "5": jumlah_neto, "6": document.zakat,
+            "7": neto_setelah_zakat, "9": neto_setelah_zakat, "10": document.ptkp,
+            "11": document.pkp, "12": document.pph_terutang, "14": document.pph_terutang,
+            "15": document.kredit_pajak, "16": abs(kurang_lebih_16), "18": kredit_sendiri,
             "19": abs(kurang_lebih_19),
         }
         for row, value in row_values.items():
@@ -371,12 +320,10 @@ class Legacy1770IndukService:
             for key in ("/Annots", "/AA"):
                 if key in page:
                     del page[key]
-
         root = writer.root_object
         for key in ("/AcroForm", "/OpenAction", "/AA"):
             if key in root:
                 del root[key]
-
         names = root.get("/Names")
         try:
             names_obj = names.get_object() if names is not None else None
@@ -385,49 +332,31 @@ class Legacy1770IndukService:
         except (AttributeError, TypeError):
             pass
 
-    def fill_induk(
-        self,
-        document: Legacy1770Document,
-        output_path: str | Path,
-        *,
-        template_path: Optional[str | Path] = None,
-    ) -> IndukFieldMappingResult:
+    def fill_induk(self, document: Legacy1770Document, output_path: str | Path, *, template_path: Optional[str | Path] = None) -> IndukFieldMappingResult:
         mapping = self.map_document(document)
         if not mapping.can_fill:
             return mapping
-
         manager = Legacy1770TemplateManager(template_path)
         info = manager.require_ready()
-
         try:
             from pypdf import PdfReader, PdfWriter
         except ImportError as exc:
-            raise RuntimeError(
-                "Library pypdf diperlukan untuk membuat Form 1770. Install dengan: python -m pip install pypdf"
-            ) from exc
-
+            raise RuntimeError("Library pypdf diperlukan untuk membuat Form 1770. Install dengan: python -m pip install pypdf") from exc
         reader = PdfReader(str(info.path))
         if len(reader.pages) != 6:
             raise ValueError("Master bersih 1770 harus tepat 6 halaman.")
-
-        # Master bersih sudah non-interaktif. Hanya halaman pertama yang diberi
-        # overlay Stage 8C.4; lima lampiran tetap utuh untuk stage berikutnya.
         source_induk = reader.pages[self.INDUK_PAGE_INDEX]
         overlay_stream = self._make_induk_overlay(source_induk, document)
         overlay_page = PdfReader(overlay_stream).pages[0]
         source_induk.merge_page(overlay_page)
-
         writer = PdfWriter()
         for source_page in reader.pages:
             writer.add_page(source_page)
-
         self._strip_interactive_features(writer)
-
         target = Path(output_path)
         if target.suffix.lower() != ".pdf":
             target = target.with_suffix(".pdf")
         target.parent.mkdir(parents=True, exist_ok=True)
         with target.open("wb") as handle:
             writer.write(handle)
-
         return mapping
