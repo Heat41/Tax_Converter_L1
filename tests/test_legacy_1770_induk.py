@@ -1,5 +1,8 @@
+import pytest
+
 from core.legacy_1770 import Legacy1770Document
 from core.legacy_1770_induk import Legacy1770IndukService
+from core.legacy_1770_induk_finetuned import Legacy1770IndukService as FineTunedLegacy1770IndukService
 
 
 def _document():
@@ -56,6 +59,78 @@ def test_induk_mapping_follows_actual_legacy_field_positions():
     assert "PNUsaha" not in result.fields
     warning_codes = {issue.code for issue in result.issues}
     assert {"INDUK_W01", "INDUK_W02"}.issubset(warning_codes)
+
+
+def test_induk_mapping_is_data_driven_not_evy_hardcoded():
+    document = Legacy1770Document(
+        npwp="1111222233334444",
+        nama_wp="MODEL UJI BERBEDA",
+        tahun_pajak=2024,
+        total_netto_bupot=500_000_000,
+        penghasilan_neto_lainnya=50_000_000,
+        zakat=10_000_000,
+        ptkp=67_500_000,
+        pkp=472_500_000,
+        pph_terutang=60_000_000,
+        kredit_pajak=20_000_000,
+        pph25=10_000_000,
+        kurang_lebih_bayar=30_000_000,
+        status_ptkp="K/2",
+    )
+
+    result = Legacy1770IndukService().map_document(document)
+
+    assert result.can_fill
+    assert result.fields["NPWP"] == "1111222233334444"
+    assert result.fields["Nama Wajib Pajak"] == "MODEL UJI BERBEDA"
+    assert result.fields["Tahun Pajak"] == "2024"
+    assert result.fields["JumlahBagianCinduk"] == "500000000"
+    assert result.fields["JumlahBagianD"] == "50000000"
+    assert result.fields["PNInduk"] == "550000000"
+    assert result.fields["ZakatSumbanganWajib"] == "10000000"
+    assert result.fields["PNsetelahZakat"] == "540000000"
+    assert result.fields["PNsetelahKompen"] == "540000000"
+    assert result.fields["PTKP"] == "67500000"
+    assert result.fields["PhKP"] == "472500000"
+    assert result.fields["PPhTerutang"] == "60000000"
+    assert result.fields["IIJBAinduk"] == "20000000"
+    assert result.fields["PPhLebihKurang"] == "40000000"
+    assert result.fields["PPh25"] == "10000000"
+    assert result.fields["JumlahPPh25"] == "10000000"
+    assert result.fields["PPhLebihKurangDibayar"] == "30000000"
+
+
+class _CanvasProbe:
+    def __init__(self):
+        self.font = None
+        self.draws = []
+
+    def setFont(self, name, size):
+        self.font = (name, size)
+
+    def drawCentredString(self, x, y, text):
+        self.draws.append((x, y, text))
+
+
+@pytest.mark.parametrize(
+    ("status", "expected_key", "digit"),
+    [
+        ("TK/0", "TK", "0"),
+        ("K/2", "K", "2"),
+        ("K/I/1", "KI", "1"),
+    ],
+)
+def test_ptkp_status_renderer_selects_each_model(status, expected_key, digit):
+    canvas = _CanvasProbe()
+    service = FineTunedLegacy1770IndukService
+
+    service._draw_ptkp_status(canvas, status, service.BASE_WIDTH, service.BASE_HEIGHT)
+
+    assert len(canvas.draws) == 1
+    x, _y, rendered_digit = canvas.draws[0]
+    expected_x = service.PTKP_DEPENDENT_POINTS[expected_key][0]
+    assert x == pytest.approx(expected_x)
+    assert rendered_digit == digit
 
 
 def test_induk_mapping_blocks_missing_identity():
