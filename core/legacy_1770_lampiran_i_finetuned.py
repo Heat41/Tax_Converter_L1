@@ -16,10 +16,13 @@ class Legacy1770LampiranIService(BaseLegacy1770LampiranIService):
     """Fine tuning visual Stage 8C.5 untuk master bersih enam halaman.
 
     Halaman 2 (Lampiran I halaman 1) memiliki geometri header yang sedikit
-    berbeda dari halaman 3. Karena halaman 3 sudah terkalibrasi, kelas ini hanya
-    mengoreksi header halaman 2 dan membiarkan renderer Bagian B/C/D halaman 3
-    tetap memakai implementasi base.
+    berbeda dari halaman 3. Header halaman 2 memakai koordinat khusus, sedangkan
+    Bagian C mempertahankan koordinat base dengan ukuran teks yang lebih mudah
+    dibaca untuk hasil cetak dan multipage.
     """
+
+    # Perbesar identitas Nama/NPWP pemberi kerja tanpa mengubah geometri sel.
+    C_IDENTITY_FONT_SIZE = 5.9
 
     # Koordinat master Lampiran I halaman 1, origin kiri-atas.
     PAGE1_YEAR_RECT: Rect = (457.84, 23.90, 579.60, 43.82)
@@ -47,6 +50,27 @@ class Legacy1770LampiranIService(BaseLegacy1770LampiranIService):
         (449.86, 128.84),
         (465.82, 128.84),
     )
+
+    @classmethod
+    def _draw_right(
+        cls,
+        canvas,
+        rect,
+        value,
+        width,
+        height,
+        *,
+        size: float = 7.0,
+    ) -> None:
+        """Naikkan ukuran angka Bagian C/D dengan tetap mengikuti fit sel."""
+        return super()._draw_right(
+            canvas,
+            rect,
+            value,
+            width,
+            height,
+            size=size + 0.6,
+        )
 
     @classmethod
     def _draw_year_at(
