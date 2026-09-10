@@ -76,9 +76,8 @@ class Legacy1770Document:
 class Legacy1770DocumentService:
     """Bentuk model dokumen 1770 lama dari snapshot FINAL.
 
-    Model mengikuti struktur 5 halaman acuan format lama. Data pribadi dari file
-    pembanding tidak pernah disalin; seluruh nilai berasal dari snapshot FINAL WP
-    yang sedang diproses.
+    Data pribadi dari file pembanding tidak pernah disalin; seluruh nilai berasal
+    dari snapshot FINAL WP yang sedang diproses.
     """
 
     def __init__(self, db_path: Optional[Path | str] = None):
@@ -149,8 +148,6 @@ class Legacy1770DocumentService:
         document.pph25 = self._float(pph.get("pph25"))
 
         # Form 1770 lama menampilkan nilai rupiah aktual pada angka 16/19.
-        # Nilai pembulatan ratusan milik kertas kerja tidak boleh menggantikan
-        # nilai asli kurang/lebih bayar pada form resmi.
         document.kurang_lebih_bayar = self._float(
             pph.get("kurang_lebih_bayar", pph.get("kurang_lebih_bayar_pembulatan"))
         )
@@ -187,11 +184,24 @@ class Legacy1770DocumentService:
                 Legacy1770BupotRow(
                     nomor=index,
                     jenis=str(item.get("jenis") or ""),
-                    npwp_pemotong=str(item.get("npwp_pemberi_kerja") or ""),
+                    npwp_pemotong=str(
+                        item.get("npwp_pemberi_kerja")
+                        or item.get("npwp_pemotong")
+                        or ""
+                    ),
                     no_bupot=str(item.get("no_bupot") or ""),
                     bruto=bruto,
                     pengurang=pengurang,
                     netto=bruto - pengurang,
+                    nama_pemotong=str(
+                        item.get("nama_pemotong")
+                        or item.get("nama_pemberi_kerja")
+                        or ""
+                    ),
+                    tanggal_bupot=str(item.get("tanggal_bupot") or ""),
+                    pph_dipotong=self._float(
+                        item.get("pph_dipotong", item.get("jumlah_pph"))
+                    ),
                 )
             )
 
@@ -200,13 +210,30 @@ class Legacy1770DocumentService:
         document.issues.extend(harta_result.issues)
 
         if document.bupot_rows:
-            document.issues.append(
-                LegacyMappingIssue(
-                    "PDF_W01",
-                    "WARNING",
-                    "Data Bupot saat ini belum menyimpan Nama Pemotong, Tanggal Bupot, dan PPh Dipotong; kolom tersebut akan kosong pada Lampiran II sampai field Worksheet ditambah.",
-                )
+            missing_pph = sum(
+                1 for item in document.bupot_rows if abs(float(item.pph_dipotong or 0)) < 0.000001
             )
+            missing_identity = sum(
+                1
+                for item in document.bupot_rows
+                if not item.nama_pemotong or not item.tanggal_bupot
+            )
+            if missing_pph:
+                document.issues.append(
+                    LegacyMappingIssue(
+                        "PDF_W01",
+                        "WARNING",
+                        f"{missing_pph} Bupot pada snapshot FINAL belum memiliki PPh Dipotong per baris; Lampiran II tidak akan menebak nilainya.",
+                    )
+                )
+            if missing_identity:
+                document.issues.append(
+                    LegacyMappingIssue(
+                        "PDF_W03",
+                        "WARNING",
+                        f"{missing_identity} Bupot belum memiliki Nama Pemotong/Tanggal Bupot; field tersebut dibiarkan kosong.",
+                    )
+                )
 
         document.issues.append(
             LegacyMappingIssue(
