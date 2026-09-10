@@ -9,7 +9,7 @@ if str(ROOT) not in sys.path:
     sys.path.insert(0, str(ROOT))
 
 from core.legacy_1770 import Legacy1770DocumentService
-from core.legacy_1770_lampiran_ii import Legacy1770LampiranIIService
+from core.legacy_1770_lampiran_ii_finetuned import Legacy1770LampiranIIService
 from core.legacy_pdf_template import DEFAULT_TEMPLATE_PATH
 
 
