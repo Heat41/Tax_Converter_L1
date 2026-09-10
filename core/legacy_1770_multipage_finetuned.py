@@ -33,20 +33,15 @@ class Legacy1770MultipageService(BaseLegacy1770MultipageService):
     """Penyempurnaan Stage 8C.9: subtotal halaman + total keseluruhan.
 
     Aturan output:
-    - setiap halaman kelompok multipage menampilkan catatan subtotal halaman dan
-      total keseluruhan;
-    - pada halaman non-terakhir, sel jumlah utama menampilkan subtotal halaman;
-    - pada halaman terakhir, sel jumlah utama tetap menampilkan grand total resmi;
+    - setiap halaman kelompok multipage menyimpan subtotal halaman dan total
+      keseluruhan;
+    - subtotal dan grand total ditampilkan langsung di sel jumlah utama agar
+      tidak bertabrakan dengan tabel/footer;
+    - footer hanya digunakan untuk nomor "Halaman ke ... dari ...";
     - Lampiran II tidak pernah membagi Kredit Pajak FINAL secara proporsional.
       Jika detail PPh per Bupot belum tersedia/rekonsiliasi, subtotal halaman
       ditampilkan sebagai '-' dan grand total FINAL tetap dicetak apa adanya.
     """
-
-    # Catatan ditempatkan dekat footer masing-masing master. Posisi sengaja
-    # berdiri sendiri karena geometri tiap halaman berbeda.
-    L1_SUMMARY_RECT: Rect = (255.0, 832.0, 590.0, 844.0)
-    L2_SUMMARY_RECT: Rect = (250.0, 844.0, 590.0, 856.0)
-    L4_SUMMARY_RECT: Rect = (250.0, 751.0, 580.0, 765.0)
 
     def __init__(self) -> None:
         super().__init__()
@@ -74,9 +69,16 @@ class Legacy1770MultipageService(BaseLegacy1770MultipageService):
         l2 = l2_service.map_document(document)
         l4 = l4_service.map_document(document)
 
-        result: Dict[str, List[MultipagePageSummary]] = {"L1": [], "L2": [], "L4": []}
+        result: Dict[str, List[MultipagePageSummary]] = {
+            "L1": [],
+            "L2": [],
+            "L4": [],
+        }
 
-        l1_chunks = self._chunks(l1.employment_rows, l1_service.MAX_EMPLOYMENT_ROWS)
+        l1_chunks = self._chunks(
+            l1.employment_rows,
+            l1_service.MAX_EMPLOYMENT_ROWS,
+        )
         for index, rows in enumerate(l1_chunks, start=1):
             result["L1"].append(
                 MultipagePageSummary(
@@ -92,12 +94,16 @@ class Legacy1770MultipageService(BaseLegacy1770MultipageService):
         l2_chunks = self._chunks(l2.rows, l2_service.MAX_ROWS)
         l2_detail_total = sum(float(row.pph_dipotong or 0) for row in l2.rows)
         l2_grand_total = float(l2.jumlah_bagian_a or 0)
+
         # Detail dianggap cukup untuk subtotal hanya bila jumlah seluruh detail
         # merekonsiliasi grand total. Ini mencegah pembagian Kredit Pajak FINAL
         # secara buatan saat PPh per Bupot belum tersedia.
         l2_detail_available = (
             abs(l2_detail_total - l2_grand_total) <= 1.0
-            or (abs(l2_detail_total) <= 1.0 and abs(l2_grand_total) <= 1.0)
+            or (
+                abs(l2_detail_total) <= 1.0
+                and abs(l2_grand_total) <= 1.0
+            )
         )
         for index, rows in enumerate(l2_chunks, start=1):
             result["L2"].append(
@@ -115,14 +121,20 @@ class Legacy1770MultipageService(BaseLegacy1770MultipageService):
                 )
             )
 
-        l4_chunks = self._chunks(l4.harta_rows, l4_service.MAX_HARTA_ROWS)
+        l4_chunks = self._chunks(
+            l4.harta_rows,
+            l4_service.MAX_HARTA_ROWS,
+        )
         for index, rows in enumerate(l4_chunks, start=1):
             result["L4"].append(
                 MultipagePageSummary(
                     section="L4",
                     page_number=index,
                     page_count=len(l4_chunks),
-                    subtotal=sum(float(row.harga_perolehan or 0) for row in rows),
+                    subtotal=sum(
+                        float(row.harga_perolehan or 0)
+                        for row in rows
+                    ),
                     grand_total=float(l4.jumlah_bagian_a or 0),
                     subtotal_available=True,
                 )
@@ -139,26 +151,27 @@ class Legacy1770MultipageService(BaseLegacy1770MultipageService):
             return "L4"
         return None
 
-    def _summary_for(self, section: str, page_number: int) -> Optional[MultipagePageSummary]:
+    def _summary_for(
+        self,
+        section: str,
+        page_number: int,
+    ) -> Optional[MultipagePageSummary]:
         pages = self._page_summaries.get(section) or []
         index = int(page_number) - 1
         if 0 <= index < len(pages):
             return pages[index]
         return None
 
-    def _summary_rect_for(self, section: str) -> Rect:
+    @staticmethod
+    def _total_rect_for(section: str) -> Rect:
+        """Ambil sel jumlah fisik dari renderer lampiran yang bersangkutan."""
         if section == "L1":
-            return self.L1_SUMMARY_RECT
+            return Legacy1770LampiranIService.C_TOTAL_RECT
         if section == "L2":
-            return self.L2_SUMMARY_RECT
-        return self.L4_SUMMARY_RECT
-
-    def _section_label(self, section: str) -> str:
-        if section == "L1":
-            return "Bagian C"
-        if section == "L2":
-            return "Bagian A"
-        return "Bagian A"
+            return Legacy1770LampiranIIService.TOTAL_RECT
+        if section == "L4":
+            return Legacy1770LampiranIVService.HARTA_TOTAL_RECT
+        raise ValueError(f"Section multipage tidak dikenal: {section}")
 
     def _make_summary_overlay(
         self,
@@ -168,56 +181,97 @@ class Legacy1770MultipageService(BaseLegacy1770MultipageService):
         *,
         cleared_total_rect: Optional[Rect],
     ) -> BytesIO:
+        """Gambar subtotal + grand total langsung di sel jumlah utama.
+
+        Parameter ``cleared_total_rect`` dipertahankan untuk kompatibilitas dengan
+        pemanggil base, tetapi renderer ini selalu membersihkan sel jumlah yang
+        benar berdasarkan ``section``.
+        """
         try:
+            from reportlab.lib.colors import Color
             from reportlab.pdfgen import canvas as reportlab_canvas
         except ImportError as exc:
-            raise RuntimeError("Library reportlab diperlukan untuk Stage 8C.9.") from exc
+            raise RuntimeError(
+                "Library reportlab diperlukan untuk Stage 8C.9."
+            ) from exc
 
         width = float(page.mediabox.width)
         height = float(page.mediabox.height)
         sx = width / self.BASE_WIDTH
         sy = height / self.BASE_HEIGHT
         packet = BytesIO()
-        canvas = reportlab_canvas.Canvas(packet, pagesize=(width, height))
-
-        # Pada halaman dasar yang sudah di-mask oleh renderer multipage, tulis
-        # subtotal halaman. Untuk Lampiran II yang detailnya belum ada, tulis '-'.
-        if cleared_total_rect is not None:
-            x0, y0, x1, y1 = self._pdf_rect(cleared_total_rect, width, height)
-            if summary.subtotal_available and summary.subtotal is not None:
-                text = self._money(summary.subtotal)
-                canvas.setFont("Helvetica", 6.2 * sy)
-                baseline = y0 + ((y1 - y0 - (6.2 * sy)) / 2.0) + (1.6 * sy)
-                canvas.drawRightString(x1 - (3.0 * sx), baseline, text)
-            else:
-                canvas.setFont("Helvetica", 6.2 * sy)
-                canvas.drawRightString(
-                    x1 - (3.0 * sx),
-                    y0 + ((y1 - y0) / 2.0) - (1.0 * sy),
-                    "-",
-                )
-
-        label = self._section_label(section)
-        if summary.subtotal_available and summary.subtotal is not None:
-            subtotal_text = f"Rp {self._money(summary.subtotal)}"
-        else:
-            subtotal_text = "- (detail belum tersedia)"
-        note = (
-            f"Subtotal halaman: {subtotal_text}   |   "
-            f"Total {label}: Rp {self._money(summary.grand_total)}"
+        canvas = reportlab_canvas.Canvas(
+            packet,
+            pagesize=(width, height),
         )
 
-        x0, y0, x1, y1 = self._pdf_rect(self._summary_rect_for(section), width, height)
-        size = 5.0
-        while size > 3.6:
-            canvas.setFont("Helvetica-Bold", size * sy)
-            if canvas.stringWidth(note, "Helvetica-Bold", size * sy) <= (x1 - x0):
+        total_rect = self._total_rect_for(section)
+        x0, y0, x1, y1 = self._pdf_rect(
+            total_rect,
+            width,
+            height,
+        )
+
+        # Hapus nilai lama yang mungkin sudah dicetak renderer lampiran, lalu
+        # gunakan kembali warna kuning sel jumlah pada master.
+        canvas.setFillColor(Color(1.0, 1.0, 0.60))
+        canvas.rect(
+            x0 + (0.7 * sx),
+            y0 + (0.7 * sy),
+            max(0.0, (x1 - x0) - (1.4 * sx)),
+            max(0.0, (y1 - y0) - (1.4 * sy)),
+            stroke=0,
+            fill=1,
+        )
+        canvas.setFillColorRGB(0, 0, 0)
+
+        if summary.subtotal_available and summary.subtotal is not None:
+            subtotal_value = self._money(summary.subtotal)
+        else:
+            subtotal_value = "-"
+
+        total_value = self._money(summary.grand_total)
+
+        # Label disingkat agar dua nilai tetap terbaca di sel kuning yang sempit.
+        line_1 = f"Hal: {subtotal_value}"
+        line_2 = f"Total: {total_value}"
+
+        max_width = max(1.0, (x1 - x0) - (5.0 * sx))
+        size = 4.8
+        while size > 3.2:
+            canvas.setFont("Helvetica", size * sy)
+            width_1 = canvas.stringWidth(
+                line_1,
+                "Helvetica",
+                size * sy,
+            )
+            width_2 = canvas.stringWidth(
+                line_2,
+                "Helvetica",
+                size * sy,
+            )
+            if max(width_1, width_2) <= max_width:
                 break
             size -= 0.2
+
         font_size = size * sy
-        canvas.setFont("Helvetica-Bold", font_size)
-        baseline = y0 + ((y1 - y0 - font_size) / 2.0) + (1.4 * sy)
-        canvas.drawRightString(x1, baseline, note)
+        canvas.setFont("Helvetica", font_size)
+
+        cell_height = y1 - y0
+        top_baseline = y0 + (cell_height * 0.57)
+        bottom_baseline = y0 + (cell_height * 0.17)
+        right_x = x1 - (3.0 * sx)
+
+        canvas.drawRightString(
+            right_x,
+            top_baseline,
+            line_1,
+        )
+        canvas.drawRightString(
+            right_x,
+            bottom_baseline,
+            line_2,
+        )
 
         canvas.save()
         packet.seek(0)
@@ -234,27 +288,30 @@ class Legacy1770MultipageService(BaseLegacy1770MultipageService):
         clear_total_rect: Optional[Rect] = None,
         draw_dash: bool = False,
     ) -> BytesIO:
-        # Gunakan footer base untuk nomor halaman dan masking, tetapi dash lama
-        # dimatikan karena sel non-terakhir sekarang berisi subtotal halaman.
+        # Footer hanya mengurus nomor halaman. Sel jumlah ditangani oleh
+        # _make_summary_overlay agar tidak lagi ada tulisan subtotal di luar
+        # tabel/form.
         base_stream = BaseLegacy1770MultipageService._make_footer_overlay(
             page,
             page_number,
             page_count,
             page_box,
             total_box,
-            clear_total_rect=clear_total_rect,
+            clear_total_rect=None,
             draw_dash=False,
         )
 
         section = self._section_from_page_box(page_box)
         if section is None:
             return base_stream
-        summary = self._summary_for(section, page_number)
+
+        summary = self._summary_for(
+            section,
+            page_number,
+        )
         if summary is None:
             return base_stream
 
-        # Gabungkan footer base dan ringkasan dalam satu stream agar caller hanya
-        # perlu satu merge ke halaman target.
         from pypdf import PdfReader, PdfWriter
 
         base_page = PdfReader(base_stream).pages[0]
@@ -291,10 +348,19 @@ class Legacy1770MultipageService(BaseLegacy1770MultipageService):
         subtotal = sum(float(row.netto or 0) for row in rows)
         mapping = LampiranIMappingResult(
             employment_rows=list(rows),
-            jumlah_bagian_c=float(grand_total if is_last else subtotal),
+            jumlah_bagian_c=float(
+                grand_total if is_last else subtotal
+            ),
             jumlah_bagian_d=0.0,
         )
-        self._merge_stream(page, service._make_page2_overlay(page, document, mapping))
+        self._merge_stream(
+            page,
+            service._make_page2_overlay(
+                page,
+                document,
+                mapping,
+            ),
+        )
         self._merge_stream(
             page,
             self._make_footer_overlay(
@@ -321,19 +387,35 @@ class Legacy1770MultipageService(BaseLegacy1770MultipageService):
     ):
         page = deepcopy(template_page)
         service = Legacy1770LampiranIIService()
-        summary = self._summary_for("L2", page_number)
+        summary = self._summary_for(
+            "L2",
+            page_number,
+        )
         subtotal = (
             float(summary.subtotal or 0)
-            if summary is not None and summary.subtotal_available
+            if summary is not None
+            and summary.subtotal_available
             else 0.0
         )
-        display_total = float(grand_total if is_last else subtotal)
+        display_total = float(
+            grand_total if is_last else subtotal
+        )
         mapping = LampiranIIMappingResult(
             rows=list(rows),
             jumlah_bagian_a=display_total,
-            detail_pph_total=sum(float(row.pph_dipotong or 0) for row in rows),
+            detail_pph_total=sum(
+                float(row.pph_dipotong or 0)
+                for row in rows
+            ),
         )
-        self._merge_stream(page, service._make_overlay(page, document, mapping))
+        self._merge_stream(
+            page,
+            service._make_overlay(
+                page,
+                document,
+                mapping,
+            ),
+        )
         self._merge_stream(
             page,
             self._make_footer_overlay(
@@ -360,12 +442,24 @@ class Legacy1770MultipageService(BaseLegacy1770MultipageService):
     ):
         page = deepcopy(template_page)
         service = Legacy1770LampiranIVService()
-        subtotal = sum(float(row.harga_perolehan or 0) for row in rows)
+        subtotal = sum(
+            float(row.harga_perolehan or 0)
+            for row in rows
+        )
         mapping = LampiranIVMappingResult(
             harta_rows=list(rows),
-            jumlah_bagian_a=float(grand_total if is_last else subtotal),
+            jumlah_bagian_a=float(
+                grand_total if is_last else subtotal
+            ),
         )
-        self._merge_stream(page, service._make_overlay(page, document, mapping))
+        self._merge_stream(
+            page,
+            service._make_overlay(
+                page,
+                document,
+                mapping,
+            ),
+        )
         self._merge_stream(
             page,
             self._make_footer_overlay(
@@ -379,8 +473,16 @@ class Legacy1770MultipageService(BaseLegacy1770MultipageService):
         self._sanitize_page(page)
         return page
 
-    def fill_multipage(self, document, output_path, *, template_path=None):
-        self._page_summaries = self.build_page_summaries(document)
+    def fill_multipage(
+        self,
+        document,
+        output_path,
+        *,
+        template_path=None,
+    ):
+        self._page_summaries = self.build_page_summaries(
+            document
+        )
         try:
             return super().fill_multipage(
                 document,
