@@ -7,7 +7,7 @@ from pathlib import Path
 from typing import Optional
 
 
-MASTER_TEMPLATE_FILENAME = "01A_SPT OP_Form_1770_Per_19_PJ_2014.pdf"
+MASTER_TEMPLATE_FILENAME = "1770_master_bersih_6_halaman.pdf"
 DEFAULT_TEMPLATE_PATH = (
     Path(__file__).resolve().parents[1]
     / "resources"
@@ -33,7 +33,7 @@ class Legacy1770TemplateInfo:
 class Legacy1770TemplateManager:
     """Pengelola master visual Form 1770 lama untuk Stage 8C.
 
-    Master produksi sekarang memakai file 6 halaman Bahasa Indonesia:
+    Master produksi memakai PDF bersih 6 halaman Bahasa Indonesia:
       1 = Induk
       2 = Lampiran I halaman 1
       3 = Lampiran I halaman 2
@@ -41,8 +41,8 @@ class Legacy1770TemplateManager:
       5 = Lampiran III
       6 = Lampiran IV
 
-    File sumber tidak pernah dimodifikasi langsung. Exporter bekerja pada salinan
-    dan menghasilkan PDF statis/flattened tanpa fitur interaktif.
+    Master tidak berisi data contoh WP dan tidak memiliki fitur form interaktif.
+    Exporter bekerja pada salinan lalu mencetak data FINAL WP secara statis.
     """
 
     EXPORT_PAGES = (1, 2, 3, 4, 5, 6)
@@ -70,7 +70,7 @@ class Legacy1770TemplateManager:
         info = self.inspect()
         if not info.exists:
             raise FileNotFoundError(
-                "Master template 1770 enam halaman belum tersedia. Pasang file sebagai: "
+                "Master bersih 1770 enam halaman belum tersedia. Simpan file sebagai: "
                 f"{info.path}"
             )
         if info.page_count != 6:
