@@ -9,7 +9,7 @@ if str(ROOT) not in sys.path:
     sys.path.insert(0, str(ROOT))
 
 from core.legacy_1770 import Legacy1770DocumentService
-from core.legacy_1770_multipage import Legacy1770MultipageService
+from core.legacy_1770_multipage_finetuned import Legacy1770MultipageService
 from core.legacy_pdf_template import DEFAULT_TEMPLATE_PATH
 
 
@@ -46,6 +46,7 @@ def main() -> int:
         return 2
 
     service = Legacy1770MultipageService()
+    summaries = service.build_page_summaries(document)
     plan = service.fill_multipage(document, output, template_path=args.template)
     errors = [issue for issue in plan.issues if issue.severity == "ERROR"]
     if errors:
@@ -70,12 +71,29 @@ def main() -> int:
     )
     print(f"Halaman tambahan: {plan.extra_pages}")
 
+    print("\nRingkasan subtotal per halaman:")
+    for section, pages in summaries.items():
+        for page in pages:
+            subtotal = (
+                f"{int(round(page.subtotal)):,}".replace(",", ".")
+                if page.subtotal_available and page.subtotal is not None
+                else "- (detail belum tersedia)"
+            )
+            total = f"{int(round(page.grand_total)):,}".replace(",", ".")
+            print(
+                f"  {section} halaman {page.page_number}/{page.page_count}: "
+                f"subtotal={subtotal}; total={total}"
+            )
+
     if plan.issues:
         print("Catatan multipage:")
         for issue in plan.issues:
             print(f"[{issue.severity}] {issue.code}: {issue.message}")
 
-    print("\nPeriksa urutan halaman, footer 'Halaman ke/dari', dan total pada halaman terakhir masing-masing lampiran.")
+    print(
+        "\nPeriksa footer 'Halaman ke/dari', subtotal halaman, dan total keseluruhan "
+        "pada setiap kelompok lampiran."
+    )
     return 0
 
 
