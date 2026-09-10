@@ -9,7 +9,7 @@ if str(ROOT) not in sys.path:
     sys.path.insert(0, str(ROOT))
 
 from core.legacy_1770 import Legacy1770DocumentService
-from core.legacy_1770_multipage_finetuned import Legacy1770MultipageService
+from core.legacy_1770_multipage_final import Legacy1770MultipageService
 from core.legacy_pdf_template import DEFAULT_TEMPLATE_PATH
 
 
@@ -71,18 +71,21 @@ def main() -> int:
     )
     print(f"Halaman tambahan: {plan.extra_pages}")
 
-    print("\nRingkasan subtotal per halaman:")
+    print("\nRingkasan nilai per halaman:")
     for section, pages in summaries.items():
         for page in pages:
-            subtotal = (
-                f"{int(round(page.subtotal)):,}".replace(",", ".")
-                if page.subtotal_available and page.subtotal is not None
-                else "- (detail belum tersedia)"
-            )
-            total = f"{int(round(page.grand_total)):,}".replace(",", ".")
+            if page.page_number == page.page_count:
+                displayed = f"{int(round(page.grand_total)):,}".replace(",", ".")
+                kind = "total keseluruhan"
+            elif page.subtotal_available and page.subtotal is not None:
+                displayed = f"{int(round(page.subtotal)):,}".replace(",", ".")
+                kind = "subtotal halaman"
+            else:
+                displayed = "-"
+                kind = "subtotal tidak tersedia"
             print(
                 f"  {section} halaman {page.page_number}/{page.page_count}: "
-                f"subtotal={subtotal}; total={total}"
+                f"{kind}={displayed}"
             )
 
     if plan.issues:
@@ -91,8 +94,8 @@ def main() -> int:
             print(f"[{issue.severity}] {issue.code}: {issue.message}")
 
     print(
-        "\nPeriksa footer 'Halaman ke/dari', subtotal halaman, dan total keseluruhan "
-        "pada setiap kelompok lampiran."
+        "\nPeriksa footer 'Halaman ke/dari'. Halaman sebelum terakhir harus "
+        "menampilkan subtotal halaman, sedangkan halaman terakhir hanya total keseluruhan."
     )
     return 0
 
