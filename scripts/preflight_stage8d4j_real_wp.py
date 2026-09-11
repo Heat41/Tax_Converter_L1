@@ -104,6 +104,15 @@ def main() -> int:
             f"Template: {template.name if template else '-'}"
         )
 
+    if result.empty_metadata_rows:
+        print("\nMETADATA CORETAX TIDAK TERSEDIA")
+        print("-" * 88)
+        for category, row_numbers in result.empty_metadata_rows.items():
+            print(
+                f"{category}: {len(row_numbers)} baris tanpa coretax_metadata "
+                f"(baris: {', '.join(str(v) for v in row_numbers)})"
+            )
+
     if result.missing_metadata:
         print("\nFIELD SUMBER YANG KOSONG")
         print("-" * 88)
