@@ -198,8 +198,14 @@ class PhysicalSourceExportReconciler:
                 f"Root XML {path.name} adalah {root.tag}, expected {schema.xml_root}."
             )
 
+        container = root.find(schema.xml_list)
+        if container is None:
+            raise ValueError(
+                f"Container {schema.xml_list} tidak ditemukan pada {path.name}."
+            )
+
         rows: List[Tuple[str, ...]] = []
-        for item in root.findall(schema.xml_list):
+        for item in container.findall(schema.xml_item):
             rows.append(
                 tuple(
                     cls._normalize_value(item.findtext(field_name))
