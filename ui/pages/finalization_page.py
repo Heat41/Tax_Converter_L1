@@ -22,6 +22,7 @@ from PySide6.QtWidgets import (
 
 from core.finalization import FinalizationService, ValidationSeverity
 from core.finalization_adapter import FinalizationAdapter
+from core.legacy_1770_static_pdf import Legacy1770StaticPdfService
 from core.physical_reconciliation import PhysicalSourceExportReconciler
 from core.reverse_coretax_official_package import OfficialCoretaxPackageExporter
 from core.reverse_coretax_official_package_validator import OfficialCoretaxPackageValidator
@@ -228,6 +229,12 @@ class FinalizationPage(QWidget):
         self.finalize_button.setObjectName("primaryButton")
         self.reopen_button = QPushButton("Buka Kembali Worksheet")
         self.reopen_button.setObjectName("secondaryButton")
+        self.export_legacy_button = QPushButton("Export Format Lama (PDF)")
+        self.export_legacy_button.setObjectName("secondaryButton")
+        self.export_legacy_button.setToolTip(
+            "Membuat Form 1770 format lama berbentuk PDF statis dari snapshot FINAL."
+        )
+
         self.export_coretax_button = QPushButton("Export Paket Coretax")
         self.export_coretax_button.setObjectName("primaryButton")
         self.export_coretax_button.setToolTip(
@@ -238,11 +245,13 @@ class FinalizationPage(QWidget):
         self.recheck_button.clicked.connect(self.refresh_page)
         self.finalize_button.clicked.connect(self._finalize)
         self.reopen_button.clicked.connect(self._reopen)
+        self.export_legacy_button.clicked.connect(self._export_legacy_pdf)
         self.export_coretax_button.clicked.connect(self._export_official_coretax)
 
         actions.addWidget(self.recheck_button)
         actions.addWidget(self.finalize_button)
         actions.addWidget(self.reopen_button)
+        actions.addWidget(self.export_legacy_button)
         actions.addWidget(self.export_coretax_button)
         actions.addStretch()
         layout.addLayout(actions)
@@ -322,6 +331,7 @@ class FinalizationPage(QWidget):
         )
         self.finalize_button.setEnabled(False)
         self.reopen_button.setVisible(False)
+        self.export_legacy_button.setEnabled(False)
         self.export_coretax_button.setEnabled(False)
 
     def _render_identity(self):
@@ -411,6 +421,7 @@ class FinalizationPage(QWidget):
             self.finalize_button.setEnabled(False)
             self.reopen_button.setVisible(True)
             self.reopen_button.setEnabled(True)
+            self.export_legacy_button.setEnabled(True)
             self.export_coretax_button.setEnabled(True)
             return
 
@@ -430,6 +441,7 @@ class FinalizationPage(QWidget):
             )
         self.finalize_button.setEnabled(bool(self.current_validation and not errors))
         self.reopen_button.setVisible(False)
+        self.export_legacy_button.setEnabled(False)
         self.export_coretax_button.setEnabled(False)
 
     def _render_history(self):
@@ -493,6 +505,83 @@ class FinalizationPage(QWidget):
                 result.message or "Worksheet gagal difinalisasi.", "error", 4200
             )
         self.refresh_page()
+
+    def _export_legacy_pdf(self):
+        if not self.current_input or not self.active_snapshot:
+            self.toast_notification.show_message(
+                "Export Format Lama hanya tersedia untuk Worksheet berstatus FINAL.",
+                "warning",
+                3600,
+            )
+            return
+
+        revision = int(self.active_snapshot["revision"] or 0)
+        suggested_name = (
+            f"1770_format_lama_{self.current_input.npwp}_"
+            f"{self.current_input.tahun_pajak}_rev{revision}.pdf"
+        )
+        output_path, _ = QFileDialog.getSaveFileName(
+            self,
+            "Simpan Format Lama 1770",
+            suggested_name,
+            "PDF (*.pdf)",
+        )
+        if not output_path:
+            return
+        if not output_path.lower().endswith(".pdf"):
+            output_path += ".pdf"
+
+        try:
+            result = Legacy1770StaticPdfService().finalize_active_final(
+                self.current_input.npwp,
+                self.current_input.tahun_pajak,
+                output_path,
+                db_path=self.service.db_path,
+            )
+        except Exception as exc:
+            QMessageBox.warning(
+                self,
+                "Export Format Lama Gagal",
+                str(exc),
+            )
+            return
+
+        if not result.ok:
+            details = "\n".join(
+                f"[{issue.severity}] {issue.code}: {issue.message}"
+                for issue in result.issues
+            ) or "PDF Format Lama tidak berhasil dibuat."
+            QMessageBox.warning(
+                self,
+                "Export Format Lama Gagal",
+                details,
+            )
+            return
+
+        warning_text = ""
+        if result.warnings:
+            warning_text = "\n\nCatatan:\n" + "\n".join(
+                f"• {issue.message}"
+                for issue in result.warnings
+            )
+
+        self.toast_notification.show_message(
+            "Format Lama 1770 berhasil dibuat sebagai PDF statis.",
+            "success",
+            4200,
+        )
+        QMessageBox.information(
+            self,
+            "Export Format Lama Berhasil",
+            (
+                "Format Lama 1770 berhasil dibuat.\n\n"
+                f"Lokasi: {result.output_path}\n"
+                f"Halaman: {result.page_count}\n"
+                f"Ukuran: {result.size_bytes:,} byte\n"
+                "Status: PDF statis terverifikasi"
+                f"{warning_text}"
+            ),
+        )
 
     def _detect_coretax_source_dir(self) -> Optional[Path]:
         """Cari folder sumber Coretax asli dari metadata Harta yang sedang difinalisasi.
