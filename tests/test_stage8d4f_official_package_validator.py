@@ -91,7 +91,7 @@ def test_stage8d4f_accepts_clean_official_package(tmp_path):
     result = OfficialCoretaxPackageValidator().validate(output)
 
     assert result.ok
-    assert len(result.checked_files) == 11
+    assert len(result.checked_files) == 3
     assert not result.errors
 
 
@@ -172,3 +172,18 @@ def test_stage8d4f_detects_excel_row_count_change_even_if_hash_updated(tmp_path)
         issue.code == "RCX4F_EXCEL_ROWS"
         for issue in result.errors
     )
+
+
+def test_stage8d4f_accepts_sparse_category_package(tmp_path):
+    output = _export(tmp_path)
+    manifest = json.loads(
+        (output / "manifest.json").read_text(encoding="utf-8")
+    )
+
+    assert set(manifest["excel"]["files"]) == {"KAS"}
+    assert set(manifest["xml"]["files"]) == {"KAS"}
+
+    result = OfficialCoretaxPackageValidator().validate(output)
+
+    assert result.ok
+    assert not result.errors
