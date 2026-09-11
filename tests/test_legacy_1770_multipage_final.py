@@ -17,6 +17,12 @@ def test_non_last_page_displays_only_page_subtotal():
     assert Legacy1770MultipageService._display_value_for_summary(summary) == 57_232_543
 
 
+def test_section_page_helper_distinguishes_last_page():
+    assert Legacy1770MultipageService._is_last_section_page(3, 4) is False
+    assert Legacy1770MultipageService._is_last_section_page(4, 4) is True
+    assert Legacy1770MultipageService._is_last_section_page(5, 4) is True
+
+
 def test_last_page_displays_only_grand_total():
     summary = MultipagePageSummary(
         section="L1",
