@@ -40,6 +40,7 @@ class ReverseCoretaxRow:
     atas_nama: str
     nama_bank: str
     source_eform_code: str = ""
+    official_metadata: Dict[str, object] = field(default_factory=dict)
 
 
 @dataclass
@@ -275,6 +276,11 @@ class ReverseCoretaxMappingService:
                     atas_nama=str(item.get("atas_nama") or "").strip(),
                     nama_bank=str(item.get("nama_bank") or "").strip(),
                     source_eform_code=str(item.get("kode_eform") or "").strip(),
+                    official_metadata=(
+                        dict(item.get("coretax_metadata") or {})
+                        if isinstance(item.get("coretax_metadata"), dict)
+                        else {}
+                    ),
                 )
             )
 
