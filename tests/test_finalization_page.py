@@ -113,6 +113,7 @@ class TestFinalizationPage(unittest.TestCase):
         self.assertEqual(page.identity_labels["status"].text(), "DRAFT")
         self.assertTrue(page.finalize_button.isEnabled())
         self.assertFalse(page.reopen_button.isVisible())
+        self.assertFalse(page.export_coretax_button.isEnabled())
 
     def test_error_disables_finalize(self):
         page = self._page(_Worksheet(dirty=True))
@@ -132,11 +133,20 @@ class TestFinalizationPage(unittest.TestCase):
         self.assertEqual(page.identity_labels["status"].text(), "FINAL")
         self.assertIn("Revision 1", page.identity_labels["revision"].text())
         self.assertEqual(page.history_table.rowCount(), 1)
+        self.assertTrue(page.export_coretax_button.isEnabled())
 
         self.assertTrue(page.service.void_snapshot(result.snapshot_id, "test"))
         page.refresh_page()
         self.assertEqual(page.identity_labels["status"].text(), "DRAFT")
         self.assertEqual(page.history_table.item(0, 1).text(), "VOID")
+        self.assertFalse(page.export_coretax_button.isEnabled())
+
+    def test_finalization_page_exposes_official_coretax_export_action(self):
+        page = self._page(_Worksheet())
+        self.assertEqual(page.export_coretax_button.text(), "Export Paket Coretax")
+        source = inspect.getsource(FinalizationPage)
+        self.assertIn("OfficialCoretaxPackageExporter", source)
+        self.assertIn("OfficialCoretaxPackageValidator", source)
 
     def test_tables_do_not_use_resize_columns_to_contents(self):
         source = inspect.getsource(FinalizationPage)
