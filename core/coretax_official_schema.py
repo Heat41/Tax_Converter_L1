@@ -12,11 +12,19 @@ class OfficialCoretaxSchema:
     excel_headers: Tuple[str, ...]
     xml_root: Optional[str] = None
     xml_list: Optional[str] = None
+    xml_item: Optional[str] = None
+    xml_tin_field: str = "TIN"
+    xml_year_field: str = "TaxPeriodYear"
     xml_fields: Tuple[str, ...] = ()
 
     @property
     def has_xml_reference(self) -> bool:
-        return bool(self.xml_root and self.xml_list and self.xml_fields)
+        return bool(
+            self.xml_root
+            and self.xml_list
+            and self.xml_item
+            and self.xml_fields
+        )
 
 
 OFFICIAL_CORETAX_SCHEMAS: Dict[str, OfficialCoretaxSchema] = {
@@ -36,6 +44,7 @@ OFFICIAL_CORETAX_SCHEMAS: Dict[str, OfficialCoretaxSchema] = {
         ),
         xml_root="CashAndCashEquivalentBulk",
         xml_list="CashAndCashEquivalentList",
+        xml_item="List",
         xml_fields=(
             "Code",
             "AccountNumber",
@@ -78,6 +87,7 @@ OFFICIAL_CORETAX_SCHEMAS: Dict[str, OfficialCoretaxSchema] = {
         ),
         xml_root="InvesmentSecuritiesBulk",
         xml_list="InvesmentSecuritiesList",
+        xml_item="List",
         xml_fields=(
             "Code",
             "Country",
@@ -108,6 +118,7 @@ OFFICIAL_CORETAX_SCHEMAS: Dict[str, OfficialCoretaxSchema] = {
         ),
         xml_root="MovableAssetsBulk",
         xml_list="MovableAssetsList",
+        xml_item="List",
         xml_fields=(
             "Code",
             "AssetModel",
@@ -138,6 +149,7 @@ OFFICIAL_CORETAX_SCHEMAS: Dict[str, OfficialCoretaxSchema] = {
         ),
         xml_root="NonMovableAssetsBulk",
         xml_list="NonMovableAssetsList",
+        xml_item="List",
         xml_fields=(
             "Code",
             "LocationOfAsset",
