@@ -190,6 +190,15 @@ class TestFinalizationPage(unittest.TestCase):
         self.assertIn("Rekonsiliasi sumber", source)
         self.assertIn("_detect_coretax_source_dir", source)
 
+    def test_finalization_page_exposes_export_audit_history(self):
+        page = self._page(_Worksheet())
+        self.assertEqual(page.export_history_table.columnCount(), 7)
+        source = inspect.getsource(FinalizationPage)
+        self.assertIn("ExportAuditService", source)
+        self.assertIn("ExportAuditRecord", source)
+        self.assertIn("Riwayat Export", source)
+        self.assertIn("_render_export_history", source)
+
     def test_tables_do_not_use_resize_columns_to_contents(self):
         source = inspect.getsource(FinalizationPage)
         self.assertNotIn("resizeColumnsToContents", source)
