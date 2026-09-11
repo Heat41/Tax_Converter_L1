@@ -81,6 +81,40 @@ class OfficialCoretaxExcelExporter:
                 str(path).lower(),
             )
         )
+
+        # Satu folder dapat berisi beberapa versi template dengan nama serupa.
+        # Jangan memilih hanya berdasarkan filename: prioritaskan kandidat yang
+        # benar-benar memiliki sheet DATA dan header resmi kategori tersebut.
+        expected_headers = tuple(
+            self._clean_header(header)
+            for header in schema.excel_headers
+        )
+        for path in candidates:
+            try:
+                wb = load_workbook(path, data_only=False, read_only=True)
+            except Exception:
+                continue
+
+            try:
+                if schema.excel_sheet not in wb.sheetnames:
+                    continue
+                ws = wb[schema.excel_sheet]
+                actual_headers = tuple(
+                    self._clean_header(
+                        ws.cell(HEADER_ROW, column_index).value
+                    )
+                    for column_index in range(
+                        1,
+                        len(schema.excel_headers) + 1,
+                    )
+                )
+                if actual_headers == expected_headers:
+                    return path
+            finally:
+                wb.close()
+
+        # Bila semua kandidat invalid, kembalikan kandidat teratas agar tahap
+        # validasi berikutnya tetap menghasilkan pesan error yang spesifik.
         return candidates[0]
 
     def _resolve_templates(
