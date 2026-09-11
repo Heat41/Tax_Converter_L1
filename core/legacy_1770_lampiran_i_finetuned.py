@@ -69,7 +69,7 @@ class Legacy1770LampiranIService(BaseLegacy1770LampiranIService):
             value,
             width,
             height,
-            size=size + 0.6,
+            size=size + 1.2,
         )
 
     @classmethod
