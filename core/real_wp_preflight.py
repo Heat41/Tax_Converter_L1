@@ -33,6 +33,7 @@ class RealWpPreflightResult:
     template_files: Dict[str, Path] = field(default_factory=dict)
     missing_templates: List[str] = field(default_factory=list)
     missing_metadata: Dict[str, Dict[int, List[str]]] = field(default_factory=dict)
+    empty_metadata_rows: Dict[str, List[int]] = field(default_factory=dict)
     issues: List[RealWpPreflightIssue] = field(default_factory=list)
 
     @property
@@ -212,6 +213,12 @@ class RealWpPreflightService:
 
             required_keys = self.METADATA_KEYS.get(category, ())
             for row in rows:
+                if not row.official_metadata:
+                    result.empty_metadata_rows.setdefault(
+                        category, []
+                    ).append(row.nomor)
+                    continue
+
                 missing = [
                     key
                     for key in required_keys
@@ -234,6 +241,24 @@ class RealWpPreflightService:
                             row.nomor,
                         )
                     )
+
+        for category, row_numbers in result.empty_metadata_rows.items():
+            result.issues.append(
+                RealWpPreflightIssue(
+                    "RCX4J_102",
+                    "WARNING",
+                    (
+                        f"{len(row_numbers)} baris {category} tidak memiliki "
+                        "payload coretax_metadata sama sekali. Snapshot ini "
+                        "kemungkinan dibuat sebelum metadata resmi ikut disimpan "
+                        "atau berasal dari jalur import yang tidak memiliki "
+                        "detail Coretax. Jangan menebak nilai; re-import sumber "
+                        "Coretax lalu finalisasi ulang jika reverse-export resmi "
+                        "membutuhkan detail tersebut."
+                    ),
+                    category,
+                )
+            )
 
         if package.can_export and not result.active_categories:
             result.issues.append(
