@@ -290,7 +290,7 @@ class OfficialCoretaxExcelExporter:
                 cls._meta(row, "country"),
                 cls._meta(row, "identity_number"),
                 cls._meta(row, "receivable_name", row.atas_nama),
-                cls._meta(row, "receivable_value", row.nilai),
+                cls._meta(row, "receivable_value"),
                 cls._meta(row, "year", row.tahun_perolehan),
                 cls._meta(row, "receivable_balance", row.nilai),
                 cls._meta(row, "remarks"),
