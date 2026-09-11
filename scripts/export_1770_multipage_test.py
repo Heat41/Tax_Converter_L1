@@ -71,6 +71,19 @@ def main() -> int:
     )
     print(f"Halaman tambahan: {plan.extra_pages}")
 
+    pph_detail_count = sum(
+        1 for row in document.bupot_rows
+        if abs(float(getattr(row, "pph_dipotong", 0) or 0)) > 0.000001
+    )
+    print(
+        f"Detail PPh Bupot tersedia: {pph_detail_count}/{len(document.bupot_rows)} baris"
+    )
+    if document.bupot_rows and pph_detail_count == 0:
+        print(
+            "CATATAN: snapshot FINAL ini belum memiliki PPh Dipotong per Bupot; "
+            "Lampiran II tidak membagi total Kredit Pajak secara buatan."
+        )
+
     print("\nRingkasan nilai per halaman:")
     for section, pages in summaries.items():
         for page in pages:
