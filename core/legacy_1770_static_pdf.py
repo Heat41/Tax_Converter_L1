@@ -256,9 +256,12 @@ class Legacy1770StaticPdfService:
         output_path: str | Path,
         *,
         template_path: Optional[str | Path] = None,
+        db_path: Optional[str | Path] = None,
     ) -> StaticPdfResult:
         clean_npwp = "".join(ch for ch in str(npwp or "") if ch.isdigit())
-        document = Legacy1770DocumentService().build_active_final(
+        document = Legacy1770DocumentService(
+            db_path=db_path
+        ).build_active_final(
             clean_npwp,
             int(tahun_pajak),
         )
