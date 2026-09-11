@@ -219,3 +219,53 @@ def test_stage8d4c_requires_template_only_for_populated_categories(tmp_path):
 
     assert result.ok
     assert set(result.files) == {"KAS"}
+
+
+def test_stage8d4h_missing_category_specific_values_stay_blank(tmp_path):
+    templates = tmp_path / "templates"
+    output = tmp_path / "output"
+    templates.mkdir(parents=True, exist_ok=True)
+    _create_template(templates, "INVESTASI")
+
+    package = ReverseCoretaxPackage(
+        npwp="6101015612710001",
+        nama_wp="EVY BACHTIAR",
+        tahun_pajak=2025,
+        revision=1,
+    )
+    package.rows_by_category["INVESTASI"].append(
+        ReverseCoretaxRow(
+            nomor=1,
+            kategori="INVESTASI",
+            kode_harta="0305",
+            nama_harta="Investasi",
+            tahun_perolehan=2025,
+            nilai=250000000,
+            nomor_akun_keterangan="ACC-01",
+            atas_nama="EVY BACHTIAR",
+            nama_bank="BANK CONTOH",
+            official_metadata={
+                "country": "Indonesia",
+                "institution_name": "BANK CONTOH",
+                "account_number": "ACC-01",
+                "year": 2025,
+                "current_balance": 250000000,
+            },
+        )
+    )
+
+    result = OfficialCoretaxExcelExporter(templates).export_package(
+        package,
+        output,
+    )
+
+    assert result.ok
+    wb = load_workbook(result.files["INVESTASI"])
+    ws = wb["DATA"]
+
+    # Biaya Perolehan tidak tersedia di sumber. Jangan menyalin Nilai Saat Ini
+    # ke kolom tersebut hanya untuk membuat baris tampak lengkap.
+    assert ws.cell(DATA_START_ROW, 6).value is None
+    assert ws.cell(DATA_START_ROW, 8).value == 250000000
+
+    wb.close()
