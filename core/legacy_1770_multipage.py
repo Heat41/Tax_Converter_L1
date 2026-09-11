@@ -175,6 +175,21 @@ class Legacy1770MultipageService:
                 canvas.setFont("Helvetica", 6.2 * (height / cls.BASE_HEIGHT))
                 canvas.drawRightString(x1 - 3.0, y0 + ((y1 - y0) / 2.0) - 1.0, "-")
 
+        # Master dapat masih membawa angka contoh/statis pada footer.
+        # Bersihkan kedua kotak sebelum menulis nomor halaman aktual agar angka
+        # dari halaman template tidak bertumpuk (mis. semua tampak "2 dari 4").
+        canvas.setFillColorRGB(1, 1, 1)
+        for rect in (page_box, total_box):
+            bx0, by0, bx1, by1 = cls._pdf_rect(rect, width, height)
+            canvas.rect(
+                bx0 + 0.35,
+                by0 + 0.35,
+                max(0.0, (bx1 - bx0) - 0.70),
+                max(0.0, (by1 - by0) - 0.70),
+                stroke=0,
+                fill=1,
+            )
+
         canvas.setFillColorRGB(0, 0, 0)
         cls._draw_box_text(canvas, page_box, str(page_number), width, height)
         cls._draw_box_text(canvas, total_box, str(page_count), width, height)
