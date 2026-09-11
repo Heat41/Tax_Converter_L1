@@ -26,9 +26,16 @@ class Legacy1770MultipageService(BaseLegacy1770MultipageService):
       tidak tersedia/rekonsiliasi, halaman non-terakhir menampilkan '-'.
     """
 
+    @staticmethod
+    def _is_last_section_page(page_number: int, page_count: int) -> bool:
+        """True hanya untuk halaman terakhir di kelompok lampiran yang sama."""
+        return int(page_number) >= max(1, int(page_count))
+
     @classmethod
     def _display_value_for_summary(cls, summary: MultipagePageSummary) -> Optional[float]:
-        if summary.page_number >= summary.page_count:
+        # Jangan pernah menentukan halaman terakhir dari urutan fisik PDF/master.
+        # Gunakan nomor halaman kelompok lampiran (mis. Lampiran-I 4 dari 4).
+        if cls._is_last_section_page(summary.page_number, summary.page_count):
             return float(summary.grand_total or 0)
         if summary.subtotal_available and summary.subtotal is not None:
             return float(summary.subtotal)
