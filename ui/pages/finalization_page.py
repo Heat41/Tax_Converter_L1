@@ -22,6 +22,7 @@ from PySide6.QtWidgets import (
 
 from core.finalization import FinalizationService, ValidationSeverity
 from core.finalization_adapter import FinalizationAdapter
+from core.export_audit import ExportAuditRecord, ExportAuditService
 from core.legacy_1770_static_pdf import Legacy1770StaticPdfService
 from core.physical_reconciliation import PhysicalSourceExportReconciler
 from core.reverse_coretax_official_package import OfficialCoretaxPackageExporter
@@ -45,6 +46,7 @@ class FinalizationPage(QWidget):
         super().__init__(parent)
         self.worksheet_source = worksheet_source
         self.service = FinalizationService(db_path=db_path)
+        self.audit_service = ExportAuditService(db_path=db_path)
         self.current_input = None
         self.current_validation = None
         self.active_snapshot = None
@@ -82,6 +84,7 @@ class FinalizationPage(QWidget):
         self._build_validation_card(content_layout)
         self._build_actions_card(content_layout)
         self._build_history_card(content_layout)
+        self._build_export_history_card(content_layout)
         content_layout.addStretch()
 
         scroll = QScrollArea()
@@ -288,6 +291,86 @@ class FinalizationPage(QWidget):
         layout.addWidget(self.history_table)
         parent_layout.addWidget(card)
 
+    def _build_export_history_card(self, parent_layout):
+        card = QFrame(objectName="card")
+        layout = QVBoxLayout(card)
+        layout.setContentsMargins(20, 18, 20, 18)
+        layout.setSpacing(10)
+
+        heading = QLabel("Riwayat Export")
+        heading.setObjectName("sectionTitle")
+        layout.addWidget(heading)
+
+        self.export_history_table = QTableWidget(0, 7)
+        self.export_history_table.setHorizontalHeaderLabels(
+            [
+                "WAKTU",
+                "REV",
+                "JENIS",
+                "STATUS",
+                "VALIDATOR",
+                "REKONSILIASI",
+                "OUTPUT",
+            ]
+        )
+        self.export_history_table.verticalHeader().setVisible(False)
+        self.export_history_table.setEditTriggers(QAbstractItemView.NoEditTriggers)
+        self.export_history_table.setSelectionBehavior(QAbstractItemView.SelectRows)
+        self.export_history_table.setSelectionMode(QAbstractItemView.SingleSelection)
+        self.export_history_table.setAlternatingRowColors(True)
+        self.export_history_table.setWordWrap(False)
+        self.export_history_table.setMinimumHeight(180)
+        optimize_table_interaction(
+            self.export_history_table,
+            column_widths={
+                0: 150,
+                1: 70,
+                2: 150,
+                3: 90,
+                4: 100,
+                5: 115,
+                6: 320,
+            },
+            row_height=34,
+            horizontal_step=18,
+            vertical_step=18,
+        )
+        layout.addWidget(self.export_history_table)
+        parent_layout.addWidget(card)
+
+    def _render_export_history(self):
+        if (
+            not self.current_input
+            or not self.current_input.npwp
+            or not self.current_input.tahun_pajak
+        ):
+            self.export_history_table.setRowCount(0)
+            return
+
+        rows = self.audit_service.list_for_wp(
+            self.current_input.npwp,
+            self.current_input.tahun_pajak,
+            limit=30,
+        )
+        with suspended_updates(self.export_history_table):
+            self.export_history_table.setRowCount(len(rows))
+            for row_index, row in enumerate(rows):
+                values = (
+                    row["created_at"] or "-",
+                    f"R{row['revision']}",
+                    row["export_type"] or "-",
+                    row["status"] or "-",
+                    row["validator_status"] or "-",
+                    row["reconciliation_status"] or "-",
+                    row["output_path"] or "-",
+                )
+                for column, value in enumerate(values):
+                    self.export_history_table.setItem(
+                        row_index,
+                        column,
+                        QTableWidgetItem(str(value)),
+                    )
+
     @staticmethod
     def _money(value) -> str:
         try:
@@ -317,6 +400,7 @@ class FinalizationPage(QWidget):
         self._render_validation()
         self._render_actions()
         self._render_history()
+        self._render_export_history()
 
     def _render_empty_state(self):
         for label in self.identity_labels.values():
@@ -326,6 +410,7 @@ class FinalizationPage(QWidget):
         self.validation_status.setText("Worksheet belum tersedia")
         self.validation_table.setRowCount(0)
         self.history_table.setRowCount(0)
+        self.export_history_table.setRowCount(0)
         self.final_state_label.setText(
             "Muat data Coretax dan selesaikan Worksheet terlebih dahulu."
         )
@@ -551,12 +636,45 @@ class FinalizationPage(QWidget):
                 f"[{issue.severity}] {issue.code}: {issue.message}"
                 for issue in result.issues
             ) or "PDF Format Lama tidak berhasil dibuat."
+            self.audit_service.record(
+                ExportAuditRecord(
+                    npwp=self.current_input.npwp,
+                    nama_wp=self.current_input.nama_wp,
+                    tahun_pajak=self.current_input.tahun_pajak,
+                    revision=revision,
+                    export_type="FORMAT_LAMA_PDF",
+                    status="FAIL",
+                    output_path=str(output_path),
+                    validator_status="FAIL",
+                    reconciliation_status="N/A",
+                    message=details,
+                )
+            )
+            self._render_export_history()
             QMessageBox.warning(
                 self,
                 "Export Format Lama Gagal",
                 details,
             )
             return
+
+        self.audit_service.record(
+            ExportAuditRecord(
+                npwp=self.current_input.npwp,
+                nama_wp=self.current_input.nama_wp,
+                tahun_pajak=self.current_input.tahun_pajak,
+                revision=revision,
+                export_type="FORMAT_LAMA_PDF",
+                status="PASS",
+                output_path=str(result.output_path),
+                artifact_count=result.page_count,
+                validator_status="PASS",
+                reconciliation_status="N/A",
+                sha256=result.sha256,
+                message="PDF statis terverifikasi.",
+            )
+        )
+        self._render_export_history()
 
         warning_text = ""
         if result.warnings:
@@ -667,6 +785,21 @@ class FinalizationPage(QWidget):
                 f"[{issue.severity}] {issue.code}: {issue.message}"
                 for issue in export_result.issues
             ) or "Exporter tidak menghasilkan paket yang valid."
+            self.audit_service.record(
+                ExportAuditRecord(
+                    npwp=self.current_input.npwp,
+                    nama_wp=self.current_input.nama_wp,
+                    tahun_pajak=self.current_input.tahun_pajak,
+                    revision=revision,
+                    export_type="PAKET_CORETAX",
+                    status="FAIL",
+                    output_path=str(output_dir),
+                    validator_status="FAIL",
+                    reconciliation_status="NOT_RUN",
+                    message=details,
+                )
+            )
+            self._render_export_history()
             QMessageBox.warning(
                 self,
                 "Export Paket Coretax Gagal",
@@ -680,6 +813,21 @@ class FinalizationPage(QWidget):
                 f"[{issue.severity}] {issue.code}: {issue.message}"
                 for issue in validation.errors
             ) or "Validator paket menemukan ketidaksesuaian."
+            self.audit_service.record(
+                ExportAuditRecord(
+                    npwp=self.current_input.npwp,
+                    nama_wp=self.current_input.nama_wp,
+                    tahun_pajak=self.current_input.tahun_pajak,
+                    revision=revision,
+                    export_type="PAKET_CORETAX",
+                    status="FAIL",
+                    output_path=str(output_dir),
+                    validator_status="FAIL",
+                    reconciliation_status="NOT_RUN",
+                    message=details,
+                )
+            )
+            self._render_export_history()
             QMessageBox.warning(
                 self,
                 "Validasi Paket Coretax Gagal",
@@ -724,6 +872,35 @@ class FinalizationPage(QWidget):
             reconciliation_detail = (
                 f"Sumber dibandingkan otomatis: {source_dir}"
             )
+
+        manifest_path = output_dir / "manifest.json"
+        package_sha = ""
+        if manifest_path.is_file():
+            import hashlib
+            package_sha = hashlib.sha256(
+                manifest_path.read_bytes()
+            ).hexdigest()
+
+        self.audit_service.record(
+            ExportAuditRecord(
+                npwp=self.current_input.npwp,
+                nama_wp=self.current_input.nama_wp,
+                tahun_pajak=self.current_input.tahun_pajak,
+                revision=revision,
+                export_type="PAKET_CORETAX",
+                status="PASS",
+                output_path=str(output_dir),
+                artifact_count=(
+                    len(export_result.excel_result.files)
+                    + len(export_result.xml_result.files)
+                ),
+                validator_status="PASS",
+                reconciliation_status=reconciliation_status,
+                sha256=package_sha,
+                message=reconciliation_detail,
+            )
+        )
+        self._render_export_history()
 
         self.toast_notification.show_message(
             (
