@@ -176,3 +176,47 @@ def test_stage8d4j_missing_active_template_is_blocking_error(tmp_path):
         and issue.severity == "ERROR"
         for issue in result.issues
     )
+
+
+def test_stage8d4j_entire_missing_metadata_blocks_official_export(tmp_path):
+    db_path = tmp_path / "legacy_snapshot.db"
+    init_database(db_path)
+
+    data = _final_input()
+    row = data.harta_current_rows[0]
+    data.harta_current_rows = [
+        WorksheetHartaRow(
+            nomor=row.nomor,
+            kode_eform=row.kode_eform,
+            kode_ct=row.kode_ct,
+            nama_harta=row.nama_harta,
+            nomor_akun_keterangan=row.nomor_akun_keterangan,
+            atas_nama=row.atas_nama,
+            nama_bank=row.nama_bank,
+            tahun_perolehan=row.tahun_perolehan,
+            nilai_tahun_sebelumnya=row.nilai_tahun_sebelumnya,
+            nilai_tahun_berjalan=row.nilai_tahun_berjalan,
+            coretax_metadata={},
+        )
+    ]
+
+    assert FinalizationService(db_path=db_path).finalize(data).success
+
+    templates = tmp_path / "templates"
+    _template(templates, "HTB")
+
+    result = RealWpPreflightService(
+        db_path=db_path,
+        template_dir=templates,
+    ).inspect(
+        "6101015612710001",
+        2025,
+    )
+
+    assert not result.ready
+    assert result.empty_metadata_rows == {"HTB": [1]}
+    assert any(
+        issue.code == "RCX4J_102"
+        and issue.severity == "ERROR"
+        for issue in result.issues
+    )
