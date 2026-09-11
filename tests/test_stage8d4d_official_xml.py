@@ -113,7 +113,17 @@ def test_stage8d4d_cash_xml_matches_locked_contract(tmp_path):
     root = ET.parse(result.files["KAS"]).getroot()
 
     assert root.tag == "CashAndCashEquivalentBulk"
-    rows = root.findall("CashAndCashEquivalentList")
+    assert [child.tag for child in root] == [
+        "TIN",
+        "TaxPeriodYear",
+        "CashAndCashEquivalentList",
+    ]
+    assert root.findtext("TIN") == "6101015612710001"
+    assert root.findtext("TaxPeriodYear") == "2025"
+
+    container = root.find("CashAndCashEquivalentList")
+    assert container is not None
+    rows = container.findall("List")
     assert len(rows) == 1
 
     row = rows[0]
@@ -136,7 +146,9 @@ def test_stage8d4d_investment_keeps_official_spelling_and_fields(tmp_path):
     root = ET.parse(result.files["INVESTASI"]).getroot()
 
     assert root.tag == "InvesmentSecuritiesBulk"
-    row = root.find("InvesmentSecuritiesList")
+    container = root.find("InvesmentSecuritiesList")
+    assert container is not None
+    row = container.find("List")
     assert row is not None
     assert row.findtext("BankTIN") == "6101015612710001"
     assert row.findtext("AccountNumber") == "1971197117"
@@ -147,7 +159,8 @@ def test_stage8d4d_investment_keeps_official_spelling_and_fields(tmp_path):
 def test_stage8d4d_movable_xml_uses_preserved_metadata(tmp_path):
     result = OfficialCoretaxXmlExporter().export_package(_package(), tmp_path)
     root = ET.parse(result.files["BERGERAK"]).getroot()
-    row = root.find("MovableAssetsList")
+    container = root.find("MovableAssetsList")
+    row = container.find("List") if container is not None else None
 
     assert root.tag == "MovableAssetsBulk"
     assert row is not None
@@ -160,7 +173,8 @@ def test_stage8d4d_movable_xml_uses_preserved_metadata(tmp_path):
 def test_stage8d4d_non_movable_xml_uses_preserved_metadata(tmp_path):
     result = OfficialCoretaxXmlExporter().export_package(_package(), tmp_path)
     root = ET.parse(result.files["HTB"]).getroot()
-    row = root.find("NonMovableAssetsList")
+    container = root.find("NonMovableAssetsList")
+    row = container.find("List") if container is not None else None
 
     assert root.tag == "NonMovableAssetsBulk"
     assert row is not None
