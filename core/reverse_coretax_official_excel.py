@@ -47,11 +47,11 @@ class OfficialExcelExportResult:
 
     @property
     def ok(self) -> bool:
-        return not self.errors and len(self.files) == 6
+        return not self.errors and bool(self.files)
 
 
 class OfficialCoretaxExcelExporter:
-    """Stage 8D.4C - export 6 Excel dengan template Coretax asli."""
+    """Stage 8D.4C/8D.4H - export Excel hanya untuk kategori yang memiliki data."""
 
     def __init__(self, template_dir: str | Path):
         self.template_dir = Path(template_dir)
@@ -86,6 +86,7 @@ class OfficialCoretaxExcelExporter:
     def _resolve_templates(
         self,
         result: OfficialExcelExportResult,
+        categories: Tuple[str, ...],
     ) -> Dict[str, Path]:
         resolved: Dict[str, Path] = {}
 
@@ -99,7 +100,7 @@ class OfficialCoretaxExcelExporter:
             )
             return resolved
 
-        for category in CATEGORY_ORDER:
+        for category in categories:
             template = self._find_template(category)
             if template is None:
                 schema = get_official_schema(category)
@@ -302,7 +303,7 @@ class OfficialCoretaxExcelExporter:
                 cls._meta(row, "institution_tin"),
                 cls._meta(row, "institution_name", row.atas_nama or row.nama_bank),
                 cls._meta(row, "account_number", row.nomor_akun_keterangan),
-                cls._meta(row, "cost_of_acquisition", row.nilai),
+                cls._meta(row, "cost_of_acquisition"),
                 cls._meta(row, "year", row.tahun_perolehan),
                 cls._meta(row, "current_balance", row.nilai),
                 cls._meta(row, "remarks"),
@@ -321,7 +322,7 @@ class OfficialCoretaxExcelExporter:
                 cls._meta(row, "ownership_tin"),
                 cls._meta(row, "ownership_name", row.atas_nama),
                 cls._meta(row, "year", row.tahun_perolehan),
-                cls._meta(row, "cost_of_acquisition", row.nilai),
+                cls._meta(row, "cost_of_acquisition"),
                 cls._meta(row, "fair_market_value", row.nilai),
                 cls._meta(row, "remarks"),
             )
@@ -335,7 +336,7 @@ class OfficialCoretaxExcelExporter:
                 cls._meta(row, "source_of_ownership"),
                 cls._meta(row, "certificate_number"),
                 cls._meta(row, "year", row.tahun_perolehan),
-                cls._meta(row, "cost_of_acquisition", row.nilai),
+                cls._meta(row, "cost_of_acquisition"),
                 cls._meta(row, "fair_market_value", row.nilai),
                 cls._meta(row, "remarks"),
             )
@@ -346,7 +347,7 @@ class OfficialCoretaxExcelExporter:
                 cls._meta(row, "year", row.tahun_perolehan),
                 cls._meta(row, "account_number", row.nomor_akun_keterangan),
                 cls._meta(row, "additional_information", row.nama_harta),
-                cls._meta(row, "cost_of_acquisition", row.nilai),
+                cls._meta(row, "cost_of_acquisition"),
                 cls._meta(row, "current_value", row.nilai),
                 cls._meta(row, "remarks"),
             )
@@ -433,19 +434,35 @@ class OfficialCoretaxExcelExporter:
             )
             return result
 
-        templates = self._resolve_templates(result)
+        active_categories = tuple(
+            category
+            for category in CATEGORY_ORDER
+            if package.rows_by_category.get(category)
+        )
+
+        if not active_categories:
+            result.issues.append(
+                OfficialExcelExportIssue(
+                    "RCX4H_001",
+                    "ERROR",
+                    "Tidak ada kategori Harta berisi data untuk diekspor.",
+                )
+            )
+            return result
+
+        templates = self._resolve_templates(result, active_categories)
         if result.errors:
             return result
 
         if not all(
             self._validate_template(templates[category], category, result)
-            for category in CATEGORY_ORDER
+            for category in active_categories
         ):
             return result
 
         target_dir.mkdir(parents=True, exist_ok=True)
 
-        for category in CATEGORY_ORDER:
+        for category in active_categories:
             rows = package.rows_by_category.get(category, [])
             target = self._export_category(
                 package,
@@ -464,8 +481,8 @@ class OfficialCoretaxExcelExporter:
                     "RCX4C_INFO",
                     "INFO",
                     (
-                        "Enam file Excel Coretax resmi berhasil dibuat dari "
-                        "snapshot FINAL menggunakan template asli."
+                        f"{len(result.files)} file Excel Coretax dibuat sesuai "
+                        "kategori Harta yang tersedia pada snapshot FINAL."
                     ),
                 )
             )
