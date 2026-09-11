@@ -277,6 +277,51 @@ class MainWindow(QMainWindow):
         recent_layout.addWidget(self.wp_table)
         main.addWidget(recent, 1)
 
+        export_recent = QFrame(objectName="card")
+        export_layout = QVBoxLayout(export_recent)
+        export_layout.setContentsMargins(20, 16, 20, 16)
+        export_layout.setSpacing(10)
+
+        export_title = QLabel("Aktivitas Export Terbaru")
+        export_title.setObjectName("sectionTitle")
+        export_layout.addWidget(export_title)
+
+        self.export_audit_table = QTableWidget(0, 7)
+        self.export_audit_table.setHorizontalHeaderLabels(
+            [
+                "Waktu",
+                "Wajib Pajak",
+                "Tahun",
+                "Rev",
+                "Jenis Export",
+                "Status",
+                "Rekonsiliasi",
+            ]
+        )
+        self.export_audit_table.setEditTriggers(QTableWidget.NoEditTriggers)
+        self.export_audit_table.setSelectionBehavior(QTableWidget.SelectRows)
+        self.export_audit_table.setSelectionMode(QTableWidget.SingleSelection)
+        self.export_audit_table.verticalHeader().setVisible(False)
+        self.export_audit_table.horizontalHeader().setStretchLastSection(True)
+        self.export_audit_table.setMinimumHeight(170)
+        optimize_table_interaction(
+            self.export_audit_table,
+            column_widths={
+                0: 145,
+                1: 230,
+                2: 90,
+                3: 65,
+                4: 155,
+                5: 90,
+                6: 115,
+            },
+            row_height=34,
+            horizontal_step=18,
+            vertical_step=18,
+        )
+        export_layout.addWidget(self.export_audit_table)
+        main.addWidget(export_recent, 1)
+
         return page
 
     @staticmethod
@@ -337,6 +382,8 @@ class MainWindow(QMainWindow):
 
     def _show_page(self, page_key):
         page = self.pages[page_key]
+        if page_key == "dashboard":
+            self.refresh_dashboard()
         if page_key == "finalisasi" and hasattr(page, "refresh_page"):
             page.refresh_page()
         self.stack.setCurrentWidget(page)
@@ -389,6 +436,38 @@ class MainWindow(QMainWindow):
                             row_index,
                             column_index,
                             QTableWidgetItem(value or "-"),
+                        )
+
+            cur.execute("""
+                SELECT created_at, nama_wp, tahun_pajak, revision,
+                       export_type, status, reconciliation_status
+                FROM export_audit_log
+                ORDER BY id DESC
+                LIMIT 8
+            """)
+            export_rows = cur.fetchall()
+
+            with suspended_updates(self.export_audit_table):
+                self.export_audit_table.setRowCount(len(export_rows))
+                for row_index, row in enumerate(export_rows):
+                    export_type = {
+                        "FORMAT_LAMA_PDF": "Format Lama",
+                        "PAKET_CORETAX": "Paket Coretax",
+                    }.get(row["export_type"], row["export_type"] or "-")
+                    values = (
+                        row["created_at"] or "-",
+                        row["nama_wp"] or "-",
+                        str(row["tahun_pajak"] or "-"),
+                        f"R{row['revision']}",
+                        export_type,
+                        row["status"] or "-",
+                        row["reconciliation_status"] or "-",
+                    )
+                    for column_index, value in enumerate(values):
+                        self.export_audit_table.setItem(
+                            row_index,
+                            column_index,
+                            QTableWidgetItem(str(value)),
                         )
         finally:
             conn.close()
