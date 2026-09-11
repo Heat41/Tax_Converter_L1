@@ -141,6 +141,16 @@ class PhysicalSourceExportReconciler:
         candidates.sort(key=lambda path: str(path).lower())
         return candidates[0]
 
+    @staticmethod
+    def _resolve_excel_value(ws, value: object) -> object:
+        if not isinstance(value, str):
+            return value
+        formula = value.strip()
+        match = re.fullmatch(r"=\$?([A-Z]+)\$?(\d+)", formula)
+        if not match:
+            return value
+        return ws[f"{match.group(1)}{match.group(2)}"].value
+
     @classmethod
     def _read_excel(
         cls,
@@ -148,7 +158,7 @@ class PhysicalSourceExportReconciler:
         category: str,
     ) -> Tuple[Tuple[str, ...], List[Tuple[str, ...]]]:
         schema = get_official_schema(category)
-        wb = load_workbook(path, data_only=False, read_only=True)
+        wb = load_workbook(path, data_only=False, read_only=False)
         try:
             if schema.excel_sheet not in wb.sheetnames:
                 raise ValueError(
@@ -162,7 +172,10 @@ class PhysicalSourceExportReconciler:
             rows: List[Tuple[str, ...]] = []
             for row_index in range(4, ws.max_row + 1):
                 raw = tuple(
-                    ws.cell(row_index, col).value
+                    cls._resolve_excel_value(
+                        ws,
+                        ws.cell(row_index, col).value,
+                    )
                     for col in range(1, len(schema.excel_headers) + 1)
                 )
                 if not any(value not in (None, "") for value in raw):
