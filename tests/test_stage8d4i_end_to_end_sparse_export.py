@@ -248,9 +248,15 @@ def test_stage8d4i_does_not_require_unused_templates(tmp_path):
     templates = tmp_path / "templates"
     _create_active_templates(templates)
 
-    assert not any("Piutang" in path.name for path in templates.glob("*.xlsx"))
-    assert not any("Investasi" in path.name for path in templates.glob("*.xlsx"))
-    assert not any("Bergerak" in path.name for path in templates.glob("*.xlsx"))
+    template_names = {path.stem for path in templates.glob("*.xlsx")}
+
+    assert OFFICIAL_CORETAX_SCHEMAS["PIUTANG"].excel_filename_hint not in template_names
+    assert OFFICIAL_CORETAX_SCHEMAS["INVESTASI"].excel_filename_hint not in template_names
+    assert OFFICIAL_CORETAX_SCHEMAS["BERGERAK"].excel_filename_hint not in template_names
+
+    assert OFFICIAL_CORETAX_SCHEMAS["KAS"].excel_filename_hint in template_names
+    assert OFFICIAL_CORETAX_SCHEMAS["HTB"].excel_filename_hint in template_names
+    assert OFFICIAL_CORETAX_SCHEMAS["LAINNYA"].excel_filename_hint in template_names
 
     result = OfficialCoretaxPackageExporter(
         templates
