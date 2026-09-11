@@ -332,6 +332,24 @@ class Legacy1770MultipageService(BaseLegacy1770MultipageService):
         packet.seek(0)
         return packet
 
+    @staticmethod
+    def _fresh_template_page(template_page):
+        """Clone satu halaman template lewat serialisasi agar content stream independen.
+
+        Deepcopy PageObject dapat tetap berbagi indirect object/resource pada pypdf.
+        Pada output multipage hal itu dapat membuat beberapa halaman lanjutan
+        terlihat memakai isi/footer chunk yang sama. Round-trip satu halaman
+        memastikan setiap continuation benar-benar objek PDF yang terpisah.
+        """
+        from pypdf import PdfReader, PdfWriter
+
+        packet = BytesIO()
+        writer = PdfWriter()
+        writer.add_page(template_page)
+        writer.write(packet)
+        packet.seek(0)
+        return PdfReader(packet).pages[0]
+
     def _build_l1_continuation(
         self,
         template_page,
@@ -343,7 +361,7 @@ class Legacy1770MultipageService(BaseLegacy1770MultipageService):
         *,
         is_last: bool,
     ):
-        page = deepcopy(template_page)
+        page = self._fresh_template_page(template_page)
         service = Legacy1770LampiranIService()
         subtotal = sum(float(row.netto or 0) for row in rows)
         mapping = LampiranIMappingResult(
@@ -385,7 +403,7 @@ class Legacy1770MultipageService(BaseLegacy1770MultipageService):
         *,
         is_last: bool,
     ):
-        page = deepcopy(template_page)
+        page = self._fresh_template_page(template_page)
         service = Legacy1770LampiranIIService()
         summary = self._summary_for(
             "L2",
@@ -440,7 +458,7 @@ class Legacy1770MultipageService(BaseLegacy1770MultipageService):
         *,
         is_last: bool,
     ):
-        page = deepcopy(template_page)
+        page = self._fresh_template_page(template_page)
         service = Legacy1770LampiranIVService()
         subtotal = sum(
             float(row.harga_perolehan or 0)
