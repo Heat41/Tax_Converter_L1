@@ -14,8 +14,8 @@ from core.reverse_coretax_official_package import OfficialCoretaxPackageExporter
 def main() -> int:
     parser = argparse.ArgumentParser(
         description=(
-            "Stage 8D.4E - export paket resmi Coretax: "
-            "6 Excel + XML resmi + manifest."
+            "Stage 8D.4E/8D.4H - export paket Coretax sesuai kategori data: "
+            "Excel + XML yang didukung + manifest."
         )
     )
     parser.add_argument("npwp")
@@ -23,7 +23,7 @@ def main() -> int:
     parser.add_argument(
         "--template-dir",
         required=True,
-        help="Folder yang berisi 6 template Excel Coretax asli.",
+        help="Folder template Excel Coretax asli. Hanya template kategori berdata yang wajib tersedia.",
     )
     parser.add_argument(
         "--output-dir",
@@ -58,7 +58,7 @@ def main() -> int:
         return 2
 
     print(f"\nOK - Paket resmi Coretax dibuat di: {result.output_dir}")
-    print("Excel : 6 file")
+    print(f"Excel : {len(result.excel_result.files)} file")
     print(
         f"XML   : {len(result.xml_result.files)} file "
         f"(unsupported: {', '.join(result.xml_result.unsupported_categories)})"
