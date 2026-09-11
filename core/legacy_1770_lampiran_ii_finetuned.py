@@ -73,5 +73,5 @@ class Legacy1770LampiranIIService(BaseLegacy1770LampiranIIService):
             value,
             width,
             height,
-            size=size + 0.6,
+            size=size + 1.15,
         )
