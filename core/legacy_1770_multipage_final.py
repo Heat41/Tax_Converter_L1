@@ -103,8 +103,8 @@ class Legacy1770MultipageService(BaseLegacy1770MultipageService):
         # Satu nilai saja. Non-terakhir = subtotal; terakhir = grand total.
         # Font dinaikkan sedikit agar tetap terbaca ketika seluruh halaman dicetak.
         max_width = max(1.0, (x1 - x0) - (6.0 * sx))
-        size = 7.0
-        while size > 4.4:
+        size = 8.2
+        while size > 5.2:
             canvas.setFont("Helvetica", size * sy)
             if canvas.stringWidth(text, "Helvetica", size * sy) <= max_width:
                 break
