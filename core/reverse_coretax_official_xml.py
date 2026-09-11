@@ -47,7 +47,7 @@ class OfficialXmlExportResult:
 
     @property
     def ok(self) -> bool:
-        return not self.errors and len(self.files) == len(XML_CATEGORY_ORDER)
+        return not self.errors
 
 
 class OfficialCoretaxXmlExporter:
@@ -108,7 +108,7 @@ class OfficialCoretaxXmlExporter:
                     row, "account_number", row.nomor_akun_keterangan
                 ),
                 "CostOfAcquisition": cls._meta(
-                    row, "cost_of_acquisition", row.nilai
+                    row, "cost_of_acquisition"
                 ),
                 "Year": cls._meta(row, "year", row.tahun_perolehan),
                 "CurrentBalance": cls._meta(
@@ -133,7 +133,7 @@ class OfficialCoretaxXmlExporter:
                 ),
                 "Year": cls._meta(row, "year", row.tahun_perolehan),
                 "CostOfAcquisition": cls._meta(
-                    row, "cost_of_acquisition", row.nilai
+                    row, "cost_of_acquisition"
                 ),
                 "FairMarketValue": cls._meta(
                     row, "fair_market_value", row.nilai
@@ -160,7 +160,7 @@ class OfficialCoretaxXmlExporter:
                 ),
                 "Year": cls._meta(row, "year", row.tahun_perolehan),
                 "CostOfAcquisition": cls._meta(
-                    row, "cost_of_acquisition", row.nilai
+                    row, "cost_of_acquisition"
                 ),
                 "FairMarketValue": cls._meta(
                     row, "fair_market_value", row.nilai
@@ -223,7 +223,13 @@ class OfficialCoretaxXmlExporter:
             )
             return result
 
-        for category in CATEGORY_ORDER:
+        active_categories = tuple(
+            category
+            for category in CATEGORY_ORDER
+            if package.rows_by_category.get(category)
+        )
+
+        for category in active_categories:
             schema = get_official_schema(category)
             if not schema.has_xml_reference:
                 result.unsupported_categories.append(category)
@@ -241,7 +247,10 @@ class OfficialCoretaxXmlExporter:
 
         target_dir.mkdir(parents=True, exist_ok=True)
 
-        for category in XML_CATEGORY_ORDER:
+        for category in active_categories:
+            schema = get_official_schema(category)
+            if not schema.has_xml_reference:
+                continue
             rows = package.rows_by_category.get(category, [])
             tree = self._build_tree(category, rows)
             target = target_dir / self._filename(category)
@@ -260,8 +269,8 @@ class OfficialCoretaxXmlExporter:
                     "RCX4D_INFO",
                     "INFO",
                     (
-                        "XML Coretax resmi berhasil dibuat hanya untuk kategori "
-                        "yang memiliki referensi XML terkunci."
+                        f"{len(result.files)} file XML dibuat hanya untuk kategori "
+                        "berisi data yang memiliki referensi XML terkunci."
                     ),
                 )
             )
