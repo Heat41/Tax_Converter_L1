@@ -438,14 +438,19 @@ class MainWindow(QMainWindow):
                             QTableWidgetItem(value or "-"),
                         )
 
-            cur.execute("""
-                SELECT created_at, nama_wp, tahun_pajak, revision,
-                       export_type, status, reconciliation_status
-                FROM export_audit_log
-                ORDER BY id DESC
-                LIMIT 8
-            """)
-            export_rows = cur.fetchall()
+            try:
+                cur.execute("""
+                    SELECT created_at, nama_wp, tahun_pajak, revision,
+                           export_type, status, reconciliation_status
+                    FROM export_audit_log
+                    ORDER BY id DESC
+                    LIMIT 8
+                """)
+                export_rows = cur.fetchall()
+            except Exception:
+                # Kompatibilitas untuk database lama/test fixture yang belum
+                # memiliki schema audit trail. Dashboard tetap harus bisa dibuka.
+                export_rows = []
 
             with suspended_updates(self.export_audit_table):
                 self.export_audit_table.setRowCount(len(export_rows))
