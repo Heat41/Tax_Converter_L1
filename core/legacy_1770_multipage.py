@@ -132,8 +132,8 @@ class Legacy1770MultipageService:
         value = str(text or "")
         x0, y0, x1, y1 = cls._pdf_rect(rect, width, height)
         sy = height / cls.BASE_HEIGHT
-        size = 7.0
-        while size > 4.6:
+        size = 8.0
+        while size > 5.2:
             canvas.setFont("Helvetica", size * sy)
             if canvas.stringWidth(value, "Helvetica", size * sy) <= (x1 - x0) - 2.0:
                 break
