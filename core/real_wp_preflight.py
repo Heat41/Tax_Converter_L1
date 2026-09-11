@@ -246,15 +246,14 @@ class RealWpPreflightService:
             result.issues.append(
                 RealWpPreflightIssue(
                     "RCX4J_102",
-                    "WARNING",
+                    "ERROR",
                     (
                         f"{len(row_numbers)} baris {category} tidak memiliki "
-                        "payload coretax_metadata sama sekali. Snapshot ini "
-                        "kemungkinan dibuat sebelum metadata resmi ikut disimpan "
-                        "atau berasal dari jalur import yang tidak memiliki "
-                        "detail Coretax. Jangan menebak nilai; re-import sumber "
-                        "Coretax lalu finalisasi ulang jika reverse-export resmi "
-                        "membutuhkan detail tersebut."
+                        "payload coretax_metadata sama sekali. Detail sumber "
+                        "Coretax hilang sehingga reverse-export resmi tidak "
+                        "boleh diteruskan dengan tebakan/fallback. Re-import "
+                        "sumber Coretax asli lalu finalisasi ulang agar metadata "
+                        "resmi tersimpan."
                     ),
                     category,
                 )
