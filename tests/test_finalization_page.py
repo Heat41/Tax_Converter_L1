@@ -42,7 +42,7 @@ def _analysis(selisih=0.0):
 
 
 class _Worksheet:
-    def __init__(self, *, dirty=False, selisih=0.0):
+    def __init__(self, *, dirty=False, selisih=0.0, source_file=None):
         self.harta_pipeline_result = SimpleNamespace(
             npwp="1234567890123456",
             nama_wp="Budi",
@@ -60,6 +60,9 @@ class _Worksheet:
             tahun_perolehan=2020,
             nilai_tahun_sebelumnya=10_000_000.0,
             nilai_tahun_berjalan=15_000_000.0,
+            coretax_metadata={
+                "source_file": str(source_file) if source_file else "",
+            },
         )
         self.harta_original_rows = [row]
         self.harta_saved_rows = [row]
@@ -147,6 +150,31 @@ class TestFinalizationPage(unittest.TestCase):
         source = inspect.getsource(FinalizationPage)
         self.assertIn("OfficialCoretaxPackageExporter", source)
         self.assertIn("OfficialCoretaxPackageValidator", source)
+
+    def test_detects_coretax_source_dir_from_row_metadata(self):
+        source_dir = Path(self.temp_dir.name) / "source"
+        source_dir.mkdir()
+        source_file = source_dir / "PIT L1 Harta Kas Setara Kas.xlsx"
+        source_file.write_bytes(b"placeholder")
+
+        page = self._page(_Worksheet(source_file=source_file))
+
+        self.assertEqual(
+            page._detect_coretax_source_dir(),
+            source_dir.resolve(),
+        )
+
+    def test_missing_source_file_skips_automatic_reconciliation(self):
+        missing = Path(self.temp_dir.name) / "missing" / "source.xlsx"
+        page = self._page(_Worksheet(source_file=missing))
+
+        self.assertIsNone(page._detect_coretax_source_dir())
+
+    def test_finalization_page_integrates_physical_reconciliation(self):
+        source = inspect.getsource(FinalizationPage)
+        self.assertIn("PhysicalSourceExportReconciler", source)
+        self.assertIn("Rekonsiliasi sumber", source)
+        self.assertIn("_detect_coretax_source_dir", source)
 
     def test_tables_do_not_use_resize_columns_to_contents(self):
         source = inspect.getsource(FinalizationPage)
