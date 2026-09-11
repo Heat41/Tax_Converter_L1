@@ -60,8 +60,8 @@ class OfficialCoretaxPackageExporter:
 
     Output:
       <output>/
-        excel/   -> 6 template Excel resmi
-        xml/     -> XML untuk kategori yang punya referensi resmi
+        excel/   -> Excel hanya untuk kategori yang memiliki data
+        xml/     -> XML hanya untuk kategori berdata yang punya referensi resmi
         manifest.json
     """
 
@@ -122,6 +122,11 @@ class OfficialCoretaxPackageExporter:
             "revision": package.revision,
             "snapshot_hash": package.snapshot_hash,
             "total_rows": package.total_rows,
+            "active_categories": [
+                category
+                for category, rows in package.rows_by_category.items()
+                if rows
+            ],
             "excel": {
                 "file_count": len(excel_files),
                 "files": excel_files,
@@ -174,7 +179,7 @@ class OfficialCoretaxPackageExporter:
                 OfficialPackageIssue(
                     "RCX4E_101",
                     "ERROR",
-                    "Paket resmi dihentikan karena export 6 Excel belum valid.",
+                    "Paket resmi dihentikan karena export Excel kategori berdata belum valid.",
                 )
             )
             return result
