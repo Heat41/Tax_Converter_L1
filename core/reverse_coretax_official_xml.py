@@ -174,6 +174,7 @@ class OfficialCoretaxXmlExporter:
     @classmethod
     def _build_tree(
         cls,
+        package: ReverseCoretaxPackage,
         category: str,
         rows: List[ReverseCoretaxRow],
     ) -> ET.ElementTree:
@@ -185,8 +186,16 @@ class OfficialCoretaxXmlExporter:
 
         root = ET.Element(schema.xml_root)
 
+        tin_node = ET.SubElement(root, schema.xml_tin_field)
+        tin_node.text = cls._text(package.npwp)
+
+        year_node = ET.SubElement(root, schema.xml_year_field)
+        year_node.text = cls._text(package.tahun_pajak)
+
+        list_container = ET.SubElement(root, schema.xml_list)
+
         for row in rows:
-            item = ET.SubElement(root, schema.xml_list)
+            item = ET.SubElement(list_container, schema.xml_item)
             values = cls._field_values(row)
 
             for field_name in schema.xml_fields:
@@ -252,7 +261,7 @@ class OfficialCoretaxXmlExporter:
             if not schema.has_xml_reference:
                 continue
             rows = package.rows_by_category.get(category, [])
-            tree = self._build_tree(category, rows)
+            tree = self._build_tree(package, category, rows)
             target = target_dir / self._filename(category)
             tree.write(
                 target,
