@@ -73,12 +73,11 @@ class ReverseCoretaxPackage:
 
 
 class ReverseCoretaxMappingService:
-    """Stage 8D.1 - mapping snapshot FINAL kembali menjadi 6 kelompok Coretax L-1.
+    """Stage 8D.1 - mapping snapshot FINAL kembali ke kategori Coretax L-1 yang tersedia.
 
-    Tahap ini belum menebak format fisik file import DJP yang belum dikunci.
-    Tanggung jawabnya adalah membentuk kontrak data enam kategori dari snapshot
-    FINAL secara deterministik, menjaga kode Coretax asli bila tersedia, dan
-    melakukan validasi sebelum exporter Excel/XML dibangun.
+    Snapshot tetap mengenali enam kelompok schema L-1, tetapi hanya kategori yang
+    benar-benar memiliki data yang diteruskan ke exporter. Tidak ada kategori
+    kosong atau nilai yang dibuat-buat.
     """
 
     def __init__(self, db_path: Optional[str | Path] = None):
@@ -242,7 +241,7 @@ class ReverseCoretaxMappingService:
                     ReverseCoretaxIssue(
                         "RCT_102",
                         "ERROR",
-                        f"Kode Coretax {kode_ct} belum dapat dikelompokkan ke 6 tabel L-1.",
+                        f"Kode Coretax {kode_ct} belum dapat dikelompokkan ke kategori L-1 yang dikenal.",
                         index,
                     )
                 )
@@ -293,7 +292,7 @@ class ReverseCoretaxMappingService:
                 ReverseCoretaxIssue(
                     "RCT_INFO",
                     "INFO",
-                    f"{package.total_rows} baris FINAL siap dipaketkan ke 6 tabel Coretax ({counts}).",
+                    f"{package.total_rows} baris FINAL siap dipaketkan sesuai kategori data ({counts}).",
                 )
             )
 
