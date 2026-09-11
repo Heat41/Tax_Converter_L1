@@ -10,6 +10,7 @@ from xml.etree import ElementTree as ET
 from openpyxl import load_workbook
 
 from core.coretax_official_schema import get_official_schema
+from core.reverse_coretax_mapping import CATEGORY_ORDER
 
 
 @dataclass(frozen=True)
@@ -41,27 +42,9 @@ class OfficialPackageValidationResult:
 
 
 class OfficialCoretaxPackageValidator:
-    """Stage 8D.4F - validasi paket resmi hasil Stage 8D.4E."""
+    """Stage 8D.4F/8D.4H - validator paket resmi yang fleksibel per kategori data."""
 
     MANIFEST_VERSION = 1
-    EXPECTED_EXCEL_CATEGORIES = (
-        "KAS",
-        "PIUTANG",
-        "INVESTASI",
-        "BERGERAK",
-        "HTB",
-        "LAINNYA",
-    )
-    EXPECTED_XML_CATEGORIES = (
-        "KAS",
-        "INVESTASI",
-        "BERGERAK",
-        "HTB",
-    )
-    EXPECTED_UNSUPPORTED_XML = (
-        "PIUTANG",
-        "LAINNYA",
-    )
 
     @staticmethod
     def _sha256(path: Path) -> str:
@@ -79,26 +62,13 @@ class OfficialCoretaxPackageValidator:
         category: Optional[str] = None,
     ) -> None:
         result.issues.append(
-            OfficialPackageValidationIssue(
-                code=code,
-                severity="ERROR",
-                message=message,
-                category=category,
-            )
+            OfficialPackageValidationIssue(code, "ERROR", message, category)
         )
 
-    def _load_manifest(
-        self,
-        result: OfficialPackageValidationResult,
-    ) -> bool:
+    def _load_manifest(self, result: OfficialPackageValidationResult) -> bool:
         manifest_path = result.package_dir / "manifest.json"
-
         if not manifest_path.is_file():
-            self._error(
-                result,
-                "RCX4F_001",
-                "manifest.json tidak ditemukan.",
-            )
+            self._error(result, "RCX4F_001", "manifest.json tidak ditemukan.")
             return False
 
         try:
@@ -133,10 +103,7 @@ class OfficialCoretaxPackageValidator:
             self._error(
                 result,
                 "RCX4F_010",
-                (
-                    "Versi manifest tidak didukung: "
-                    f"{manifest.get('manifest_version')!r}."
-                ),
+                f"Versi manifest tidak didukung: {manifest.get('manifest_version')!r}.",
             )
 
         if manifest.get("stage") != "8D.4E":
@@ -172,7 +139,6 @@ class OfficialCoretaxPackageValidator:
     ) -> None:
         expected = str(expected_hash or "").strip().lower()
         actual = self._sha256(path).lower()
-
         if not expected or actual != expected:
             self._error(
                 result,
@@ -190,29 +156,22 @@ class OfficialCoretaxPackageValidator:
         category: str,
         item: dict,
     ) -> None:
-        relative_path = str(item.get("path") or "")
-        path = result.package_dir / relative_path
-
+        path = result.package_dir / str(item.get("path") or "")
         if not path.is_file():
             self._error(
                 result,
                 "RCX4F_EXCEL_MISSING",
-                f"File Excel tidak ditemukan: {relative_path}",
+                f"File Excel tidak ditemukan: {item.get('path') or '-'}",
                 category,
             )
             return
 
         result.checked_files[f"EXCEL:{category}"] = path
         self._validate_hash(
-            result,
-            path,
-            item.get("sha256"),
-            category,
-            "RCX4F_EXCEL",
+            result, path, item.get("sha256"), category, "RCX4F_EXCEL"
         )
 
         schema = get_official_schema(category)
-
         try:
             wb = load_workbook(path, data_only=False, read_only=True)
         except Exception as exc:
@@ -229,10 +188,7 @@ class OfficialCoretaxPackageValidator:
                 self._error(
                     result,
                     "RCX4F_EXCEL_SHEET",
-                    (
-                        f"Sheet {schema.excel_sheet!r} tidak ditemukan "
-                        f"pada {path.name}."
-                    ),
+                    f"Sheet {schema.excel_sheet!r} tidak ditemukan pada {path.name}.",
                     category,
                 )
                 return
@@ -242,11 +198,7 @@ class OfficialCoretaxPackageValidator:
                 str(ws.cell(3, column).value or "").strip()
                 for column in range(1, len(schema.excel_headers) + 1)
             )
-            expected_headers = tuple(
-                str(value).strip()
-                for value in schema.excel_headers
-            )
-
+            expected_headers = tuple(str(v).strip() for v in schema.excel_headers)
             if actual_headers != expected_headers:
                 self._error(
                     result,
@@ -255,14 +207,14 @@ class OfficialCoretaxPackageValidator:
                     category,
                 )
 
-            actual_rows = 0
-            for row_index in range(4, ws.max_row + 1):
+            actual_rows = sum(
+                1
+                for row_index in range(4, ws.max_row + 1)
                 if any(
                     ws.cell(row_index, column).value not in (None, "")
                     for column in range(1, len(schema.excel_headers) + 1)
-                ):
-                    actual_rows += 1
-
+                )
+            )
             expected_rows = int(item.get("rows") or 0)
             if actual_rows != expected_rows:
                 self._error(
@@ -283,29 +235,22 @@ class OfficialCoretaxPackageValidator:
         category: str,
         item: dict,
     ) -> None:
-        relative_path = str(item.get("path") or "")
-        path = result.package_dir / relative_path
-
+        path = result.package_dir / str(item.get("path") or "")
         if not path.is_file():
             self._error(
                 result,
                 "RCX4F_XML_MISSING",
-                f"File XML tidak ditemukan: {relative_path}",
+                f"File XML tidak ditemukan: {item.get('path') or '-'}",
                 category,
             )
             return
 
         result.checked_files[f"XML:{category}"] = path
         self._validate_hash(
-            result,
-            path,
-            item.get("sha256"),
-            category,
-            "RCX4F_XML",
+            result, path, item.get("sha256"), category, "RCX4F_XML"
         )
 
         schema = get_official_schema(category)
-
         try:
             root = ET.parse(path).getroot()
         except (OSError, ET.ParseError) as exc:
@@ -331,7 +276,6 @@ class OfficialCoretaxPackageValidator:
 
         rows = root.findall(schema.xml_list)
         expected_rows = int(item.get("rows") or 0)
-
         if len(rows) != expected_rows:
             self._error(
                 result,
@@ -344,8 +288,7 @@ class OfficialCoretaxPackageValidator:
             )
 
         for row_index, row in enumerate(rows, start=1):
-            actual_fields = tuple(child.tag for child in list(row))
-            if actual_fields != schema.xml_fields:
+            if tuple(child.tag for child in list(row)) != schema.xml_fields:
                 self._error(
                     result,
                     "RCX4F_XML_FIELDS",
@@ -366,68 +309,77 @@ class OfficialCoretaxPackageValidator:
         xml = manifest.get("xml")
 
         if not isinstance(excel, dict):
-            self._error(
-                result,
-                "RCX4F_020",
-                "Bagian excel pada manifest tidak valid.",
-            )
+            self._error(result, "RCX4F_020", "Bagian excel pada manifest tidak valid.")
             return
-
         if not isinstance(xml, dict):
-            self._error(
-                result,
-                "RCX4F_021",
-                "Bagian xml pada manifest tidak valid.",
-            )
+            self._error(result, "RCX4F_021", "Bagian xml pada manifest tidak valid.")
             return
 
         excel_files = excel.get("files")
         xml_files = xml.get("files")
-
         if not isinstance(excel_files, dict):
-            self._error(
-                result,
-                "RCX4F_022",
-                "excel.files pada manifest tidak valid.",
-            )
+            self._error(result, "RCX4F_022", "excel.files pada manifest tidak valid.")
             excel_files = {}
-
         if not isinstance(xml_files, dict):
-            self._error(
-                result,
-                "RCX4F_023",
-                "xml.files pada manifest tidak valid.",
-            )
+            self._error(result, "RCX4F_023", "xml.files pada manifest tidak valid.")
             xml_files = {}
 
-        if tuple(excel_files.keys()) != self.EXPECTED_EXCEL_CATEGORIES:
+        excel_categories = tuple(excel_files.keys())
+        xml_categories = tuple(xml_files.keys())
+        allowed = set(CATEGORY_ORDER)
+
+        if not excel_categories:
             self._error(
                 result,
-                "RCX4F_024",
-                (
-                    "Daftar kategori Excel tidak lengkap/berubah: "
-                    f"{list(excel_files)}"
-                ),
+                "RCX4H_010",
+                "Manifest tidak memiliki kategori Excel berisi data.",
             )
 
-        if tuple(xml_files.keys()) != self.EXPECTED_XML_CATEGORIES:
+        unknown_excel = [c for c in excel_categories if c not in allowed]
+        unknown_xml = [c for c in xml_categories if c not in allowed]
+        if unknown_excel:
             self._error(
                 result,
-                "RCX4F_025",
-                (
-                    "Daftar kategori XML tidak lengkap/berubah: "
-                    f"{list(xml_files)}"
-                ),
+                "RCX4H_011",
+                f"Kategori Excel tidak dikenal: {unknown_excel}",
+            )
+        if unknown_xml:
+            self._error(
+                result,
+                "RCX4H_012",
+                f"Kategori XML tidak dikenal: {unknown_xml}",
             )
 
+        expected_xml = tuple(
+            category
+            for category in excel_categories
+            if category in allowed and get_official_schema(category).has_xml_reference
+        )
+        expected_unsupported = tuple(
+            category
+            for category in excel_categories
+            if category in allowed and not get_official_schema(category).has_xml_reference
+        )
         unsupported = tuple(xml.get("unsupported_categories") or ())
-        if unsupported != self.EXPECTED_UNSUPPORTED_XML:
+
+        if xml_categories != expected_xml:
             self._error(
                 result,
-                "RCX4F_026",
+                "RCX4H_013",
                 (
-                    "Kategori XML unsupported berubah: "
-                    f"{list(unsupported)}"
+                    "Kategori XML harus mengikuti kategori berdata yang memiliki "
+                    f"referensi XML. expected={list(expected_xml)}, actual={list(xml_categories)}"
+                ),
+            )
+
+        if unsupported != expected_unsupported:
+            self._error(
+                result,
+                "RCX4H_014",
+                (
+                    "Kategori XML unsupported harus berasal dari kategori berdata "
+                    f"tanpa schema XML. expected={list(expected_unsupported)}, "
+                    f"actual={list(unsupported)}"
                 ),
             )
 
@@ -437,7 +389,6 @@ class OfficialCoretaxPackageValidator:
                 "RCX4F_027",
                 "excel.file_count tidak sama dengan jumlah file di manifest.",
             )
-
         if int(xml.get("file_count") or 0) != len(xml_files):
             self._error(
                 result,
@@ -445,37 +396,31 @@ class OfficialCoretaxPackageValidator:
                 "xml.file_count tidak sama dengan jumlah file di manifest.",
             )
 
-        for category in self.EXPECTED_EXCEL_CATEGORIES:
-            item = excel_files.get(category)
-            if not isinstance(item, dict):
-                self._error(
-                    result,
-                    "RCX4F_EXCEL_ENTRY",
-                    f"Entry Excel {category} tidak tersedia.",
-                    category,
-                )
+        total_excel_rows = 0
+        for category, item in excel_files.items():
+            if category not in allowed or not isinstance(item, dict):
                 continue
+            total_excel_rows += int(item.get("rows") or 0)
             self._validate_excel_file(result, category, item)
 
-        for category in self.EXPECTED_XML_CATEGORIES:
-            item = xml_files.get(category)
-            if not isinstance(item, dict):
-                self._error(
-                    result,
-                    "RCX4F_XML_ENTRY",
-                    f"Entry XML {category} tidak tersedia.",
-                    category,
-                )
+        for category, item in xml_files.items():
+            if category not in allowed or not isinstance(item, dict):
                 continue
             self._validate_xml_file(result, category, item)
 
-    def validate(
-        self,
-        package_dir: str | Path,
-    ) -> OfficialPackageValidationResult:
-        result = OfficialPackageValidationResult(
-            package_dir=Path(package_dir)
-        )
+        manifest_total = int(manifest.get("total_rows") or 0)
+        if total_excel_rows != manifest_total:
+            self._error(
+                result,
+                "RCX4H_015",
+                (
+                    "Total baris kategori Excel tidak sama dengan total_rows manifest: "
+                    f"excel={total_excel_rows}, manifest={manifest_total}."
+                ),
+            )
+
+    def validate(self, package_dir: str | Path) -> OfficialPackageValidationResult:
+        result = OfficialPackageValidationResult(package_dir=Path(package_dir))
 
         if not result.package_dir.is_dir():
             self._error(
@@ -497,8 +442,8 @@ class OfficialCoretaxPackageValidator:
                     "RCX4F_INFO",
                     "INFO",
                     (
-                        "Paket resmi Coretax valid: manifest, hash, "
-                        "Excel, dan XML konsisten."
+                        "Paket resmi Coretax valid dan konsisten dengan kategori "
+                        "Harta yang benar-benar tersedia."
                     ),
                 )
             )
