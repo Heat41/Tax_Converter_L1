@@ -274,14 +274,68 @@ class OfficialCoretaxPackageValidator:
             )
             return
 
-        rows = root.findall(schema.xml_list)
+        root_children = tuple(child.tag for child in list(root))
+        expected_root_children = (
+            schema.xml_tin_field,
+            schema.xml_year_field,
+            schema.xml_list,
+        )
+        if root_children != expected_root_children:
+            self._error(
+                result,
+                "RCX4F_XML_STRUCTURE",
+                (
+                    f"Struktur root XML {category} tidak sesuai: "
+                    f"expected={expected_root_children}, actual={root_children}."
+                ),
+                category,
+            )
+            return
+
+        expected_tin = str(result.manifest.get("npwp") or "").strip()
+        actual_tin = str(root.findtext(schema.xml_tin_field) or "").strip()
+        if actual_tin != expected_tin:
+            self._error(
+                result,
+                "RCX4F_XML_TIN",
+                (
+                    f"TIN XML {category} berbeda dari manifest: "
+                    f"expected={expected_tin}, actual={actual_tin}."
+                ),
+                category,
+            )
+
+        expected_year = str(result.manifest.get("tahun_pajak") or "").strip()
+        actual_year = str(root.findtext(schema.xml_year_field) or "").strip()
+        if actual_year != expected_year:
+            self._error(
+                result,
+                "RCX4F_XML_YEAR",
+                (
+                    f"TaxPeriodYear XML {category} berbeda dari manifest: "
+                    f"expected={expected_year}, actual={actual_year}."
+                ),
+                category,
+            )
+
+        container = root.find(schema.xml_list)
+        if container is None:
+            self._error(
+                result,
+                "RCX4F_XML_LIST",
+                f"Container {schema.xml_list} tidak ditemukan.",
+                category,
+            )
+            return
+
+        rows = list(container.findall(schema.xml_item))
         expected_rows = int(item.get("rows") or 0)
         if len(rows) != expected_rows:
             self._error(
                 result,
                 "RCX4F_XML_ROWS",
                 (
-                    f"Jumlah elemen XML {category} berbeda: "
+                    f"Jumlah item XML {category} berbeda: "
                     f"manifest={expected_rows}, actual={len(rows)}."
                 ),
                 category,
