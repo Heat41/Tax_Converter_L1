@@ -7,6 +7,7 @@ from PySide6.QtCore import Qt
 from PySide6.QtWidgets import (
     QAbstractItemView,
     QFrame,
+    QFileDialog,
     QGridLayout,
     QHBoxLayout,
     QLabel,
@@ -21,6 +22,8 @@ from PySide6.QtWidgets import (
 
 from core.finalization import FinalizationService, ValidationSeverity
 from core.finalization_adapter import FinalizationAdapter
+from core.reverse_coretax_official_package import OfficialCoretaxPackageExporter
+from core.reverse_coretax_official_package_validator import OfficialCoretaxPackageValidator
 from ui.notifications import ToastNotification
 from ui.performance import optimize_scroll_area, optimize_table_interaction, suspended_updates
 
@@ -224,14 +227,22 @@ class FinalizationPage(QWidget):
         self.finalize_button.setObjectName("primaryButton")
         self.reopen_button = QPushButton("Buka Kembali Worksheet")
         self.reopen_button.setObjectName("secondaryButton")
+        self.export_coretax_button = QPushButton("Export Paket Coretax")
+        self.export_coretax_button.setObjectName("primaryButton")
+        self.export_coretax_button.setToolTip(
+            "Membuat 6 Excel resmi, XML yang memiliki referensi resmi, "
+            "manifest, lalu memvalidasi paket sebelum digunakan."
+        )
 
         self.recheck_button.clicked.connect(self.refresh_page)
         self.finalize_button.clicked.connect(self._finalize)
         self.reopen_button.clicked.connect(self._reopen)
+        self.export_coretax_button.clicked.connect(self._export_official_coretax)
 
         actions.addWidget(self.recheck_button)
         actions.addWidget(self.finalize_button)
         actions.addWidget(self.reopen_button)
+        actions.addWidget(self.export_coretax_button)
         actions.addStretch()
         layout.addLayout(actions)
         parent_layout.addWidget(card)
@@ -310,6 +321,7 @@ class FinalizationPage(QWidget):
         )
         self.finalize_button.setEnabled(False)
         self.reopen_button.setVisible(False)
+        self.export_coretax_button.setEnabled(False)
 
     def _render_identity(self):
         data = self.current_input
@@ -398,6 +410,7 @@ class FinalizationPage(QWidget):
             self.finalize_button.setEnabled(False)
             self.reopen_button.setVisible(True)
             self.reopen_button.setEnabled(True)
+            self.export_coretax_button.setEnabled(True)
             return
 
         errors = self.current_validation.errors if self.current_validation else []
@@ -416,6 +429,7 @@ class FinalizationPage(QWidget):
             )
         self.finalize_button.setEnabled(bool(self.current_validation and not errors))
         self.reopen_button.setVisible(False)
+        self.export_coretax_button.setEnabled(False)
 
     def _render_history(self):
         if not self.current_input or not self.current_input.npwp or not self.current_input.tahun_pajak:
@@ -478,6 +492,95 @@ class FinalizationPage(QWidget):
                 result.message or "Worksheet gagal difinalisasi.", "error", 4200
             )
         self.refresh_page()
+
+    def _export_official_coretax(self):
+        if not self.current_input or not self.active_snapshot:
+            self.toast_notification.show_message(
+                "Export Coretax hanya tersedia untuk Worksheet berstatus FINAL.",
+                "warning",
+                3600,
+            )
+            return
+
+        template_dir = QFileDialog.getExistingDirectory(
+            self,
+            "Pilih Folder 6 Template Excel Coretax Asli",
+        )
+        if not template_dir:
+            return
+
+        output_parent = QFileDialog.getExistingDirectory(
+            self,
+            "Pilih Folder Penyimpanan Paket Coretax",
+        )
+        if not output_parent:
+            return
+
+        revision = int(self.active_snapshot["revision"] or 0)
+        output_dir = (
+            Path(output_parent)
+            / (
+                f"coretax_official_{self.current_input.npwp}_"
+                f"{self.current_input.tahun_pajak}_rev{revision}"
+            )
+        )
+
+        try:
+            export_result = OfficialCoretaxPackageExporter(
+                template_dir
+            ).export_active_final(
+                self.current_input.npwp,
+                self.current_input.tahun_pajak,
+                output_dir,
+                db_path=self.service.db_path,
+            )
+        except Exception as exc:
+            QMessageBox.warning(
+                self,
+                "Export Paket Coretax Gagal",
+                str(exc),
+            )
+            return
+
+        if not export_result.ok:
+            details = "\n".join(
+                f"[{issue.severity}] {issue.code}: {issue.message}"
+                for issue in export_result.issues
+            ) or "Exporter tidak menghasilkan paket yang valid."
+            QMessageBox.warning(
+                self,
+                "Export Paket Coretax Gagal",
+                details,
+            )
+            return
+
+        validation = OfficialCoretaxPackageValidator().validate(output_dir)
+        if not validation.ok:
+            details = "\n".join(
+                f"[{issue.severity}] {issue.code}: {issue.message}"
+                for issue in validation.errors
+            ) or "Validator paket menemukan ketidaksesuaian."
+            QMessageBox.warning(
+                self,
+                "Validasi Paket Coretax Gagal",
+                details,
+            )
+            return
+
+        self.toast_notification.show_message(
+            "Paket Coretax resmi berhasil dibuat dan lolos validasi.",
+            "success",
+            4200,
+        )
+        QMessageBox.information(
+            self,
+            "Export Paket Coretax Berhasil",
+            (
+                "Paket Coretax berhasil dibuat dan lolos validasi.\n\n"
+                f"Lokasi: {output_dir}\n"
+                "Isi: 6 Excel resmi + XML referensi resmi + manifest.json"
+            ),
+        )
 
     def _reopen(self):
         snapshot = self.active_snapshot
