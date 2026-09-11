@@ -116,6 +116,7 @@ class TestFinalizationPage(unittest.TestCase):
         self.assertEqual(page.identity_labels["status"].text(), "DRAFT")
         self.assertTrue(page.finalize_button.isEnabled())
         self.assertFalse(page.reopen_button.isVisible())
+        self.assertFalse(page.export_legacy_button.isEnabled())
         self.assertFalse(page.export_coretax_button.isEnabled())
 
     def test_error_disables_finalize(self):
@@ -136,13 +137,26 @@ class TestFinalizationPage(unittest.TestCase):
         self.assertEqual(page.identity_labels["status"].text(), "FINAL")
         self.assertIn("Revision 1", page.identity_labels["revision"].text())
         self.assertEqual(page.history_table.rowCount(), 1)
+        self.assertTrue(page.export_legacy_button.isEnabled())
         self.assertTrue(page.export_coretax_button.isEnabled())
 
         self.assertTrue(page.service.void_snapshot(result.snapshot_id, "test"))
         page.refresh_page()
         self.assertEqual(page.identity_labels["status"].text(), "DRAFT")
         self.assertEqual(page.history_table.item(0, 1).text(), "VOID")
+        self.assertFalse(page.export_legacy_button.isEnabled())
         self.assertFalse(page.export_coretax_button.isEnabled())
+
+    def test_finalization_page_exposes_legacy_format_export_action(self):
+        page = self._page(_Worksheet())
+        self.assertEqual(
+            page.export_legacy_button.text(),
+            "Export Format Lama (PDF)",
+        )
+        source = inspect.getsource(FinalizationPage)
+        self.assertIn("Legacy1770StaticPdfService", source)
+        self.assertIn("_export_legacy_pdf", source)
+        self.assertIn("PDF statis", source)
 
     def test_finalization_page_exposes_official_coretax_export_action(self):
         page = self._page(_Worksheet())
