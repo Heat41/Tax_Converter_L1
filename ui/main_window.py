@@ -8,6 +8,7 @@ from PySide6.QtWidgets import (
     QLabel,
     QMainWindow,
     QPushButton,
+    QScrollArea,
     QStackedWidget,
     QTableWidget,
     QTableWidgetItem,
@@ -17,7 +18,7 @@ from PySide6.QtWidgets import (
 
 from config.database import get_db_connection
 from config.settings import APP_NAME, APP_VERSION
-from ui.performance import optimize_table_interaction, suspended_updates
+from ui.performance import optimize_scroll_area, optimize_table_interaction, suspended_updates
 from ui.theme import APP_FONT
 from ui.theme_manager import apply_theme, get_saved_theme
 from ui.pages.finalization_page import FinalizationPage
@@ -194,8 +195,20 @@ class MainWindow(QMainWindow):
 
     def _build_dashboard_page(self):
         page = QWidget()
-        main = QVBoxLayout(page)
-        main.setContentsMargins(0, 0, 0, 0)
+        page_layout = QVBoxLayout(page)
+        page_layout.setContentsMargins(0, 0, 0, 0)
+        page_layout.setSpacing(0)
+
+        scroll = QScrollArea()
+        scroll.setObjectName("dashboardScrollArea")
+        scroll.setWidgetResizable(True)
+        scroll.setFrameShape(QFrame.NoFrame)
+        scroll.setHorizontalScrollBarPolicy(Qt.ScrollBarAlwaysOff)
+        scroll.setVerticalScrollBarPolicy(Qt.ScrollBarAsNeeded)
+
+        content = QWidget()
+        main = QVBoxLayout(content)
+        main.setContentsMargins(0, 0, 8, 8)
         main.setSpacing(16)
 
         title = QLabel("Dashboard")
@@ -321,6 +334,11 @@ class MainWindow(QMainWindow):
         )
         export_layout.addWidget(self.export_audit_table)
         main.addWidget(export_recent, 1)
+        main.addStretch()
+
+        scroll.setWidget(content)
+        optimize_scroll_area(scroll, vertical_step=24)
+        page_layout.addWidget(scroll)
 
         return page
 
