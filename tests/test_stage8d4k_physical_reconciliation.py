@@ -28,8 +28,13 @@ def _write_xml(directory: Path, category: str, rows):
     directory.mkdir(parents=True, exist_ok=True)
     schema = OFFICIAL_CORETAX_SCHEMAS[category]
     root = ET.Element(schema.xml_root)
+    tin = ET.SubElement(root, schema.xml_tin_field)
+    tin.text = "6101015612710001"
+    year = ET.SubElement(root, schema.xml_year_field)
+    year.text = "2025"
+    container = ET.SubElement(root, schema.xml_list)
     for values in rows:
-        item = ET.SubElement(root, schema.xml_list)
+        item = ET.SubElement(container, schema.xml_item)
         for field_name, value in zip(schema.xml_fields, values):
             node = ET.SubElement(item, field_name)
             node.text = "" if value is None else str(value)
