@@ -105,7 +105,7 @@ def test_stage8d4d_only_exports_categories_with_official_xml_reference(tmp_path)
     assert result.ok
     assert tuple(result.files) == XML_CATEGORY_ORDER
     assert set(result.files) == {"KAS", "INVESTASI", "BERGERAK", "HTB"}
-    assert result.unsupported_categories == ["PIUTANG", "LAINNYA"]
+    assert result.unsupported_categories == []
 
 
 def test_stage8d4d_cash_xml_matches_locked_contract(tmp_path):
@@ -170,7 +170,7 @@ def test_stage8d4d_non_movable_xml_uses_preserved_metadata(tmp_path):
     assert row.findtext("FairMarketValue") == "38000000"
 
 
-def test_stage8d4d_empty_supported_category_still_produces_valid_root(tmp_path):
+def test_stage8d4d_does_not_generate_empty_supported_categories(tmp_path):
     package = ReverseCoretaxPackage(
         npwp="6101015612710001",
         nama_wp="EVY BACHTIAR",
@@ -193,6 +193,5 @@ def test_stage8d4d_empty_supported_category_still_produces_valid_root(tmp_path):
 
     result = OfficialCoretaxXmlExporter().export_package(package, tmp_path)
 
-    investment_root = ET.parse(result.files["INVESTASI"]).getroot()
-    assert investment_root.tag == "InvesmentSecuritiesBulk"
-    assert investment_root.findall("InvesmentSecuritiesList") == []
+    assert set(result.files) == {"KAS"}
+    assert "INVESTASI" not in result.files
