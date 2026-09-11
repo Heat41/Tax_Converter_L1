@@ -230,8 +230,8 @@ class FinalizationPage(QWidget):
         self.export_coretax_button = QPushButton("Export Paket Coretax")
         self.export_coretax_button.setObjectName("primaryButton")
         self.export_coretax_button.setToolTip(
-            "Membuat 6 Excel resmi, XML yang memiliki referensi resmi, "
-            "manifest, lalu memvalidasi paket sebelum digunakan."
+            "Membuat Excel hanya untuk kategori Harta yang tersedia, "
+            "XML jika referensinya tersedia, lalu memvalidasi paket."
         )
 
         self.recheck_button.clicked.connect(self.refresh_page)
@@ -504,7 +504,7 @@ class FinalizationPage(QWidget):
 
         template_dir = QFileDialog.getExistingDirectory(
             self,
-            "Pilih Folder 6 Template Excel Coretax Asli",
+            "Pilih Folder Template Excel Coretax Asli",
         )
         if not template_dir:
             return
@@ -578,7 +578,8 @@ class FinalizationPage(QWidget):
             (
                 "Paket Coretax berhasil dibuat dan lolos validasi.\n\n"
                 f"Lokasi: {output_dir}\n"
-                "Isi: 6 Excel resmi + XML referensi resmi + manifest.json"
+                f"Isi: {len(export_result.excel_result.files)} Excel + "
+                f"{len(export_result.xml_result.files)} XML + manifest.json"
             ),
         )
 
