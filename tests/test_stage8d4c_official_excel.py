@@ -82,7 +82,7 @@ def _package():
     return package
 
 
-def test_stage8d4c_exports_six_official_template_files(tmp_path):
+def test_stage8d4c_exports_only_populated_category_files(tmp_path):
     templates = tmp_path / "templates"
     output = tmp_path / "output"
     _create_all_templates(templates)
@@ -93,9 +93,9 @@ def test_stage8d4c_exports_six_official_template_files(tmp_path):
     )
 
     assert result.ok
-    assert len(result.files) == 6
-    for path in result.files.values():
-        assert path.exists()
+    assert set(result.files) == {"KAS"}
+    assert result.row_counts == {"KAS": 1}
+    assert result.files["KAS"].exists()
 
 
 def test_stage8d4c_preserves_official_sheet_and_headers(tmp_path):
@@ -204,3 +204,18 @@ def test_stage8d4c_preserves_template_layout(tmp_path):
     assert ws.column_dimensions["A"].width == 27
 
     wb.close()
+
+
+def test_stage8d4c_requires_template_only_for_populated_categories(tmp_path):
+    templates = tmp_path / "templates"
+    output = tmp_path / "output"
+    templates.mkdir(parents=True, exist_ok=True)
+    _create_template(templates, "KAS")
+
+    result = OfficialCoretaxExcelExporter(templates).export_package(
+        _package(),
+        output,
+    )
+
+    assert result.ok
+    assert set(result.files) == {"KAS"}
