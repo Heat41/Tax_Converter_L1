@@ -22,6 +22,7 @@ from PySide6.QtWidgets import (
 
 from core.finalization import FinalizationService, ValidationSeverity
 from core.finalization_adapter import FinalizationAdapter
+from core.physical_reconciliation import PhysicalSourceExportReconciler
 from core.reverse_coretax_official_package import OfficialCoretaxPackageExporter
 from core.reverse_coretax_official_package_validator import OfficialCoretaxPackageValidator
 from ui.notifications import ToastNotification
@@ -493,6 +494,36 @@ class FinalizationPage(QWidget):
             )
         self.refresh_page()
 
+    def _detect_coretax_source_dir(self) -> Optional[Path]:
+        """Cari folder sumber Coretax asli dari metadata Harta yang sedang difinalisasi.
+
+        Rekonsiliasi hanya dijalankan otomatis bila seluruh source_file yang
+        tercatat masih ada dan berada pada satu folder yang sama. Bila tidak,
+        export tetap boleh dilakukan tetapi status rekonsiliasi menjadi SKIPPED.
+        """
+        if not self.current_input:
+            return None
+
+        source_files = []
+        for row in self.current_input.harta_current_rows or []:
+            metadata = getattr(row, "coretax_metadata", None) or {}
+            raw_path = str(metadata.get("source_file") or "").strip()
+            if not raw_path:
+                return None
+            path = Path(raw_path)
+            if not path.is_file():
+                return None
+            source_files.append(path.resolve())
+
+        if not source_files:
+            return None
+
+        parents = {path.parent for path in source_files}
+        if len(parents) != 1:
+            return None
+
+        return next(iter(parents))
+
     def _export_official_coretax(self):
         if not self.current_input or not self.active_snapshot:
             self.toast_notification.show_message(
@@ -567,8 +598,53 @@ class FinalizationPage(QWidget):
             )
             return
 
+        source_dir = self._detect_coretax_source_dir()
+        reconciliation_status = "SKIPPED"
+        reconciliation_detail = (
+            "Sumber Coretax asli tidak tersedia pada lokasi import terakhir."
+        )
+
+        if source_dir is not None:
+            reconciliation = PhysicalSourceExportReconciler().reconcile(
+                source_dir,
+                output_dir,
+            )
+            if not reconciliation.ok:
+                details = "\n".join(
+                    (
+                        f"[{issue.severity}] {issue.code}"
+                        + (f" [{issue.category}]" if issue.category else "")
+                        + (f" baris {issue.row_number}" if issue.row_number else "")
+                        + (f" field {issue.field_name}" if issue.field_name else "")
+                        + f": {issue.message}"
+                    )
+                    for issue in reconciliation.errors
+                ) or "Ditemukan perbedaan antara sumber Coretax dan hasil export."
+                QMessageBox.warning(
+                    self,
+                    "Rekonsiliasi Paket Coretax Gagal",
+                    (
+                        "Paket berhasil dibuat dan lolos validator struktur, "
+                        "tetapi isi hasil export berbeda dari sumber Coretax.\n\n"
+                        f"{details}\n\nLokasi paket: {output_dir}"
+                    ),
+                )
+                return
+
+            reconciliation_status = "PASS"
+            reconciliation_detail = (
+                f"Sumber dibandingkan otomatis: {source_dir}"
+            )
+
         self.toast_notification.show_message(
-            "Paket Coretax resmi berhasil dibuat dan lolos validasi.",
+            (
+                "Paket Coretax berhasil dibuat, lolos validasi"
+                + (
+                    " dan rekonsiliasi sumber."
+                    if reconciliation_status == "PASS"
+                    else "."
+                )
+            ),
             "success",
             4200,
         )
@@ -579,7 +655,9 @@ class FinalizationPage(QWidget):
                 "Paket Coretax berhasil dibuat dan lolos validasi.\n\n"
                 f"Lokasi: {output_dir}\n"
                 f"Isi: {len(export_result.excel_result.files)} Excel + "
-                f"{len(export_result.xml_result.files)} XML + manifest.json"
+                f"{len(export_result.xml_result.files)} XML + manifest.json\n"
+                f"Rekonsiliasi sumber: {reconciliation_status}\n"
+                f"{reconciliation_detail}"
             ),
         )
 
