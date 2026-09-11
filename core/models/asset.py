@@ -27,6 +27,7 @@ class HartaL1Item:
     saldo_piutang_current: float = 0.0
 
     # INVESTASI
+    nomor_identitas_institusi: Optional[str] = None
     nama_institusi: Optional[str] = None
     nomor_akun_bukti: Optional[str] = None
     biaya_perolehan_original: float = 0.0
