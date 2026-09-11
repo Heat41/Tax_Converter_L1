@@ -269,3 +269,41 @@ def test_stage8d4h_missing_category_specific_values_stay_blank(tmp_path):
     assert ws.cell(DATA_START_ROW, 8).value == 250000000
 
     wb.close()
+
+
+def test_stage8d4c_prefers_valid_template_when_similar_invalid_file_exists(tmp_path):
+    templates = tmp_path / "templates"
+    output = tmp_path / "output"
+    templates.mkdir(parents=True, exist_ok=True)
+
+    schema = OFFICIAL_CORETAX_SCHEMAS["KAS"]
+
+    # Kandidat yang secara nama sangat cocok tetapi bukan template DATA resmi.
+    invalid = templates / "1. PIT L1 Harta Kas Setara Kas 2025.xlsx"
+    wb = Workbook()
+    ws = wb.active
+    ws.title = "Sheet1"
+    ws["A1"] = "Bukan template DATA"
+    wb.save(invalid)
+
+    # Kandidat resmi yang harus dipilih walau filename sedikit lebih panjang.
+    valid = templates / "1. PIT L1 Harta Kas Setara Kas 250918.xlsx"
+    wb = Workbook()
+    ws = wb.active
+    ws.title = schema.excel_sheet
+    ws["A1"] = "NPWP"
+    ws["B1"] = ""
+    ws["A2"] = "Tahun Pajak"
+    ws["B2"] = ""
+    for column_index, header in enumerate(schema.excel_headers, start=1):
+        ws.cell(3, column_index).value = header
+    wb.save(valid)
+
+    result = OfficialCoretaxExcelExporter(templates).export_package(
+        _package(),
+        output,
+    )
+
+    assert result.ok
+    assert result.template_files["KAS"] == valid
+    assert result.files["KAS"].name == valid.name
