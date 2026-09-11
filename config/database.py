@@ -9,6 +9,7 @@ SCHEMA_FILE_PATH = Path(__file__).resolve().parent.parent / "sql" / "schema_sqli
 EXTRA_SCHEMA_FILES = (
     Path(__file__).resolve().parent.parent / "sql" / "schema_pph_state.sql",
     Path(__file__).resolve().parent.parent / "sql" / "schema_finalization.sql",
+    Path(__file__).resolve().parent.parent / "sql" / "schema_export_audit.sql",
 )
 
 
