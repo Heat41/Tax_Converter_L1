@@ -87,9 +87,9 @@ def test_stage8d4e_builds_excel_xml_and_manifest(tmp_path):
 
     assert result.ok
     assert result.excel_result is not None
-    assert len(result.excel_result.files) == 6
+    assert set(result.excel_result.files) == {"KAS"}
     assert result.xml_result is not None
-    assert len(result.xml_result.files) == 4
+    assert set(result.xml_result.files) == {"KAS"}
     assert result.manifest_path == output / "manifest.json"
     assert result.manifest_path.is_file()
 
@@ -147,12 +147,11 @@ def test_stage8d4e_manifest_records_supported_and_unsupported_outputs(tmp_path):
 
     manifest = json.loads(result.manifest_path.read_text(encoding="utf-8"))
 
-    assert manifest["excel"]["file_count"] == 6
-    assert manifest["xml"]["file_count"] == 4
-    assert manifest["xml"]["unsupported_categories"] == [
-        "PIUTANG",
-        "LAINNYA",
-    ]
+    assert manifest["excel"]["file_count"] == 1
+    assert set(manifest["excel"]["files"]) == {"KAS"}
+    assert manifest["xml"]["file_count"] == 1
+    assert set(manifest["xml"]["files"]) == {"KAS"}
+    assert manifest["xml"]["unsupported_categories"] == []
 
 
 def test_stage8d4e_manifest_contains_file_hashes(tmp_path):
@@ -174,3 +173,33 @@ def test_stage8d4e_manifest_contains_file_hashes(tmp_path):
             assert len(item["sha256"]) == 64
             assert item["path"]
             assert item["filename"]
+
+
+def test_stage8d4e_only_needs_templates_for_categories_with_data(tmp_path):
+    templates = tmp_path / "templates"
+    output = tmp_path / "package"
+    templates.mkdir(parents=True, exist_ok=True)
+
+    schema = OFFICIAL_CORETAX_SCHEMAS["KAS"]
+    path = templates / f"{schema.excel_filename_hint}.xlsx"
+    wb = Workbook()
+    ws = wb.active
+    ws.title = "DATA"
+    ws["A1"] = "NPWP"
+    ws["B1"] = ""
+    ws["A2"] = "Tahun Pajak"
+    ws["B2"] = ""
+    for index, header in enumerate(schema.excel_headers, start=1):
+        ws.cell(3, index).value = header
+    wb.save(path)
+
+    result = OfficialCoretaxPackageExporter(
+        templates
+    ).export_package(
+        _package(),
+        output,
+    )
+
+    assert result.ok
+    assert set(result.excel_result.files) == {"KAS"}
+    assert set(result.xml_result.files) == {"KAS"}
