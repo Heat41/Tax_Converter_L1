@@ -141,7 +141,7 @@ class CoretaxHartaMapper:
             return HartaL1Item(
                 **common,
                 lokasi_negara=self._text(self._value(row, "Lokasi Harta")) or None,
-                nomor_identitas_pihak_ketiga=self._text(self._value(row, "Nomor Identitas")) or None,
+                nomor_identitas_institusi=self._text(self._value(row, "Nomor Identitas")) or None,
                 nama_institusi=self._text(self._value(row, "Nama Bank/Institusi/Penerima Investasi")) or None,
                 nomor_akun_bukti=self._text(self._value(row, "Bukti Kepemilikan/Nomor Akun")) or None,
                 biaya_perolehan_original=biaya,
