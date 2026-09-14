@@ -38,3 +38,6 @@ resources/branding/*.png
 
 # Release artifacts
 release/
+
+# Windows installer artifacts
+installer_output/
