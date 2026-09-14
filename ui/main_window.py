@@ -1,7 +1,4 @@
-from pathlib import Path
-
 from PySide6.QtCore import Qt
-from PySide6.QtGui import QIcon
 from PySide6.QtWidgets import (
     QFrame,
     QHBoxLayout,
@@ -18,6 +15,7 @@ from PySide6.QtWidgets import (
 
 from config.database import get_db_connection
 from config.settings import APP_NAME, APP_VERSION
+from ui.branding import load_app_icon
 from ui.performance import optimize_scroll_area, optimize_table_interaction, suspended_updates
 from ui.theme import APP_FONT
 from ui.theme_manager import apply_theme, get_saved_theme
@@ -43,11 +41,9 @@ class MainWindow(QMainWindow):
         self.current_theme = get_saved_theme()
         apply_theme(self.current_theme)
 
-        self.logo_path = (
-            Path(__file__).resolve().parent / "assets" / "tax_converter_l1.svg"
-        )
-        if self.logo_path.exists():
-            self.setWindowIcon(QIcon(str(self.logo_path)))
+        self.app_icon = load_app_icon()
+        if not self.app_icon.isNull():
+            self.setWindowIcon(self.app_icon)
 
         self.nav_buttons = {}
         self.pages = {}
@@ -74,10 +70,8 @@ class MainWindow(QMainWindow):
         self.brand_logo = QLabel()
         self.brand_logo.setObjectName("brandLogo")
         self.brand_logo.setFixedSize(46, 46)
-        if self.logo_path.exists():
-            self.brand_logo.setPixmap(
-                QIcon(str(self.logo_path)).pixmap(46, 46)
-            )
+        if not self.app_icon.isNull():
+            self.brand_logo.setPixmap(self.app_icon.pixmap(46, 46))
         self.brand_logo.setAlignment(Qt.AlignCenter)
         brand_row.addWidget(self.brand_logo, alignment=Qt.AlignTop)
 
