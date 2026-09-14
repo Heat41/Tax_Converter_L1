@@ -3,7 +3,7 @@ from __future__ import annotations
 from pathlib import Path
 
 from PySide6.QtCore import QSize, Qt
-from PySide6.QtGui import QPixmap
+from PySide6.QtGui import QImage, QPainter, QPixmap
 from PySide6.QtPdf import QPdfDocument
 from PySide6.QtWidgets import (
     QDialog,
@@ -159,7 +159,21 @@ class LegacyPdfPreviewDialog(QDialog):
             self.current_page,
             QSize(width, height),
         )
-        self.page_image.setPixmap(QPixmap.fromImage(image))
+
+        # QPdfDocument dapat menghasilkan area transparan. Pada Dark Mode,
+        # transparansi tersebut membuat warna background aplikasi menembus
+        # halaman dan kertas PDF terlihat gelap. Komposisikan hasil render ke
+        # canvas putih agar preview selalu menyerupai dokumen/kertas aslinya.
+        white_canvas = QImage(
+            image.size(),
+            QImage.Format.Format_ARGB32,
+        )
+        white_canvas.fill(Qt.GlobalColor.white)
+        painter = QPainter(white_canvas)
+        painter.drawImage(0, 0, image)
+        painter.end()
+
+        self.page_image.setPixmap(QPixmap.fromImage(white_canvas))
         self.page_image.adjustSize()
         self._update_controls()
 
