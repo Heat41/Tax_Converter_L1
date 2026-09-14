@@ -26,8 +26,10 @@ from core.finalization_adapter import FinalizationAdapter
 from core.export_audit import ExportAuditRecord, ExportAuditService
 from core.legacy_1770_static_pdf import Legacy1770StaticPdfService
 from core.physical_reconciliation import PhysicalSourceExportReconciler
+from core.reverse_coretax_mapping import ReverseCoretaxMappingService
 from core.reverse_coretax_official_package import OfficialCoretaxPackageExporter
 from core.reverse_coretax_official_package_validator import OfficialCoretaxPackageValidator
+from ui.coretax_package_preview import CoretaxPackagePreviewDialog
 from ui.legacy_pdf_preview import LegacyPdfPreviewDialog
 from ui.notifications import ToastNotification
 from ui.performance import optimize_scroll_area, optimize_table_interaction, suspended_updates
@@ -246,6 +248,12 @@ class FinalizationPage(QWidget):
             "Membuat Form 1770 format lama berbentuk PDF statis dari snapshot FINAL."
         )
 
+        self.preview_coretax_button = QPushButton("Preview Paket Coretax")
+        self.preview_coretax_button.setObjectName("secondaryButton")
+        self.preview_coretax_button.setToolTip(
+            "Menampilkan ringkasan kategori Harta dari snapshot FINAL tanpa membuat file."
+        )
+
         self.export_coretax_button = QPushButton("Export Paket Coretax")
         self.export_coretax_button.setObjectName("primaryButton")
         self.export_coretax_button.setToolTip(
@@ -258,6 +266,7 @@ class FinalizationPage(QWidget):
         self.reopen_button.clicked.connect(self._reopen)
         self.preview_legacy_button.clicked.connect(self._preview_legacy_pdf)
         self.export_legacy_button.clicked.connect(self._export_legacy_pdf)
+        self.preview_coretax_button.clicked.connect(self._preview_coretax_package)
         self.export_coretax_button.clicked.connect(self._export_official_coretax)
 
         actions.addWidget(self.recheck_button)
@@ -265,6 +274,7 @@ class FinalizationPage(QWidget):
         actions.addWidget(self.reopen_button)
         actions.addWidget(self.preview_legacy_button)
         actions.addWidget(self.export_legacy_button)
+        actions.addWidget(self.preview_coretax_button)
         actions.addWidget(self.export_coretax_button)
         actions.addStretch()
         layout.addLayout(actions)
@@ -428,6 +438,7 @@ class FinalizationPage(QWidget):
         self.reopen_button.setVisible(False)
         self.preview_legacy_button.setEnabled(False)
         self.export_legacy_button.setEnabled(False)
+        self.preview_coretax_button.setEnabled(False)
         self.export_coretax_button.setEnabled(False)
 
     def _render_identity(self):
@@ -519,6 +530,7 @@ class FinalizationPage(QWidget):
             self.reopen_button.setEnabled(True)
             self.preview_legacy_button.setEnabled(True)
             self.export_legacy_button.setEnabled(True)
+            self.preview_coretax_button.setEnabled(True)
             self.export_coretax_button.setEnabled(True)
             return
 
@@ -540,6 +552,7 @@ class FinalizationPage(QWidget):
         self.reopen_button.setVisible(False)
         self.preview_legacy_button.setEnabled(False)
         self.export_legacy_button.setEnabled(False)
+        self.preview_coretax_button.setEnabled(False)
         self.export_coretax_button.setEnabled(False)
 
     def _render_history(self):
@@ -792,6 +805,41 @@ class FinalizationPage(QWidget):
             return None
 
         return next(iter(parents))
+
+    def _preview_coretax_package(self):
+        if not self.current_input or not self.active_snapshot:
+            self.toast_notification.show_message(
+                "Preview Paket Coretax hanya tersedia untuk Worksheet berstatus FINAL.",
+                "warning",
+                3600,
+            )
+            return
+
+        package = ReverseCoretaxMappingService(
+            db_path=self.service.db_path
+        ).build_active_final(
+            self.current_input.npwp,
+            self.current_input.tahun_pajak,
+        )
+
+        if not package.can_export:
+            details = "\n".join(
+                f"[{issue.severity}] {issue.code}: {issue.message}"
+                for issue in package.issues
+                if issue.severity in {"ERROR", "WARNING"}
+            ) or "Snapshot FINAL belum siap untuk dipreview sebagai Paket Coretax."
+            QMessageBox.warning(
+                self,
+                "Preview Paket Coretax Gagal",
+                details,
+            )
+            return
+
+        dialog = CoretaxPackagePreviewDialog(
+            package,
+            parent=self,
+        )
+        dialog.exec()
 
     def _export_official_coretax(self):
         if not self.current_input or not self.active_snapshot:
