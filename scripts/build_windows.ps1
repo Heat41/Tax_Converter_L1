@@ -35,6 +35,16 @@ catch {
 }
 
 Write-Host ""
+Write-Host "[0/3] Membuat icon aplikasi..."
+python .\scripts\generate_app_icon.py
+if ($LASTEXITCODE -ne 0) {
+    throw "Pembuatan icon aplikasi gagal dengan exit code $LASTEXITCODE"
+}
+$icon = Join-Path $root "resources\branding\tax_converter_l1.ico"
+if (-not (Test-Path $icon)) {
+    throw "Icon aplikasi tidak ditemukan setelah generator dijalankan: $icon"
+}
+
 Write-Host "[1/3] Membersihkan build lama..."
 if (Test-Path (Join-Path $root "build")) {
     Remove-Item (Join-Path $root "build") -Recurse -Force
