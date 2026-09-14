@@ -501,7 +501,7 @@ class WorksheetPage(QWidget):
         header.addWidget(self.remove_bupot_button)
         bupot_layout.addLayout(header)
 
-        self.bupot_table = QTableWidget(0, 7)
+        self.bupot_table = QTableWidget(0, 8)
         self.bupot_table.setHorizontalHeaderLabels([
             "NO",
             "JENIS",
@@ -510,6 +510,7 @@ class WorksheetPage(QWidget):
             "BRUTO",
             "PENGURANG",
             "NETTO",
+            "PPH DIPOTONG",
         ])
         self.bupot_table.setAlternatingRowColors(True)
         self.bupot_table.verticalHeader().setVisible(False)
@@ -549,6 +550,9 @@ class WorksheetPage(QWidget):
         netto_item = QTableWidgetItem("0")
         netto_item.setFlags(netto_item.flags() & ~Qt.ItemIsEditable)
         self.bupot_table.setItem(row, 6, netto_item)
+
+        pph_item = QTableWidgetItem("0")
+        self.bupot_table.setItem(row, 7, pph_item)
 
     def _remove_bupot_row(self):
         selected = sorted(
