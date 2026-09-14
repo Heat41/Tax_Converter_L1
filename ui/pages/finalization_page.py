@@ -246,7 +246,7 @@ class FinalizationPage(QWidget):
         )
 
         self.export_legacy_button = QPushButton("Export Format Lama (PDF)")
-        self.export_legacy_button.setObjectName("secondaryButton")
+        self.export_legacy_button.setObjectName("primaryButton")
         self.export_legacy_button.setToolTip(
             "Membuat Form 1770 format lama berbentuk PDF statis dari snapshot FINAL."
         )
