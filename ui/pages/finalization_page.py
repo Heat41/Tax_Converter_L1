@@ -1,6 +1,7 @@
 from __future__ import annotations
 
 from pathlib import Path
+from tempfile import TemporaryDirectory
 from typing import Optional
 
 from PySide6.QtCore import Qt
@@ -27,6 +28,7 @@ from core.legacy_1770_static_pdf import Legacy1770StaticPdfService
 from core.physical_reconciliation import PhysicalSourceExportReconciler
 from core.reverse_coretax_official_package import OfficialCoretaxPackageExporter
 from core.reverse_coretax_official_package_validator import OfficialCoretaxPackageValidator
+from ui.legacy_pdf_preview import LegacyPdfPreviewDialog
 from ui.notifications import ToastNotification
 from ui.performance import optimize_scroll_area, optimize_table_interaction, suspended_updates
 
@@ -232,6 +234,12 @@ class FinalizationPage(QWidget):
         self.finalize_button.setObjectName("primaryButton")
         self.reopen_button = QPushButton("Buka Kembali Worksheet")
         self.reopen_button.setObjectName("secondaryButton")
+        self.preview_legacy_button = QPushButton("Preview Format Lama")
+        self.preview_legacy_button.setObjectName("secondaryButton")
+        self.preview_legacy_button.setToolTip(
+            "Membuka preview Form 1770 dari snapshot FINAL tanpa menyimpan file permanen."
+        )
+
         self.export_legacy_button = QPushButton("Export Format Lama (PDF)")
         self.export_legacy_button.setObjectName("secondaryButton")
         self.export_legacy_button.setToolTip(
@@ -248,12 +256,14 @@ class FinalizationPage(QWidget):
         self.recheck_button.clicked.connect(self.refresh_page)
         self.finalize_button.clicked.connect(self._finalize)
         self.reopen_button.clicked.connect(self._reopen)
+        self.preview_legacy_button.clicked.connect(self._preview_legacy_pdf)
         self.export_legacy_button.clicked.connect(self._export_legacy_pdf)
         self.export_coretax_button.clicked.connect(self._export_official_coretax)
 
         actions.addWidget(self.recheck_button)
         actions.addWidget(self.finalize_button)
         actions.addWidget(self.reopen_button)
+        actions.addWidget(self.preview_legacy_button)
         actions.addWidget(self.export_legacy_button)
         actions.addWidget(self.export_coretax_button)
         actions.addStretch()
@@ -416,6 +426,7 @@ class FinalizationPage(QWidget):
         )
         self.finalize_button.setEnabled(False)
         self.reopen_button.setVisible(False)
+        self.preview_legacy_button.setEnabled(False)
         self.export_legacy_button.setEnabled(False)
         self.export_coretax_button.setEnabled(False)
 
@@ -506,6 +517,7 @@ class FinalizationPage(QWidget):
             self.finalize_button.setEnabled(False)
             self.reopen_button.setVisible(True)
             self.reopen_button.setEnabled(True)
+            self.preview_legacy_button.setEnabled(True)
             self.export_legacy_button.setEnabled(True)
             self.export_coretax_button.setEnabled(True)
             return
@@ -526,6 +538,7 @@ class FinalizationPage(QWidget):
             )
         self.finalize_button.setEnabled(bool(self.current_validation and not errors))
         self.reopen_button.setVisible(False)
+        self.preview_legacy_button.setEnabled(False)
         self.export_legacy_button.setEnabled(False)
         self.export_coretax_button.setEnabled(False)
 
@@ -590,6 +603,55 @@ class FinalizationPage(QWidget):
                 result.message or "Worksheet gagal difinalisasi.", "error", 4200
             )
         self.refresh_page()
+
+    def _preview_legacy_pdf(self):
+        if not self.current_input or not self.active_snapshot:
+            self.toast_notification.show_message(
+                "Preview Format Lama hanya tersedia untuk Worksheet berstatus FINAL.",
+                "warning",
+                3600,
+            )
+            return
+
+        revision = int(self.active_snapshot["revision"] or 0)
+        try:
+            with TemporaryDirectory(prefix="tax1770_preview_") as temp_dir:
+                preview_path = (
+                    Path(temp_dir)
+                    / (
+                        f"1770_preview_{self.current_input.npwp}_"
+                        f"{self.current_input.tahun_pajak}_rev{revision}.pdf"
+                    )
+                )
+                result = Legacy1770StaticPdfService().finalize_active_final(
+                    self.current_input.npwp,
+                    self.current_input.tahun_pajak,
+                    preview_path,
+                    db_path=self.service.db_path,
+                )
+                if not result.ok:
+                    details = "\n".join(
+                        f"[{issue.severity}] {issue.code}: {issue.message}"
+                        for issue in result.issues
+                    ) or "Preview Format Lama tidak dapat dibuat."
+                    QMessageBox.warning(
+                        self,
+                        "Preview Format Lama Gagal",
+                        details,
+                    )
+                    return
+
+                dialog = LegacyPdfPreviewDialog(
+                    result.output_path,
+                    parent=self,
+                )
+                dialog.exec()
+        except Exception as exc:
+            QMessageBox.warning(
+                self,
+                "Preview Format Lama Gagal",
+                str(exc),
+            )
 
     def _export_legacy_pdf(self):
         if not self.current_input or not self.active_snapshot:
