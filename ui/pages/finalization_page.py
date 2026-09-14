@@ -229,13 +229,16 @@ class FinalizationPage(QWidget):
         layout.addWidget(heading)
         layout.addWidget(self.final_state_label)
 
-        actions = QHBoxLayout()
+        status_actions = QHBoxLayout()
+        output_actions = QHBoxLayout()
+
         self.recheck_button = QPushButton("Periksa Ulang")
         self.recheck_button.setObjectName("secondaryButton")
         self.finalize_button = QPushButton("Finalisasi Worksheet")
         self.finalize_button.setObjectName("primaryButton")
         self.reopen_button = QPushButton("Buka Kembali Worksheet")
         self.reopen_button.setObjectName("secondaryButton")
+
         self.preview_legacy_button = QPushButton("Preview Format Lama")
         self.preview_legacy_button.setObjectName("secondaryButton")
         self.preview_legacy_button.setToolTip(
@@ -269,15 +272,23 @@ class FinalizationPage(QWidget):
         self.preview_coretax_button.clicked.connect(self._preview_coretax_package)
         self.export_coretax_button.clicked.connect(self._export_official_coretax)
 
-        actions.addWidget(self.recheck_button)
-        actions.addWidget(self.finalize_button)
-        actions.addWidget(self.reopen_button)
-        actions.addWidget(self.preview_legacy_button)
-        actions.addWidget(self.export_legacy_button)
-        actions.addWidget(self.preview_coretax_button)
-        actions.addWidget(self.export_coretax_button)
-        actions.addStretch()
-        layout.addLayout(actions)
+        status_actions.addWidget(self.recheck_button)
+        status_actions.addWidget(self.finalize_button)
+        status_actions.addWidget(self.reopen_button)
+        status_actions.addStretch()
+
+        output_label = QLabel("Output Final")
+        output_label.setObjectName("mutedLabel")
+        layout.addWidget(output_label)
+
+        output_actions.addWidget(self.preview_legacy_button)
+        output_actions.addWidget(self.export_legacy_button)
+        output_actions.addWidget(self.preview_coretax_button)
+        output_actions.addWidget(self.export_coretax_button)
+        output_actions.addStretch()
+
+        layout.addLayout(status_actions)
+        layout.addLayout(output_actions)
         parent_layout.addWidget(card)
 
     def _build_history_card(self, parent_layout):
