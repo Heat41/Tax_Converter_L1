@@ -43,6 +43,13 @@ class WorksheetPage(BaseWorksheetPage):
             info_card.layout().addWidget(self.pph_status)
 
         self.bupot_table.itemChanged.connect(self._on_bupot_item_changed)
+        self.bupot_table.horizontalHeaderItem(
+            self.BUPOT_PPH_COLUMN
+        ).setToolTip(
+            "Opsional. Isi hanya jika nilai PPh Dipotong tersedia pada "
+            "bukti potong atau sumber asli. Jika workbook memiliki kolom PPh, "
+            "nilainya akan terisi otomatis."
+        )
         optimize_table_interaction(
             self.bupot_table,
             column_widths=self.BUPOT_COLUMN_WIDTHS,
