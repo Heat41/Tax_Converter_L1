@@ -265,6 +265,19 @@ class WorksheetWorkbookImporter:
             result.issues.append(WorksheetWorkbookImportIssue("WKI_007", "ERROR", "Kolom tabel Bupot tidak lengkap."))
             return
 
+        pph_column = None
+        for alias in (
+            "pph dipotong",
+            "pph21 dipotong",
+            "pph 21 dipotong",
+            "jumlah pph",
+            "pph dipotong/dipungut",
+            "pph yang dipotong/dipungut",
+        ):
+            if alias in headers:
+                pph_column = headers[alias]
+                break
+
         for row in range(header_row + 1, len(df)):
             first_values = [self._label(df.iat[row, col]) for col in range(min(df.shape[1], 3))]
             if "total" in first_values:
@@ -274,7 +287,12 @@ class WorksheetWorkbookImporter:
             no_bupot = self._text(df.iat[row, headers["no bupot"]])
             bruto = self._number(df.iat[row, headers["bruto"]])
             pengurang = self._number(df.iat[row, headers["pengurang"]])
-            if not any((jenis, npwp, no_bupot, bruto, pengurang)):
+            pph_dipotong = (
+                self._number(df.iat[row, pph_column])
+                if pph_column is not None
+                else 0.0
+            )
+            if not any((jenis, npwp, no_bupot, bruto, pengurang, pph_dipotong)):
                 continue
             result.bupot_rows.append(
                 WorksheetBupotRow(
@@ -283,6 +301,7 @@ class WorksheetWorkbookImporter:
                     no_bupot=no_bupot,
                     bruto=bruto,
                     pengurang=pengurang,
+                    pph_dipotong=pph_dipotong,
                 )
             )
 
