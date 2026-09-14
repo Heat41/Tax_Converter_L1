@@ -61,6 +61,9 @@ class CoretaxPackagePreviewDialog(QDialog):
         self.row_count_label = QLabel()
         self.row_count_label.setObjectName("mutedLabel")
 
+        self.total_value_label = QLabel()
+        self.total_value_label.setObjectName("mutedLabel")
+
         self.status_label = QLabel()
         self.status_label.setObjectName("mutedLabel")
 
@@ -68,8 +71,15 @@ class CoretaxPackagePreviewDialog(QDialog):
         summary_layout.addStretch()
         summary_layout.addWidget(self.category_label)
         summary_layout.addWidget(self.row_count_label)
+        summary_layout.addWidget(self.total_value_label)
         summary_layout.addWidget(self.status_label)
         root.addWidget(summary)
+
+        self.warning_label = QLabel()
+        self.warning_label.setObjectName("mutedLabel")
+        self.warning_label.setWordWrap(True)
+        self.warning_label.setTextInteractionFlags(Qt.TextSelectableByMouse)
+        root.addWidget(self.warning_label)
 
         self.tabs = QTabWidget()
         self.tabs.setObjectName("worksheetTabs")
@@ -107,9 +117,31 @@ class CoretaxPackagePreviewDialog(QDialog):
         self.row_count_label.setText(
             f"{self.package.total_rows} baris"
         )
+        total_value = sum(
+            float(item.nilai or 0)
+            for category in active_categories
+            for item in self.package.rows_by_category.get(category, [])
+        )
+        self.total_value_label.setText(
+            f"Total {self._money(total_value)}"
+        )
         self.status_label.setText(
             "SIAP EXPORT" if self.package.can_export else "BELUM SIAP"
         )
+
+        warnings = list(self.package.warnings)
+        if warnings:
+            self.warning_label.setText(
+                f"{len(warnings)} warning • "
+                + " | ".join(
+                    f"{issue.code}: {issue.message}"
+                    for issue in warnings
+                )
+            )
+        else:
+            self.warning_label.setText(
+                "Tidak ada warning mapping pada snapshot FINAL."
+            )
 
         for category in active_categories:
             self.tabs.addTab(
@@ -141,6 +173,7 @@ class CoretaxPackagePreviewDialog(QDialog):
         layout.addWidget(info)
 
         table = QTableWidget(len(rows), 8)
+        table.setObjectName(f"coretaxPreviewTable_{category}")
         table.setHorizontalHeaderLabels(
             [
                 "NO",
