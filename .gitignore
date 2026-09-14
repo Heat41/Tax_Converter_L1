@@ -35,3 +35,6 @@ dist/
 # Generated branding assets
 resources/branding/*.ico
 resources/branding/*.png
+
+# Release artifacts
+release/
