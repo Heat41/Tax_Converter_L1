@@ -3,7 +3,7 @@ from __future__ import annotations
 from pathlib import Path
 
 from PySide6.QtCore import QSize, Qt
-from PySide6.QtGui import QImage, QPainter, QPixmap
+from PySide6.QtGui import QImage, QKeyEvent, QPainter, QPixmap
 from PySide6.QtPdf import QPdfDocument
 from PySide6.QtWidgets import (
     QDialog,
@@ -104,8 +104,11 @@ class LegacyPdfPreviewDialog(QDialog):
         root.addWidget(self.scroll, 1)
 
         footer = QHBoxLayout()
-        self.file_label = QLabel(str(self.pdf_path))
+        self.file_label = QLabel(
+            f"Preview sementara • {self.pdf_path.name}"
+        )
         self.file_label.setObjectName("mutedLabel")
+        self.file_label.setToolTip(str(self.pdf_path))
         self.file_label.setTextInteractionFlags(Qt.TextSelectableByMouse)
         footer.addWidget(self.file_label, 1)
 
@@ -229,3 +232,28 @@ class LegacyPdfPreviewDialog(QDialog):
     def _zoom_reset(self):
         self.zoom_factor = 1.0
         self._render_current_page()
+
+
+    def keyPressEvent(self, event: QKeyEvent):
+        key = event.key()
+        if key in (Qt.Key.Key_Left, Qt.Key.Key_PageUp):
+            self._previous_page()
+            event.accept()
+            return
+        if key in (Qt.Key.Key_Right, Qt.Key.Key_PageDown):
+            self._next_page()
+            event.accept()
+            return
+        if key in (Qt.Key.Key_Plus, Qt.Key.Key_Equal):
+            self._zoom_in()
+            event.accept()
+            return
+        if key == Qt.Key.Key_Minus:
+            self._zoom_out()
+            event.accept()
+            return
+        if key == Qt.Key.Key_0:
+            self._zoom_reset()
+            event.accept()
+            return
+        super().keyPressEvent(event)
