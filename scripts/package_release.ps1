@@ -91,8 +91,14 @@ $internalManifest | ConvertTo-Json -Depth 5 | Set-Content (
     Join-Path $releaseDir "release_manifest.json"
 ) -Encoding UTF8
 
-Write-Host "[4/6] Membuat ZIP release..."
-Compress-Archive -Path (Join-Path $releaseDir "*") -DestinationPath $zipPath -CompressionLevel Optimal
+Write-Host "[4/6] Membuat ZIP release dengan folder induk..."
+Push-Location $releaseRoot
+try {
+    Compress-Archive -Path $releaseName -DestinationPath $zipPath -CompressionLevel Optimal
+}
+finally {
+    Pop-Location
+}
 
 if (-not (Test-Path $zipPath)) {
     throw "ZIP release gagal dibuat."
@@ -109,6 +115,7 @@ $externalManifest = [ordered]@{
     release_name = $releaseName
     platform = "windows-x64"
     packaging = "pyinstaller-onedir"
+    archive_root = $releaseName
     zip_file = $zipInfo.Name
     zip_bytes = [int64]$zipInfo.Length
     zip_sha256 = $zipHash
