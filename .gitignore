@@ -31,3 +31,7 @@ Thumbs.db
 build/
 dist/
 *.spec.bak
+
+# Generated branding assets
+resources/branding/*.ico
+resources/branding/*.png
