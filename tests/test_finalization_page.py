@@ -118,6 +118,7 @@ class TestFinalizationPage(unittest.TestCase):
         self.assertFalse(page.reopen_button.isVisible())
         self.assertFalse(page.preview_legacy_button.isEnabled())
         self.assertFalse(page.export_legacy_button.isEnabled())
+        self.assertFalse(page.preview_coretax_button.isEnabled())
         self.assertFalse(page.export_coretax_button.isEnabled())
 
     def test_error_disables_finalize(self):
@@ -140,6 +141,7 @@ class TestFinalizationPage(unittest.TestCase):
         self.assertEqual(page.history_table.rowCount(), 1)
         self.assertTrue(page.preview_legacy_button.isEnabled())
         self.assertTrue(page.export_legacy_button.isEnabled())
+        self.assertTrue(page.preview_coretax_button.isEnabled())
         self.assertTrue(page.export_coretax_button.isEnabled())
 
         self.assertTrue(page.service.void_snapshot(result.snapshot_id, "test"))
@@ -148,6 +150,7 @@ class TestFinalizationPage(unittest.TestCase):
         self.assertEqual(page.history_table.item(0, 1).text(), "VOID")
         self.assertFalse(page.preview_legacy_button.isEnabled())
         self.assertFalse(page.export_legacy_button.isEnabled())
+        self.assertFalse(page.preview_coretax_button.isEnabled())
         self.assertFalse(page.export_coretax_button.isEnabled())
 
     def test_finalization_page_exposes_legacy_preview_action(self):
@@ -171,6 +174,17 @@ class TestFinalizationPage(unittest.TestCase):
         self.assertIn("Legacy1770StaticPdfService", source)
         self.assertIn("_export_legacy_pdf", source)
         self.assertIn("PDF statis", source)
+
+    def test_finalization_page_exposes_coretax_preview_action(self):
+        page = self._page(_Worksheet())
+        self.assertEqual(
+            page.preview_coretax_button.text(),
+            "Preview Paket Coretax",
+        )
+        source = inspect.getsource(FinalizationPage)
+        self.assertIn("CoretaxPackagePreviewDialog", source)
+        self.assertIn("ReverseCoretaxMappingService", source)
+        self.assertIn("_preview_coretax_package", source)
 
     def test_finalization_page_exposes_official_coretax_export_action(self):
         page = self._page(_Worksheet())
