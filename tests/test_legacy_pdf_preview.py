@@ -1,6 +1,8 @@
 import sys
 from pathlib import Path
 
+from PySide6.QtCore import QEvent, Qt
+from PySide6.QtGui import QKeyEvent
 from PySide6.QtWidgets import QApplication
 from pypdf import PdfWriter
 
@@ -54,6 +56,44 @@ def test_legacy_preview_navigation_and_zoom(tmp_path):
         assert dialog.zoom_factor == 1.0
 
         assert pdf.read_bytes() == before
+    finally:
+        dialog.close()
+        dialog.deleteLater()
+
+
+def test_legacy_preview_keyboard_shortcuts(tmp_path):
+    pdf = tmp_path / "preview.pdf"
+    _make_pdf(pdf, pages=3)
+
+    dialog = LegacyPdfPreviewDialog(pdf)
+    try:
+        dialog.keyPressEvent(
+            QKeyEvent(
+                QEvent.Type.KeyPress,
+                Qt.Key.Key_Right,
+                Qt.KeyboardModifier.NoModifier,
+            )
+        )
+        assert dialog.current_page == 1
+
+        dialog.keyPressEvent(
+            QKeyEvent(
+                QEvent.Type.KeyPress,
+                Qt.Key.Key_Plus,
+                Qt.KeyboardModifier.NoModifier,
+            )
+        )
+        assert dialog.zoom_factor > 1.0
+
+        dialog.keyPressEvent(
+            QKeyEvent(
+                QEvent.Type.KeyPress,
+                Qt.Key.Key_0,
+                Qt.KeyboardModifier.NoModifier,
+            )
+        )
+        assert dialog.zoom_factor == 1.0
+        assert "Preview sementara" in dialog.file_label.text()
     finally:
         dialog.close()
         dialog.deleteLater()
