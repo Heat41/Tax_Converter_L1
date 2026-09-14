@@ -21,10 +21,12 @@ class WorksheetPage(BaseWorksheetPage):
         4: 140,
         5: 140,
         6: 140,
+        7: 150,
     }
 
-    BUPOT_MONEY_COLUMNS = {4, 5}
+    BUPOT_MONEY_COLUMNS = {4, 5, 7}
     BUPOT_NETTO_COLUMN = 6
+    BUPOT_PPH_COLUMN = 7
 
     def __init__(self, parent=None):
         self._rendering_bupot = False
@@ -60,7 +62,7 @@ class WorksheetPage(BaseWorksheetPage):
             if row < 0:
                 return
 
-            for column in range(1, 6):
+            for column in range(1, 8):
                 item = self.bupot_table.item(row, column)
                 if item is None:
                     item = QTableWidgetItem("0" if column in self.BUPOT_MONEY_COLUMNS else "")
@@ -153,10 +155,12 @@ class WorksheetPage(BaseWorksheetPage):
         total_bruto = sum(self._money_value(row, 4) for row in range(rows))
         total_pengurang = sum(self._money_value(row, 5) for row in range(rows))
         total_netto = sum(self._money_value(row, 6) for row in range(rows))
+        total_pph = sum(self._money_value(row, 7) for row in range(rows))
         self.pph_status.setText(
             f"{rows} baris Bupot • Total Bruto Rp {self._format_bupot_money(total_bruto)} • "
             f"Total Pengurang Rp {self._format_bupot_money(total_pengurang)} • "
-            f"Total Netto Rp {self._format_bupot_money(total_netto)}"
+            f"Total Netto Rp {self._format_bupot_money(total_netto)} • "
+            f"Total PPh Dipotong Rp {self._format_bupot_money(total_pph)}"
         )
 
     def _refresh_bupot_actions(self):
