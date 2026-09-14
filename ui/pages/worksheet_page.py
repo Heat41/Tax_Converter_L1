@@ -510,7 +510,7 @@ class WorksheetPage(QWidget):
             "BRUTO",
             "PENGURANG",
             "NETTO",
-            "PPH DIPOTONG",
+            "PPH DIPOTONG (OPSIONAL)",
         ])
         self.bupot_table.setAlternatingRowColors(True)
         self.bupot_table.verticalHeader().setVisible(False)
