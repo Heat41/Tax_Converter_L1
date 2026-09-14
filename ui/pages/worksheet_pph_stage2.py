@@ -13,9 +13,8 @@ class WorksheetPage(BaseWorksheetPage):
     """Stage 2 Penghasilan & PPh: validasi dan persistence Bupot."""
 
     INVALID_BACKGROUND = QColor("#FFEBEE")
-    # Detail PPh per Bupot belum menjadi kolom editable pada grid lama. Nilainya
-    # tetap dibawa sebagai metadata row agar import -> edit -> save tidak
-    # menghilangkan nilai yang sudah dibaca dari workbook.
+    # Compatibility role dipertahankan untuk state/test lama, tetapi sumber utama
+    # PPh per Bupot sekarang adalah kolom visible BUPOT_PPH_COLUMN.
     BUPOT_PPH_ROLE = Qt.UserRole + 1
 
     def __init__(self, parent=None):
@@ -167,6 +166,11 @@ class WorksheetPage(BaseWorksheetPage):
                     netto_item.setData(Qt.UserRole, float(row.netto))
                     netto_item.setFlags(netto_item.flags() & ~Qt.ItemIsEditable)
                     self.bupot_table.setItem(row_index, 6, netto_item)
+
+                    pph_value = float(getattr(row, "pph_dipotong", 0.0) or 0.0)
+                    pph_item = QTableWidgetItem(self._format_bupot_money(pph_value))
+                    pph_item.setData(Qt.UserRole, pph_value)
+                    self.bupot_table.setItem(row_index, self.BUPOT_PPH_COLUMN, pph_item)
             finally:
                 self.bupot_table.blockSignals(False)
                 self._rendering_bupot = False
@@ -194,13 +198,7 @@ class WorksheetPage(BaseWorksheetPage):
         self._validate_and_refresh_bupot()
 
     def _row_pph_dipotong(self, row_index: int) -> float:
-        no_item = self.bupot_table.item(row_index, 0)
-        if no_item is None:
-            return 0.0
-        try:
-            return float(no_item.data(self.BUPOT_PPH_ROLE) or 0.0)
-        except (TypeError, ValueError):
-            return 0.0
+        return self._money_value(row_index, self.BUPOT_PPH_COLUMN)
 
     def _snapshot_bupot_rows(self):
         rows = []
@@ -234,6 +232,7 @@ class WorksheetPage(BaseWorksheetPage):
             no_bupot = self._cell_text(row, 3)
             bruto = self._money_value(row, 4)
             pengurang = self._money_value(row, 5)
+            pph_dipotong = self._money_value(row, self.BUPOT_PPH_COLUMN)
 
             if not jenis:
                 errors.append((row, 1, "JENIS wajib diisi."))
@@ -249,6 +248,10 @@ class WorksheetPage(BaseWorksheetPage):
                 errors.append((row, 4, "BRUTO tidak boleh negatif."))
             if pengurang < 0:
                 errors.append((row, 5, "PENGURANG tidak boleh negatif."))
+            if pph_dipotong < 0:
+                errors.append(
+                    (row, self.BUPOT_PPH_COLUMN, "PPh DIPOTONG tidak boleh negatif.")
+                )
 
             if no_bupot:
                 key = no_bupot.casefold()
