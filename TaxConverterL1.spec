@@ -66,6 +66,7 @@ exe = EXE(
     target_arch=None,
     codesign_identity=None,
     entitlements_file=None,
+    icon=str(ROOT / "resources" / "branding" / "tax_converter_l1.ico"),
     contents_directory="_internal",
 )
 
