@@ -19,10 +19,28 @@ def _annual_df():
     rows[3][0], rows[3][1], rows[3][2] = "NAMA", ":", "EVY BACHTIAR"
     rows[4][0], rows[4][1], rows[4][2] = "NPWP", ":", "6101015612710001"
 
-    headers = ["NO", "JENIS", "NPWP PEMBERI KERJA", "NO BUPOT", "BRUTO", "PENGURANG", "NETTO"]
+    headers = [
+        "NO",
+        "JENIS",
+        "NPWP PEMBERI KERJA",
+        "NO BUPOT",
+        "BRUTO",
+        "PENGURANG",
+        "NETTO",
+        "PPH DIPOTONG",
+    ]
     for offset, value in enumerate(headers, start=1):
         rows[7][offset] = value
-    values = [1, "BP21", "0011050945093000", "250888969", 638298, 0, 638298]
+    values = [
+        1,
+        "BP21",
+        "0011050945093000",
+        "250888969",
+        638298,
+        0,
+        638298,
+        46519,
+    ]
     for offset, value in enumerate(values, start=1):
         rows[8][offset] = value
     rows[9][1] = "TOTAL"
@@ -108,6 +126,7 @@ def test_parse_evy_style_workbook_and_persist():
         assert result.nama_wp == "EVY BACHTIAR"
         assert result.tahun_pajak == 2025
         assert len(result.bupot_rows) == 1
+        assert result.bupot_rows[0].pph_dipotong == 46_519
         assert len(result.harta_rows) == 2
         assert result.harta_rows[0].kode_eform == "014"
         assert result.harta_rows[1].kode_eform == "034"
@@ -125,6 +144,7 @@ def test_parse_evy_style_workbook_and_persist():
         saved_pph = WorksheetPPhStateStore(db_path).load(result.npwp, 2025)
         assert saved_pph is not None
         assert len(saved_pph.bupot_rows) == 1
+        assert saved_pph.bupot_rows[0].pph_dipotong == 46_519
         assert saved_pph.components["status_ptkp"] == "TK/0"
 
         saved_harta = WorksheetHartaStateStore(db_path).load_matching(
