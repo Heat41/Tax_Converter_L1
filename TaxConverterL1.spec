@@ -27,7 +27,23 @@ a = Analysis(
     hookspath=[],
     hooksconfig={},
     runtime_hooks=[],
-    excludes=[],
+    excludes=[
+        # Paket ML/data-science besar yang tersedia di environment development
+        # tetapi tidak dipakai oleh Tax Converter. Tanpa exclude, hook PyInstaller
+        # dapat menarik ratusan MB dependency opsional ke bundle.
+        "torch",
+        "torchvision",
+        "torchaudio",
+        "transformers",
+        "sklearn",
+        "scipy",
+        "onnxruntime",
+        "tensorflow",
+        "pytest",
+        "pyarrow",
+        "faiss",
+        "faiss_cpu",
+    ],
     noarchive=False,
     optimize=0,
 )
