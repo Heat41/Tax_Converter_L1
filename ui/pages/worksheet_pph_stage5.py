@@ -262,22 +262,6 @@ class WorksheetPage(BaseWorksheetPage):
     def _has_unsaved_pph_component_changes(self) -> bool:
         return super()._has_unsaved_pph_component_changes() or self._has_unsaved_umkm_changes()
 
-    def _refresh_bupot_actions(self):
-        super()._refresh_bupot_actions()
-        if not hasattr(self, "save_bupot_button"):
-            return
-
-        npwp, year = self._current_pph_identity()
-        errors = self._validate_bupot_rows()
-        has_unsaved = (
-            self._has_unsaved_bupot_changes()
-            or self._has_unsaved_pph_component_changes()
-        )
-        enabled = bool(npwp and year) and not errors and has_unsaved
-        self.save_bupot_button.setEnabled(enabled)
-        if hasattr(self, "save_pph_summary_button"):
-            self.save_pph_summary_button.setEnabled(enabled)
-
     def save_bupot_changes(self):
         npwp, year = self._current_pph_identity()
         if not npwp or not year:
