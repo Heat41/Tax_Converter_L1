@@ -65,6 +65,7 @@ class TestWorksheetPPhStage2(unittest.TestCase):
         page.bupot_table.item(row, 3).setText(no_bupot)
         page.bupot_table.item(row, 4).setText("1.500.000")
         page.bupot_table.item(row, 5).setText("500.000")
+        page.bupot_table.item(row, 7).setText("125.000")
 
     def test_invalid_npwp_blocks_save_and_marks_cell(self):
         page = self._page()
@@ -94,6 +95,9 @@ class TestWorksheetPPhStage2(unittest.TestCase):
         self.assertEqual(second.bupot_table.item(0, 1).text(), "1721-A1")
         self.assertEqual(second.bupot_table.item(0, 3).text(), "BUPOT-TEST-001")
         self.assertEqual(second.bupot_table.item(0, 6).text(), "1.000.000")
+        self.assertEqual(second.bupot_table.item(0, 7).text(), "125.000")
+        restored = second.pph_state_store.load("0000000000000000", 2025)
+        self.assertEqual(restored.bupot_rows[0].pph_dipotong, 125_000)
 
     def test_duplicate_no_bupot_is_rejected(self):
         page = self._page()
