@@ -14,6 +14,7 @@ from openpyxl.utils import get_column_letter
 from core.finalization import FinalizationInput
 from core.worksheet_pph_state import WorksheetBupotRow
 from core.mapping.worksheet_harta_mapper import WorksheetHartaRow
+from core.legacy_1770_hybrid_l1h2 import LegacyLampiranIH2XlsxRenderer
 
 
 ROUNDTRIP_SCHEMA = "TAX_CONVERTER_L1_LEGACY_XLSX_V1"
@@ -97,7 +98,7 @@ class Legacy1770HybridXlsxService:
     FORM_SHEETS = (
         ("01 eForm Induk H1", "NEW_EFORM_H1", "SPT TAHUNAN PPh WAJIB PAJAK ORANG PRIBADI"),
         ("02 eForm Induk H2", "NEW_EFORM_H2", "SPT TAHUNAN PPh WAJIB PAJAK ORANG PRIBADI"),
-        ("03 Legacy Lamp I H2", "LEGACY", "LAMPIRAN I - HALAMAN 2"),
+        ("03 Legacy Lamp I H2", "LEGACY_L1_H2", "LAMPIRAN I - HALAMAN 2"),
         ("04 Legacy Lamp II", "LEGACY", "LAMPIRAN II"),
         ("05 Legacy Lamp III", "LEGACY", "LAMPIRAN III"),
         ("06 Legacy Lamp IV", "LEGACY", "LAMPIRAN IV"),
@@ -642,6 +643,9 @@ class Legacy1770HybridXlsxService:
             return
         if mode == "NEW_EFORM_H2":
             self._render_eform_induk_h2(ws, data, revision)
+            return
+        if mode == "LEGACY_L1_H2":
+            LegacyLampiranIH2XlsxRenderer().render(ws, data)
             return
         self._render_legacy_placeholder(ws, data, heading, revision)
 
