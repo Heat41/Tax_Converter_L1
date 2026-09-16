@@ -22,7 +22,7 @@ def _simulasi():
     rows = [[None] * 12 for _ in range(25)]
     headers = [
         "NO", "KODE EFORM", "KODE CT", "NAMA HARTA", "NOMOR AKUN / KETERANGAN",
-        "ATAS NAMA", "NAMA BANK", "TH PEROLEHAN", "2024", "2025",
+        "ATAS NAMA", "NAMA BANK", "TH PEROLEHAN", "2023", "2024",
     ]
     for col, value in enumerate(headers):
         rows[10][col] = value
