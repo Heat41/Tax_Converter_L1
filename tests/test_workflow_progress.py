@@ -18,7 +18,7 @@ def test_workflow_progress_steps():
 
     widget.set_step(1)
     assert widget.progress_bar.value() == 1
-    assert "Impor Coretax" in widget.status_label.text()
+    assert "Input Data" in widget.status_label.text()
 
     widget.set_step(4)
     assert widget.progress_bar.value() == 4
