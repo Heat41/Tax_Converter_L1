@@ -153,6 +153,7 @@ class Legacy1770HybridXlsxService:
     def _setup_print(ws, orientation="portrait") -> None:
         ws.sheet_view.showGridLines = False
         ws.page_setup.orientation = orientation
+        ws.page_setup.paperSize = ws.PAPERSIZE_LEGAL
         ws.page_setup.fitToWidth = 1
         ws.page_setup.fitToHeight = 0
         ws.sheet_properties.pageSetUpPr.fitToPage = True
