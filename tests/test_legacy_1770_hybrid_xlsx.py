@@ -138,7 +138,14 @@ class TestLegacy1770HybridXlsx(unittest.TestCase):
         )
         self.assertEqual(wb["01 eForm Induk H1"]["I3"].value, "HALAMAN 1")
         self.assertEqual(wb["02 eForm Induk H2"]["I3"].value, "HALAMAN 2")
-        self.assertEqual(wb["03 Legacy Lamp I H2"]["A2"].value, "FORMAT LAMA / LEGACY DJP")
+        self.assertEqual(
+            wb["03 Legacy Lamp I H2"]["A2"].value,
+            "SPT TAHUNAN PPh WAJIB PAJAK ORANG PRIBADI",
+        )
+        self.assertEqual(
+            wb["03 Legacy Lamp I H2"]["A3"].value,
+            "FORMULIR 1770 - I / LAMPIRAN - I",
+        )
 
     def test_first_two_pages_follow_new_eform_sections(self):
         self.service.export(
