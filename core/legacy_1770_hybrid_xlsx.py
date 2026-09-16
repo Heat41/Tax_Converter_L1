@@ -151,6 +151,23 @@ class Legacy1770HybridXlsxService:
             cell.alignment = Alignment(horizontal="center", vertical="center", wrap_text=True)
 
     @staticmethod
+    def _autofit_columns(ws, *, min_width: float = 8.0, max_width: float = 32.0) -> None:
+        """Auto-fit sederhana dengan batas agar workbook tetap compact saat dicetak."""
+        for column_cells in ws.columns:
+            first = column_cells[0]
+            letter = get_column_letter(first.column)
+            longest = 0
+            for cell in column_cells:
+                if cell.value is None:
+                    continue
+                text = str(cell.value)
+                longest = max(longest, max((len(line) for line in text.splitlines()), default=0))
+            ws.column_dimensions[letter].width = min(
+                max_width,
+                max(min_width, longest + 2),
+            )
+
+    @staticmethod
     def _setup_print(ws, orientation="portrait") -> None:
         ws.sheet_view.showGridLines = False
         ws.page_setup.orientation = orientation
@@ -234,17 +251,19 @@ class Legacy1770HybridXlsxService:
 
     def _setup_eform_sheet(self, ws, *, page_no: int) -> None:
         ws.sheet_view.showGridLines = False
+        # Proporsi dibuat lebih dekat ke halaman form cetak: kolom nomor sempit,
+        # area uraian dominan, sedangkan pilihan/nilai tidak dibiarkan melebar.
         widths = {
-            "A": 4.5,
-            "B": 7.0,
-            "C": 34.0,
-            "D": 17.0,
-            "E": 17.0,
-            "F": 17.0,
-            "G": 17.0,
-            "H": 17.0,
-            "I": 17.0,
-            "J": 17.0,
+            "A": 4.0,
+            "B": 5.0,
+            "C": 12.0,
+            "D": 12.0,
+            "E": 12.0,
+            "F": 12.0,
+            "G": 12.0,
+            "H": 7.0,
+            "I": 12.5,
+            "J": 12.5,
         }
         for col, width in widths.items():
             ws.column_dimensions[col].width = width
@@ -665,10 +684,9 @@ class Legacy1770HybridXlsxService:
                 float(row.nilai_tahun_sebelumnya or 0),
                 float(row.nilai_tahun_berjalan or 0),
             ])
-        for column in range(1, len(self.HARTA_HEADERS) + 1):
-            ws.column_dimensions[get_column_letter(column)].width = 20
-        ws.column_dimensions["D"].width = 34
-        ws.column_dimensions["E"].width = 30
+        self._autofit_columns(ws, min_width=8.0, max_width=28.0)
+        ws.column_dimensions["D"].width = min(ws.column_dimensions["D"].width, 28.0)
+        ws.column_dimensions["E"].width = min(ws.column_dimensions["E"].width, 26.0)
         self._setup_print(ws, "landscape")
 
     def _write_bupot_sheet(self, ws, data: FinalizationInput) -> None:
@@ -702,8 +720,7 @@ class Legacy1770HybridXlsxService:
                 row.mekanisme_sp2d,
                 row.no_sp2d,
             ])
-        for column in range(1, len(self.BUPOT_HEADERS) + 1):
-            ws.column_dimensions[get_column_letter(column)].width = 18
+        self._autofit_columns(ws, min_width=8.0, max_width=24.0)
         self._setup_print(ws, "landscape")
 
     def _write_meta_sheet(
