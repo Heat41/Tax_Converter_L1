@@ -175,7 +175,7 @@ class TestLegacy1770HybridXlsx(unittest.TestCase):
         self.assertIn("J. LAMPIRAN TAMBAHAN", page2_values)
         self.assertIn("K. PERNYATAAN", page2_values)
 
-    def test_new_eform_pages_are_print_ready_a4_single_page(self):
+    def test_new_eform_pages_are_print_ready_legal_single_page(self):
         self.service.export(
             _input(),
             self.path,
@@ -187,6 +187,7 @@ class TestLegacy1770HybridXlsx(unittest.TestCase):
         for sheet_name in ("01 eForm Induk H1", "02 eForm Induk H2"):
             ws = wb[sheet_name]
             self.assertEqual(ws.page_setup.orientation, "portrait")
+            self.assertEqual(ws.page_setup.paperSize, ws.PAPERSIZE_LEGAL)
             self.assertEqual(ws.page_setup.fitToWidth, 1)
             self.assertEqual(ws.page_setup.fitToHeight, 1)
             self.assertTrue(ws.sheet_properties.pageSetUpPr.fitToPage)
