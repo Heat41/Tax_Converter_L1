@@ -5,6 +5,7 @@ import unittest
 from pathlib import Path
 from types import SimpleNamespace
 
+from PySide6.QtCore import Qt
 from PySide6.QtWidgets import QApplication
 
 from config.database import init_database
