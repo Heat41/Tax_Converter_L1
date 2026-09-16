@@ -19,10 +19,12 @@ class TestEvyStage7SummaryGolden(unittest.TestCase):
     def test_evy_honor_does_not_become_domestic_other_income(self):
         self.page._add_bupot_row()
         self.page.bupot_table.item(0, 1).setText("BP21")
-        self.page.bupot_table.item(0, 2).setText("0123456789012345")
-        self.page.bupot_table.item(0, 3).setText("TEST-EVY-2025")
-        self.page.bupot_table.item(0, 4).setText("1.037.999.641")
-        self.page.bupot_table.item(0, 5).setText("249.079.224")
+        self.page.bupot_table.item(0, 2).setText("TEST-EVY-2025")
+        self.page.bupot_table.item(0, 7).setText("6101015612710001")
+        self.page.bupot_table.item(0, 8).setText("EVY BACHTIAR")
+        self.page.bupot_table.item(0, 12).setText("1.037.999.641")
+        self.page.bupot_table.item(0, 15).setText("249.079.224")
+        self.page.bupot_table.item(0, 20).setText("0123456789012345")
 
         self.page._other_income_state["domestic_other_enabled"] = False
         self.page._other_income_state["domestic_other_dpp"] = 0.0
