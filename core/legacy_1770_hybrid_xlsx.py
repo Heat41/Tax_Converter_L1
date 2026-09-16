@@ -8,7 +8,7 @@ from pathlib import Path
 from typing import List, Optional
 
 from openpyxl import Workbook, load_workbook
-from openpyxl.styles import Alignment, Font, PatternFill
+from openpyxl.styles import Alignment, Border, Font, PatternFill, Side
 from openpyxl.utils import get_column_letter
 
 from core.finalization import FinalizationInput
@@ -95,12 +95,24 @@ class Legacy1770HybridXlsxService:
     )
 
     FORM_SHEETS = (
-        ("01 eForm Induk", "NEW_EFORM", "FORMULIR 1770 - INDUK"),
-        ("02 eForm Lamp I H1", "NEW_EFORM", "LAMPIRAN I - HALAMAN 1"),
+        ("01 eForm Induk H1", "NEW_EFORM_H1", "SPT TAHUNAN PPh WAJIB PAJAK ORANG PRIBADI"),
+        ("02 eForm Induk H2", "NEW_EFORM_H2", "SPT TAHUNAN PPh WAJIB PAJAK ORANG PRIBADI"),
         ("03 Legacy Lamp I H2", "LEGACY", "LAMPIRAN I - HALAMAN 2"),
         ("04 Legacy Lamp II", "LEGACY", "LAMPIRAN II"),
         ("05 Legacy Lamp III", "LEGACY", "LAMPIRAN III"),
         ("06 Legacy Lamp IV", "LEGACY", "LAMPIRAN IV"),
+    )
+
+    EFORM_DARK_FILL = PatternFill("solid", fgColor="1F4E78")
+    EFORM_SECTION_FILL = PatternFill("solid", fgColor="D9EAF7")
+    EFORM_LIGHT_FILL = PatternFill("solid", fgColor="F4F8FB")
+    EFORM_VALUE_FILL = PatternFill("solid", fgColor="FFF2CC")
+    EFORM_THIN = Side(style="thin", color="7F8C8D")
+    EFORM_BORDER = Border(
+        left=EFORM_THIN,
+        right=EFORM_THIN,
+        top=EFORM_THIN,
+        bottom=EFORM_THIN,
     )
 
     @staticmethod
@@ -192,17 +204,409 @@ class Legacy1770HybridXlsxService:
         result.sha256 = hashlib.sha256(target.read_bytes()).hexdigest()
         return result
 
-    def _render_form_sheet(self, ws, data, mode: str, heading: str, revision: int) -> None:
+    @staticmethod
+    def _safe_float(value) -> float:
+        try:
+            return float(value or 0)
+        except (TypeError, ValueError):
+            return 0.0
+
+    @staticmethod
+    def _money_excel(value) -> int:
+        try:
+            return int(round(float(value or 0)))
+        except (TypeError, ValueError):
+            return 0
+
+    @staticmethod
+    def _yes_no_code(condition: bool) -> int:
+        # Acuan e-Form memakai 1 = Tidak, 2 = Ya.
+        return 2 if condition else 1
+
+    def _pph_value(self, data: FinalizationInput, key: str, default=0.0) -> float:
+        calc = data.pph_calc_result or {}
+        components = data.pph_components or {}
+        if key in calc:
+            return self._safe_float(calc.get(key))
+        return self._safe_float(components.get(key, default))
+
+    def _setup_eform_sheet(self, ws, *, page_no: int) -> None:
+        ws.sheet_view.showGridLines = False
+        widths = {
+            "A": 4.5,
+            "B": 7.0,
+            "C": 34.0,
+            "D": 17.0,
+            "E": 17.0,
+            "F": 17.0,
+            "G": 17.0,
+            "H": 17.0,
+            "I": 17.0,
+            "J": 17.0,
+        }
+        for col, width in widths.items():
+            ws.column_dimensions[col].width = width
+
+        ws.page_setup.orientation = "portrait"
+        ws.page_setup.paperSize = ws.PAPERSIZE_A4
+        ws.page_setup.fitToWidth = 1
+        ws.page_setup.fitToHeight = 1
+        ws.sheet_properties.pageSetUpPr.fitToPage = True
+        ws.page_margins.left = 0.25
+        ws.page_margins.right = 0.25
+        ws.page_margins.top = 0.35
+        ws.page_margins.bottom = 0.35
+        ws.print_area = f"A1:J{92 if page_no == 1 else 94}"
+
+    def _eform_banner(self, ws, data: FinalizationInput, *, page_no: int, revision: int) -> int:
+        self._setup_eform_sheet(ws, page_no=page_no)
+
+        ws.merge_cells("A1:J1")
+        ws["A1"] = "KEMENTERIAN KEUANGAN REPUBLIK INDONESIA • DIREKTORAT JENDERAL PAJAK"
+        ws["A1"].font = Font(size=10, bold=True, color="FFFFFF")
+        ws["A1"].fill = self.EFORM_DARK_FILL
+        ws["A1"].alignment = Alignment(horizontal="center", vertical="center")
+        ws.row_dimensions[1].height = 24
+
+        ws.merge_cells("A2:J2")
+        ws["A2"] = "SPT TAHUNAN PAJAK PENGHASILAN (PPh) WAJIB PAJAK ORANG PRIBADI"
+        ws["A2"].font = Font(size=13, bold=True, color="FFFFFF")
+        ws["A2"].fill = self.EFORM_DARK_FILL
+        ws["A2"].alignment = Alignment(horizontal="center", vertical="center")
+        ws.row_dimensions[2].height = 27
+
+        ws.merge_cells("A3:H3")
+        ws["A3"] = "INDUK"
+        ws["A3"].font = Font(size=12, bold=True)
+        ws["A3"].alignment = Alignment(horizontal="left", vertical="center")
+        ws.merge_cells("I3:J3")
+        ws["I3"] = f"HALAMAN {page_no}"
+        ws["I3"].font = Font(size=11, bold=True)
+        ws["I3"].alignment = Alignment(horizontal="right", vertical="center")
+
+        header_items = [
+            ("A5", "TAHUN PAJAK", int(data.tahun_pajak or 0)),
+            ("D5", "PERIODE", "1 s.d 12"),
+            ("G5", "STATUS", "NORMAL"),
+            ("I5", "REVISION", int(revision or 0)),
+        ]
+        for coord, label, value in header_items:
+            col = ws[coord].column
+            row = ws[coord].row
+            ws.cell(row, col).value = label
+            ws.cell(row, col).font = Font(size=8, bold=True)
+            ws.cell(row, col).fill = self.EFORM_SECTION_FILL
+            ws.cell(row, col).border = self.EFORM_BORDER
+            ws.cell(row, col).alignment = Alignment(horizontal="center", vertical="center")
+            ws.merge_cells(start_row=row + 1, start_column=col, end_row=row + 1, end_column=min(col + 1, 10))
+            value_cell = ws.cell(row + 1, col)
+            value_cell.value = value
+            value_cell.font = Font(size=9, bold=True)
+            value_cell.fill = self.EFORM_VALUE_FILL
+            value_cell.border = self.EFORM_BORDER
+            value_cell.alignment = Alignment(horizontal="center", vertical="center")
+
+        return 8
+
+    def _section_header(self, ws, row: int, title: str) -> int:
+        ws.merge_cells(start_row=row, start_column=1, end_row=row, end_column=10)
+        cell = ws.cell(row, 1)
+        cell.value = title
+        cell.font = Font(size=9, bold=True)
+        cell.fill = self.EFORM_SECTION_FILL
+        cell.border = self.EFORM_BORDER
+        cell.alignment = Alignment(horizontal="left", vertical="center")
+        ws.row_dimensions[row].height = 22
+        return row + 1
+
+    def _field_row(
+        self,
+        ws,
+        row: int,
+        no,
+        label: str,
+        value="",
+        *,
+        choice=None,
+        money: bool = False,
+        wrap: bool = True,
+    ) -> int:
+        ws.cell(row, 1).value = no
+        ws.cell(row, 1).alignment = Alignment(horizontal="center", vertical="top")
+        ws.merge_cells(start_row=row, start_column=2, end_row=row, end_column=7)
+        label_cell = ws.cell(row, 2)
+        label_cell.value = label
+        label_cell.alignment = Alignment(vertical="top", wrap_text=wrap)
+
+        if choice is not None:
+            ws.cell(row, 8).value = choice
+            ws.cell(row, 8).alignment = Alignment(horizontal="center", vertical="center")
+            ws.cell(row, 8).fill = self.EFORM_VALUE_FILL
+        ws.merge_cells(start_row=row, start_column=9, end_row=row, end_column=10)
+        value_cell = ws.cell(row, 9)
+        value_cell.value = value
+        value_cell.fill = self.EFORM_VALUE_FILL
+        value_cell.alignment = Alignment(horizontal="right" if money else "left", vertical="top", wrap_text=wrap)
+        if money:
+            value_cell.number_format = '#,##0;[Red]-#,##0;-'
+
+        for col in range(1, 11):
+            ws.cell(row, col).border = self.EFORM_BORDER
+        ws.row_dimensions[row].height = 29 if wrap else 22
+        return row + 1
+
+    def _render_eform_induk_h1(self, ws, data: FinalizationInput, revision: int) -> None:
+        row = self._eform_banner(ws, data, page_no=1, revision=revision)
+
+        row = self._section_header(ws, row, "A. IDENTITAS WAJIB PAJAK")
+        row = self._field_row(ws, row, "1", "NIK/NPWP", str(data.npwp or ""))
+        row = self._field_row(ws, row, "2", "Nama", str(data.nama_wp or "").upper())
+        row = self._field_row(ws, row, "3", "Jenis ID", "")
+        row = self._field_row(ws, row, "4", "No. ID", str(data.npwp or ""))
+        row = self._field_row(ws, row, "5", "No. Telepon", "")
+        row = self._field_row(ws, row, "6", "Email", "")
+        row = self._field_row(
+            ws, row, "7",
+            "Status Kewajiban Perpajakan Suami dan Istri",
+            "",
+        )
+        row = self._field_row(ws, row, "8", "NIK/NPWP Suami/Istri", "")
+
+        row = self._section_header(ws, row, "B. IKHTISAR PENGHASILAN NETO")
+        total_netto_bupot = sum(
+            self._safe_float(item.bruto) - self._safe_float(item.pengurang)
+            for item in (data.bupot_rows or [])
+        )
+        domestic_other = self._pph_value(data, "penghasilan_neto_lainnya")
+        foreign_income = 0.0
+        business_net = 0.0
+
+        row = self._field_row(
+            ws, row, "1a",
+            "Apakah Anda menerima penghasilan dalam negeri dari pekerjaan?",
+            self._money_excel(total_netto_bupot),
+            choice=self._yes_no_code(abs(total_netto_bupot) > 0.5),
+            money=True,
+        )
+        row = self._field_row(
+            ws, row, "1b",
+            "Penghasilan neto dari usaha dan/atau pekerjaan bebas",
+            self._money_excel(business_net),
+            choice=self._yes_no_code(abs(business_net) > 0.5),
+            money=True,
+        )
+        row = self._field_row(
+            ws, row, "1c",
+            "Apakah Anda menerima penghasilan dalam negeri lainnya?",
+            self._money_excel(domestic_other),
+            choice=self._yes_no_code(abs(domestic_other) > 0.5),
+            money=True,
+        )
+        row = self._field_row(
+            ws, row, "1d",
+            "Apakah Anda menerima penghasilan luar negeri?",
+            self._money_excel(foreign_income),
+            choice=1,
+            money=True,
+        )
+
+        row = self._section_header(ws, row, "C. PERHITUNGAN PPh TERUTANG")
+        neto_setahun = self._pph_value(
+            data,
+            "penghasilan_neto_sebelum_pengurang",
+            total_netto_bupot + domestic_other,
+        )
+        pengurang = self._pph_value(data, "pengurang_penghasilan_neto")
+        neto_after = self._pph_value(
+            data,
+            "penghasilan_neto_gabungan",
+            neto_setahun - pengurang,
+        )
+        ptkp = self._pph_value(data, "ptkp")
+        pkp = self._pph_value(data, "pkp")
+        pph_terutang = self._pph_value(data, "pph_terutang")
+
+        row = self._field_row(ws, row, "2", "Penghasilan neto setahun (1a+1b+1c+1d)", self._money_excel(neto_setahun), money=True)
+        row = self._field_row(
+            ws, row, "3",
+            "Apakah terdapat pengurang penghasilan neto seperti kompensasi kerugian atau zakat/sumbangan keagamaan yang bersifat wajib?",
+            self._money_excel(pengurang),
+            choice=self._yes_no_code(abs(pengurang) > 0.5),
+            money=True,
+        )
+        row = self._field_row(ws, row, "4", "Penghasilan neto setelah pengurang penghasilan neto (2-3)", self._money_excel(neto_after), money=True)
+        row = self._field_row(ws, row, "5", f"Penghasilan tidak kena pajak ({data.status_ptkp or '-'})", self._money_excel(ptkp), money=True)
+        row = self._field_row(ws, row, "6", "Penghasilan kena pajak (4-5)", self._money_excel(pkp), money=True)
+        row = self._field_row(ws, row, "7", "PPh terutang", self._money_excel(pph_terutang), money=True)
+        row = self._field_row(ws, row, "8", "Apakah terdapat pengurang PPh terutang?", 0, choice=1, money=True)
+        row = self._field_row(ws, row, "9", "PPh terutang setelah pengurang PPh terutang (7-8)", self._money_excel(pph_terutang), money=True)
+
+        row = self._section_header(ws, row, "D. KREDIT PAJAK")
+        kredit = self._pph_value(data, "kredit_pajak")
+        pph25 = self._pph_value(data, "pph25")
+        row = self._field_row(
+            ws, row, "10a",
+            "Apakah terdapat PPh yang telah dipotong/dipungut oleh pihak lain?",
+            self._money_excel(kredit),
+            choice=self._yes_no_code(abs(kredit) > 0.5),
+            money=True,
+        )
+        row = self._field_row(ws, row, "10b", "Angsuran PPh Pasal 25", self._money_excel(pph25), money=True)
+        row = self._field_row(ws, row, "10c", "STP PPh Pasal 25 (Hanya pokok pajak)", 0, money=True)
+        self._field_row(
+            ws, row, "10d",
+            "Apakah Anda menerima pengembalian/pengurangan kredit PPh luar negeri yang telah dikreditkan?",
+            0,
+            choice=1,
+            money=True,
+        )
+
+    def _render_eform_induk_h2(self, ws, data: FinalizationInput, revision: int) -> None:
+        row = self._eform_banner(ws, data, page_no=2, revision=revision)
+
+        ws.merge_cells(start_row=row, start_column=1, end_row=row, end_column=5)
+        ws.cell(row, 1).value = f"NIK/NPWP  {data.npwp}"
+        ws.merge_cells(start_row=row, start_column=6, end_row=row, end_column=10)
+        ws.cell(row, 6).value = f"TAHUN PAJAK/BAGIAN TAHUN PAJAK  {data.tahun_pajak}"
+        for col in (1, 6):
+            ws.cell(row, col).font = Font(bold=True)
+            ws.cell(row, col).fill = self.EFORM_LIGHT_FILL
+            ws.cell(row, col).border = self.EFORM_BORDER
+        row += 2
+
+        kurang_lebih = self._pph_value(data, "kurang_lebih_bayar")
+        if abs(kurang_lebih) < 0.5:
+            pph_terutang = self._pph_value(data, "pph_terutang")
+            kredit = self._pph_value(data, "kredit_pajak")
+            pph25 = self._pph_value(data, "pph25")
+            kurang_lebih = pph_terutang - kredit - pph25
+
+        row = self._section_header(ws, row, "E. PPh KURANG/LEBIH BAYAR")
+        row = self._field_row(ws, row, "11a", "PPh kurang/lebih bayar (9-10a-10b-10c+10d)", self._money_excel(kurang_lebih), money=True)
+        row = self._field_row(
+            ws, row, "11b",
+            "Apakah terdapat Surat Keputusan Persetujuan Pengangsuran atau Penundaan Pembayaran Pajak?",
+            0,
+            choice=1,
+            money=True,
+        )
+        row = self._field_row(ws, row, "11c", "PPh yang masih harus dibayar (11a-11b)", self._money_excel(kurang_lebih), money=True)
+
+        row = self._section_header(ws, row, "F. PEMBETULAN (DIISI JIKA STATUS SPT ADALAH PEMBETULAN)")
+        row = self._field_row(ws, row, "12a", "PPh kurang/lebih bayar pada SPT yang dibetulkan", "")
+        row = self._field_row(ws, row, "12b", "PPh kurang/lebih bayar karena pembetulan (11a-12a)", "")
+
+        row = self._section_header(ws, row, "G. PERMOHONAN PENGEMBALIAN PPh LEBIH BAYAR")
+        row = self._field_row(ws, row, "", "PPh lebih bayar pada 11a atau 12b mohon", "")
+        row = self._field_row(ws, row, "", "Nomor rekening / Nama bank / Nama pemilik rekening", "")
+
+        row = self._section_header(ws, row, "H. ANGSURAN PPh PASAL 25 TAHUN PAJAK BERIKUTNYA")
+        row = self._field_row(
+            ws, row, "13a",
+            "Apakah Anda hanya menerima penghasilan teratur dan berkewajiban membayar angsuran PPh Pasal 25 Tahun Pajak berikutnya?",
+            0,
+            choice=1,
+            money=True,
+        )
+        row = self._field_row(
+            ws, row, "13b",
+            "Apakah Anda menyusun perhitungan tersendiri angsuran PPh Pasal 25 Tahun Pajak berikutnya?",
+            "",
+            choice=1,
+        )
+        row = self._field_row(
+            ws, row, "13c",
+            "Apakah Anda membayar angsuran PPh Pasal 25 OPPT Tahun Pajak berikutnya?",
+            "",
+            choice=1,
+        )
+
+        row = self._section_header(ws, row, "I. PERNYATAAN TRANSAKSI LAINNYA")
+        total_harta = sum(
+            self._safe_float(item.nilai_tahun_berjalan)
+            for item in (data.harta_current_rows or [])
+        )
+        other = data.penghasilan_lainnya or {}
+        umkm = data.umkm_state or {}
+        final_income = sum(
+            self._safe_float(value)
+            for value in (umkm.get("bruto_bulanan") or [])
+        )
+        final_income += sum(
+            self._safe_float(item.get("dpp"))
+            for item in (other.get("final_other_rows") or [])
+            if isinstance(item, dict)
+        )
+        bukan_objek = (
+            self._safe_float(other.get("prive_dpp"))
+            + self._safe_float(other.get("hibah_warisan_dpp"))
+        )
+
+        row = self._field_row(ws, row, "14a", "Harta pada akhir Tahun Pajak", self._money_excel(total_harta), money=True)
+        row = self._field_row(ws, row, "14b", "Apakah Anda memiliki utang pada akhir tahun pajak?", 0, choice=1, money=True)
+        row = self._field_row(
+            ws, row, "14c",
+            "Apakah Anda menerima penghasilan yang dikenakan pajak penghasilan bersifat final?",
+            self._money_excel(final_income),
+            choice=self._yes_no_code(abs(final_income) > 0.5),
+            money=True,
+        )
+        row = self._field_row(
+            ws, row, "14d",
+            "Apakah Anda menerima penghasilan yang tidak termasuk objek pajak?",
+            self._money_excel(bukan_objek),
+            choice=self._yes_no_code(abs(bukan_objek) > 0.5),
+            money=True,
+        )
+        row = self._field_row(ws, row, "14e", "Apakah Anda melaporkan biaya penyusutan dan/atau amortisasi fiskal?", "", choice=1)
+        row = self._field_row(
+            ws, row, "14f",
+            "Apakah Anda melaporkan biaya entertainment, biaya promosi, natura/kenikmatan, serta piutang yang nyata-nyata tidak dapat ditagih?",
+            "",
+            choice=1,
+        )
+        row = self._field_row(
+            ws, row, "14g",
+            "Apakah Anda menerima dividen dan/atau penghasilan lain dari luar negeri dan melaporkannya sebagai penghasilan tidak termasuk objek pajak?",
+            "",
+            choice=1,
+        )
+        row = self._field_row(
+            ws, row, "14h",
+            "Kelebihan PPh Final atas penghasilan dari usaha dengan peredaran bruto tertentu yang dapat dimintakan pengembalian",
+            0,
+            money=True,
+        )
+
+        row = self._section_header(ws, row, "J. LAMPIRAN TAMBAHAN")
+        for no, label in (
+            ("15a", "Laporan keuangan/laporan keuangan yang telah diaudit"),
+            ("15b", "Bukti pembayaran zakat/sumbangan keagamaan"),
+            ("15c", "Bukti pemotongan/pemungutan sehubungan dengan kredit pajak luar negeri"),
+            ("15d", "Surat kuasa khusus"),
+            ("15e", "Dokumen lainnya"),
+        ):
+            row = self._field_row(ws, row, no, label, "", choice=1)
+
+        row = self._section_header(ws, row, "K. PERNYATAAN")
+        row = self._field_row(
+            ws, row, "",
+            "Saya menyatakan bahwa apa yang telah diberitahukan di atas beserta lampirannya adalah benar, lengkap, dan jelas.",
+            "",
+            choice=1,
+        )
+        row = self._field_row(ws, row, "", "Penandatangan", "Wajib Pajak")
+        row = self._field_row(ws, row, "", "NIK/NPWP", str(data.npwp or ""))
+        self._field_row(ws, row, "", "Nama", str(data.nama_wp or "").upper())
+
+    def _render_legacy_placeholder(self, ws, data, heading: str, revision: int) -> None:
         ws.merge_cells("A1:H1")
         ws["A1"] = heading
         ws["A1"].font = Font(size=14, bold=True)
         ws["A1"].alignment = Alignment(horizontal="center")
 
         ws.merge_cells("A2:H2")
-        ws["A2"] = (
-            "FORMAT BARU e-FORM" if mode == "NEW_EFORM"
-            else "FORMAT LAMA / LEGACY DJP"
-        )
+        ws["A2"] = "FORMAT LAMA / LEGACY DJP"
         ws["A2"].font = Font(bold=True)
         ws["A2"].alignment = Alignment(horizontal="center")
 
@@ -221,21 +625,24 @@ class Legacy1770HybridXlsxService:
         ws["A11"] = "CATATAN"
         ws["A11"].font = Font(bold=True)
         ws.merge_cells("A12:H14")
-        if mode == "NEW_EFORM":
-            ws["A12"] = (
-                "Halaman ini mengikuti kelompok form baru e-Form. Data canonical "
-                "untuk koreksi tersedia pada sheet DATA REVISI."
-            )
-        else:
-            ws["A12"] = (
-                "Halaman ini termasuk bagian legacy. Mulai Lampiran I Halaman 2 "
-                "dan lampiran berikutnya menggunakan format lama."
-            )
+        ws["A12"] = (
+            "Mulai Lampiran I Halaman 2 dan seluruh lampiran berikutnya "
+            "menggunakan format lama/legacy yang sudah dikunci."
+        )
         ws["A12"].alignment = Alignment(wrap_text=True, vertical="top")
 
         for col in range(1, 9):
             ws.column_dimensions[get_column_letter(col)].width = 17
         self._setup_print(ws)
+
+    def _render_form_sheet(self, ws, data, mode: str, heading: str, revision: int) -> None:
+        if mode == "NEW_EFORM_H1":
+            self._render_eform_induk_h1(ws, data, revision)
+            return
+        if mode == "NEW_EFORM_H2":
+            self._render_eform_induk_h2(ws, data, revision)
+            return
+        self._render_legacy_placeholder(ws, data, heading, revision)
 
     def _write_harta_sheet(self, ws, data: FinalizationInput) -> None:
         ws.append(self.HARTA_HEADERS)
