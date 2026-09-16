@@ -20,7 +20,7 @@ from ui.performance import optimize_scroll_area, optimize_table_interaction, sus
 from ui.theme import APP_FONT
 from ui.theme_manager import apply_theme, get_saved_theme
 from ui.pages.finalization_page import FinalizationPage
-from ui.pages.import_coretax_page_view import ImportCoretaxPage
+from ui.pages.input_data_page import InputDataPage
 from ui.pages.settings_page import SettingsPage
 from ui.pages.worksheet_pph_stage7_fix import WorksheetPage
 from ui.worksheet_export_actions import WorksheetExportActions
@@ -108,7 +108,7 @@ class MainWindow(QMainWindow):
 
         navigation = (
             ("dashboard", "Dashboard"),
-            ("import", "Impor Coretax"),
+            ("import", "Input Data"),
             ("worksheet", "Worksheet"),
             ("finalisasi", "Finalisasi"),
             ("pengaturan", "Pengaturan"),
@@ -135,14 +135,14 @@ class MainWindow(QMainWindow):
         self.stack = QStackedWidget()
         self.pages["dashboard"] = self._build_dashboard_page()
 
-        import_page = ImportCoretaxPage()
+        import_page = InputDataPage()
         worksheet_page = WorksheetPage()
         self.worksheet_export_actions = WorksheetExportActions(worksheet_page, self)
-        import_page.harta_preview_changed.connect(
-            worksheet_page.load_harta_preview
-        )
         import_page.worksheet_workbook_imported.connect(
             self._on_worksheet_workbook_imported
+        )
+        import_page.continue_requested.connect(
+            self._continue_from_input
         )
 
         self.pages["import"] = import_page
@@ -184,6 +184,12 @@ class MainWindow(QMainWindow):
             if pipeline is not None:
                 worksheet.load_harta_preview(pipeline)
 
+        self.refresh_dashboard()
+
+    def _continue_from_input(self):
+        worksheet = self.pages.get("worksheet")
+        if worksheet is not None and hasattr(worksheet, "_load_pph_state_for_current_wp"):
+            worksheet._load_pph_state_for_current_wp()
         self._show_page("worksheet")
         self.refresh_dashboard()
 
@@ -241,13 +247,13 @@ class MainWindow(QMainWindow):
         action_layout.addWidget(heading)
 
         desc = QLabel(
-            "Impor data Coretax atau kertas kerja yang sudah terisi, periksa Worksheet, lakukan rekonsiliasi, lalu finalisasi hasil konversi."
+            "Masukkan Kertas Kerja dan Bupot, periksa Worksheet, lakukan rekonsiliasi, lalu finalisasi hasil konversi."
         )
         desc.setObjectName("pageSubTitle")
         desc.setWordWrap(True)
         action_layout.addWidget(desc)
 
-        button = QPushButton("Impor Data Coretax / Kertas Kerja")
+        button = QPushButton("Input Kertas Kerja & Bupot")
         button.setObjectName("primaryButton")
         button.setCursor(Qt.PointingHandCursor)
         button.setMinimumWidth(220)
