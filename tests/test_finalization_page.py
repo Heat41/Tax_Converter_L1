@@ -153,6 +153,68 @@ class TestFinalizationPage(unittest.TestCase):
         self.assertFalse(page.preview_coretax_button.isEnabled())
         self.assertFalse(page.export_coretax_button.isEnabled())
 
+    def test_editable_preview_uses_harta_and_rekap_bupot_structure(self):
+        page = self._page(_Worksheet())
+
+        self.assertEqual(page.preview_harta_table.columnCount(), 10)
+        self.assertEqual(page.preview_bupot_table.columnCount(), 25)
+        self.assertEqual(
+            page.preview_bupot_table.horizontalHeaderItem(1).text(),
+            "JENIS BUPOT",
+        )
+        self.assertEqual(
+            page.preview_bupot_table.horizontalHeaderItem(12).text(),
+            "BRUTO",
+        )
+        self.assertEqual(
+            page.preview_bupot_table.horizontalHeaderItem(15).text(),
+            "PENGURANG BRUTO",
+        )
+        self.assertEqual(
+            page.preview_bupot_table.horizontalHeaderItem(16).text(),
+            "PPH",
+        )
+
+    def test_editing_current_preview_marks_preview_dirty(self):
+        page = self._page(_Worksheet())
+        page._set_preview_mode("current")
+
+        item = page.preview_harta_table.item(0, 3)
+        self.assertTrue(bool(item.flags() & Qt.ItemIsEditable))
+        item.setText("Kas Edited")
+
+        self.assertTrue(page._preview_dirty)
+        self.assertTrue(page.preview_save_button.isEnabled())
+        self.assertEqual(
+            page._preview_harta_rows[0].nama_harta,
+            "Kas Edited",
+        )
+
+    def test_original_preview_is_read_only(self):
+        page = self._page(_Worksheet())
+        page._set_preview_mode("original")
+
+        harta_item = page.preview_harta_table.item(0, 3)
+        bupot_item = page.preview_bupot_table.item(0, 1)
+        self.assertFalse(bool(harta_item.flags() & Qt.ItemIsEditable))
+        self.assertFalse(bool(bupot_item.flags() & Qt.ItemIsEditable))
+        self.assertFalse(page.preview_save_button.isEnabled())
+
+    def test_final_preview_is_read_only(self):
+        page = self._page(_Worksheet())
+        result = page.service.finalize(page.current_input)
+        self.assertTrue(result.success)
+        page.refresh_page()
+        page._set_preview_mode("current")
+
+        self.assertFalse(
+            bool(page.preview_harta_table.item(0, 3).flags() & Qt.ItemIsEditable)
+        )
+        self.assertFalse(
+            bool(page.preview_bupot_table.item(0, 1).flags() & Qt.ItemIsEditable)
+        )
+        self.assertFalse(page.preview_save_button.isEnabled())
+
     def test_finalization_page_exposes_legacy_preview_action(self):
         page = self._page(_Worksheet())
         self.assertEqual(
