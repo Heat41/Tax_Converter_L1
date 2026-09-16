@@ -216,6 +216,31 @@ class TestFinalizationPage(unittest.TestCase):
         )
         self.assertFalse(page.preview_save_button.isEnabled())
 
+    def test_finalization_page_exposes_hybrid_xlsx_roundtrip_actions(self):
+        page = self._page(_Worksheet())
+        self.assertEqual(
+            page.export_legacy_xlsx_button.text(),
+            "Export Format Lama (Excel)",
+        )
+        self.assertEqual(
+            page.import_legacy_xlsx_button.text(),
+            "Import Revisi Excel",
+        )
+        self.assertFalse(page.export_legacy_xlsx_button.isEnabled())
+        self.assertTrue(page.import_legacy_xlsx_button.isEnabled())
+
+        result = page.service.finalize(page.current_input)
+        self.assertTrue(result.success)
+        page.refresh_page()
+
+        self.assertTrue(page.export_legacy_xlsx_button.isEnabled())
+        self.assertFalse(page.import_legacy_xlsx_button.isEnabled())
+
+        source = inspect.getsource(FinalizationPage)
+        self.assertIn("Legacy1770HybridXlsxService", source)
+        self.assertIn("_export_legacy_xlsx", source)
+        self.assertIn("_import_legacy_xlsx_revision", source)
+
     def test_finalization_page_exposes_legacy_preview_action(self):
         page = self._page(_Worksheet())
         self.assertEqual(
