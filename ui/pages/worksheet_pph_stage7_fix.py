@@ -301,6 +301,23 @@ class WorksheetPage(BaseWorksheetPage):
             )
         return rows
 
+    def _money_value(self, row: int, column: int) -> float:
+        """Bridge indeks tabel lama ke struktur Rekap Bupot.
+
+        Stage 3/4 lama masih meminta NETTO melalui BUPOT_NETTO_COLUMN=6.
+        Setelah tabel di-upgrade menjadi 25 kolom, kolom 6 adalah STATUS,
+        sehingga NETTO dihitung langsung dari BRUTO - PENGURANG BRUTO.
+        """
+        if (
+            hasattr(self, "bupot_table")
+            and self.bupot_table.columnCount() >= len(self.BUPOT_HEADERS)
+            and column == 6
+        ):
+            bruto = super()._money_value(row, self.REKAP_BRUTO_COLUMN)
+            pengurang = super()._money_value(row, self.REKAP_PENGURANG_COLUMN)
+            return bruto - pengurang
+        return super()._money_value(row, column)
+
     def _row_pph_dipotong(self, row_index: int) -> float:
         return self._money_value(row_index, self.REKAP_PPH_COLUMN)
 
