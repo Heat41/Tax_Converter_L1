@@ -6,8 +6,11 @@ from openpyxl.styles import Alignment, Border, Font, PatternFill, Side
 class LegacyLampiranIH2XlsxRenderer:
     """Renderer XLSX Lampiran I Halaman 2 format lama (Bagian B/C/D)."""
 
-    FILL = PatternFill("solid", fgColor="D9EAF7")
-    LIGHT = PatternFill("solid", fgColor="F4F8FB")
+    # Format lama DJP: dominan putih/monokrom dengan area isian kuning muda.
+    # Hindari warna biru e-Form agar Lampiran I H2 tetap jelas legacy.
+    FILL = PatternFill("solid", fgColor="FFFFFF")
+    LIGHT = PatternFill("solid", fgColor="FFFFFF")
+    VALUE_FILL = PatternFill("solid", fgColor="FFF2CC")
     THIN = Side(style="thin", color="7F8C8D")
     BORDER = Border(left=THIN, right=THIN, top=THIN, bottom=THIN)
     MONEY = '#,##0;[Red]-#,##0;-'
@@ -35,22 +38,28 @@ class LegacyLampiranIH2XlsxRenderer:
 
     def _header(self, ws, data) -> int:
         ws.sheet_view.showGridLines = False
-        ws.merge_cells("A1:J1")
-        ws["A1"] = "KEMENTERIAN KEUANGAN RI • DIREKTORAT JENDERAL PAJAK"
-        ws["A1"].font = Font(size=10, bold=True)
-        ws["A1"].alignment = Alignment(horizontal="center")
+        ws.merge_cells("A1:C2")
+        ws["A1"] = "KEMENTERIAN KEUANGAN RI\nDIREKTORAT JENDERAL PAJAK"
+        ws["A1"].font = Font(size=8, bold=True)
+        ws["A1"].alignment = Alignment(horizontal="center", vertical="center", wrap_text=True)
 
-        ws.merge_cells("A2:J2")
-        ws["A2"] = "SPT TAHUNAN PPh WAJIB PAJAK ORANG PRIBADI"
-        ws["A2"].font = Font(size=12, bold=True)
-        ws["A2"].alignment = Alignment(horizontal="center")
+        ws.merge_cells("D1:H2")
+        ws["D1"] = "SPT TAHUNAN PPh WAJIB PAJAK ORANG PRIBADI"
+        ws["D1"].font = Font(size=11, bold=True)
+        ws["D1"].alignment = Alignment(horizontal="center", vertical="center", wrap_text=True)
+
+        ws.merge_cells("I1:J2")
+        ws["I1"] = "FORMULIR\n1770 - I"
+        ws["I1"].font = Font(size=10, bold=True)
+        ws["I1"].alignment = Alignment(horizontal="center", vertical="center", wrap_text=True)
 
         ws.merge_cells("A3:G3")
-        ws["A3"] = "FORMULIR 1770 - I / LAMPIRAN - I"
-        ws["A3"].font = Font(size=11, bold=True)
+        ws["A3"] = "LAMPIRAN - I"
+        ws["A3"].font = Font(size=10, bold=True)
+        ws["A3"].alignment = Alignment(horizontal="left")
         ws.merge_cells("H3:J3")
         ws["H3"] = "HALAMAN 2"
-        ws["H3"].font = Font(size=10, bold=True)
+        ws["H3"].font = Font(size=9, bold=True)
         ws["H3"].alignment = Alignment(horizontal="right")
 
         ws.merge_cells("A4:J4")
@@ -122,6 +131,7 @@ class LegacyLampiranIH2XlsxRenderer:
             )
             if c1 in numeric_starts:
                 cell.number_format = self.MONEY
+                cell.fill = self.VALUE_FILL
             for col in range(c1, c2 + 1):
                 ws.cell(row, col).border = self.BORDER
 
@@ -149,6 +159,7 @@ class LegacyLampiranIH2XlsxRenderer:
         ws.cell(row, 9).value = 0
         ws.cell(row, 9).number_format = self.MONEY
         ws.cell(row, 9).font = Font(bold=True)
+        ws.cell(row, 9).fill = self.VALUE_FILL
         for col in range(1, 11):
             ws.cell(row, col).border = self.BORDER
         return row + 2
@@ -205,6 +216,7 @@ class LegacyLampiranIH2XlsxRenderer:
             ws.cell(row, c1).value = self._money(value)
             ws.cell(row, c1).number_format = self.MONEY
             ws.cell(row, c1).font = Font(bold=True)
+            ws.cell(row, c1).fill = self.VALUE_FILL
             ws.cell(row, c1).alignment = Alignment(horizontal="right")
         for col in range(1, 11):
             ws.cell(row, col).border = self.BORDER
@@ -243,6 +255,7 @@ class LegacyLampiranIH2XlsxRenderer:
         ws.cell(row, 8).value = self._money(domestic_other)
         ws.cell(row, 8).number_format = self.MONEY
         ws.cell(row, 8).font = Font(bold=True)
+        ws.cell(row, 8).fill = self.VALUE_FILL
         ws.cell(row, 8).alignment = Alignment(horizontal="right")
         for col in range(1, 11):
             ws.cell(row, col).border = self.BORDER
