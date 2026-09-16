@@ -248,7 +248,7 @@ class Legacy1770HybridXlsxService:
             ws.column_dimensions[col].width = width
 
         ws.page_setup.orientation = "portrait"
-        ws.page_setup.paperSize = ws.PAPERSIZE_A4
+        ws.page_setup.paperSize = ws.PAPERSIZE_LEGAL
         ws.page_setup.fitToWidth = 1
         ws.page_setup.fitToHeight = 1
         ws.sheet_properties.pageSetUpPr.fitToPage = True
