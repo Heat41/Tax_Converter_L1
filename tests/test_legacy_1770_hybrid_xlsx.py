@@ -175,6 +175,24 @@ class TestLegacy1770HybridXlsx(unittest.TestCase):
         self.assertIn("J. LAMPIRAN TAMBAHAN", page2_values)
         self.assertIn("K. PERNYATAAN", page2_values)
 
+    def test_new_eform_pages_are_print_ready_a4_single_page(self):
+        self.service.export(
+            _input(),
+            self.path,
+            revision=3,
+            snapshot_hash="snapshot-abc",
+        )
+        wb = load_workbook(self.path, data_only=False)
+
+        for sheet_name in ("01 eForm Induk H1", "02 eForm Induk H2"):
+            ws = wb[sheet_name]
+            self.assertEqual(ws.page_setup.orientation, "portrait")
+            self.assertEqual(ws.page_setup.fitToWidth, 1)
+            self.assertEqual(ws.page_setup.fitToHeight, 1)
+            self.assertTrue(ws.sheet_properties.pageSetUpPr.fitToPage)
+            self.assertFalse(ws.sheet_view.showGridLines)
+            self.assertTrue(str(ws.print_area).startswith("'") or str(ws.print_area).startswith("$A$1"))
+
     def test_roundtrip_reads_user_edits_and_keeps_provenance(self):
         self.service.export(
             _input(),
