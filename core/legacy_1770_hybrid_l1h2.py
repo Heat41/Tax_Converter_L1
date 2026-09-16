@@ -249,9 +249,20 @@ class LegacyLampiranIH2XlsxRenderer:
         return row
 
     def _finish(self, ws, row: int) -> None:
+        # Proporsi mengikuti karakter form legacy asli:
+        # nomor sempit, uraian identitas/jenis penghasilan lebih lebar,
+        # kolom angka cukup untuk nilai rupiah tanpa menyisakan ruang berlebih.
         widths = {
-            "A": 5.0, "B": 6.0, "C": 18.0, "D": 18.0, "E": 16.0,
-            "F": 16.0, "G": 16.0, "H": 16.0, "I": 16.0, "J": 16.0,
+            "A": 4.0,
+            "B": 5.0,
+            "C": 12.0,
+            "D": 12.0,
+            "E": 11.0,
+            "F": 11.0,
+            "G": 11.0,
+            "H": 11.0,
+            "I": 11.0,
+            "J": 11.0,
         }
         for col, width in widths.items():
             ws.column_dimensions[col].width = width
