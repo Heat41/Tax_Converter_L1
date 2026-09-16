@@ -224,6 +224,58 @@ class TestLegacy1770HybridXlsx(unittest.TestCase):
                 sheet_name,
             )
 
+    def test_legacy_lampiran_i_h2_renders_bagian_b_c_d_from_final_data(self):
+        data = _input()
+        data.pph_components["penghasilan_neto_lainnya"] = 54001000.0
+        data.pph_calc_result["penghasilan_neto_lainnya"] = 54001000.0
+
+        self.service.export(
+            data,
+            self.path,
+            revision=3,
+            snapshot_hash="snapshot-abc",
+        )
+        wb = load_workbook(self.path, data_only=False)
+        ws = wb["03 Legacy Lamp I H2"]
+
+        values = [
+            str(ws.cell(row, 1).value or "")
+            for row in range(1, ws.max_row + 1)
+        ]
+        self.assertIn(
+            "BAGIAN B : PENGHASILAN NETO DALAM NEGERI DARI USAHA DAN/ATAU PEKERJAAN BEBAS",
+            values,
+        )
+        self.assertIn(
+            "BAGIAN C : PENGHASILAN NETO DALAM NEGERI SEHUBUNGAN DENGAN PEKERJAAN",
+            values,
+        )
+        self.assertIn(
+            "BAGIAN D : PENGHASILAN NETO DALAM NEGERI LAINNYA",
+            values,
+        )
+
+        # Sample Bupot: bruto 500.000 - pengurang 250.000 = netto 250.000.
+        found_bupot_identity = False
+        found_netto = False
+        found_domestic_other = False
+        for row in range(1, ws.max_row + 1):
+            row_values = [ws.cell(row, col).value for col in range(1, 11)]
+            joined = " ".join(str(v or "") for v in row_values)
+            if "PEMOTONG" in joined and "0072103856707000" in joined:
+                found_bupot_identity = True
+            if 250000 in row_values:
+                found_netto = True
+            if 54001000 in row_values:
+                found_domestic_other = True
+
+        self.assertTrue(found_bupot_identity)
+        self.assertTrue(found_netto)
+        self.assertTrue(found_domestic_other)
+        self.assertEqual(str(ws.page_setup.paperSize), str(ws.PAPERSIZE_LEGAL))
+        self.assertEqual(ws.page_setup.orientation, "portrait")
+        self.assertEqual(ws.page_setup.fitToHeight, 1)
+
     def test_roundtrip_reads_user_edits_and_keeps_provenance(self):
         self.service.export(
             _input(),
