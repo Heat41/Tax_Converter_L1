@@ -8,7 +8,7 @@ class WorkflowProgress(QFrame):
     """Indikator tahapan kerja dari impor sampai finalisasi."""
 
     STAGES = (
-        "Impor Coretax",
+        "Input Data",
         "Harta",
         "PPh",
         "Analisis",
