@@ -27,7 +27,7 @@ from core.finalization import FinalizationService, ValidationSeverity
 from core.finalization_adapter import FinalizationAdapter
 from core.export_audit import ExportAuditRecord, ExportAuditService
 from core.legacy_1770_static_pdf import Legacy1770StaticPdfService
-from core.legacy_1770_hybrid_xlsx import Legacy1770HybridXlsxService
+from core.legacy_1770_hybrid_xlsx import Legacy1770HybridXlsxService, LegacyXlsxIssue
 from core.physical_reconciliation import PhysicalSourceExportReconciler
 from core.reverse_coretax_mapping import ReverseCoretaxMappingService
 from core.reverse_coretax_official_package import OfficialCoretaxPackageExporter
@@ -1191,16 +1191,7 @@ class FinalizationPage(QWidget):
         )
         if result.ok and not matched_base:
             result.issues.append(
-                type(result.issues[0])(
-                    "LX_112",
-                    "ERROR",
-                    "Revision/hash sumber workbook tidak ditemukan pada riwayat finalisasi WP ini.",
-                )
-                if result.issues
-                else __import__(
-                    "core.legacy_1770_hybrid_xlsx",
-                    fromlist=["LegacyXlsxIssue"],
-                ).LegacyXlsxIssue(
+                LegacyXlsxIssue(
                     "LX_112",
                     "ERROR",
                     "Revision/hash sumber workbook tidak ditemukan pada riwayat finalisasi WP ini.",
