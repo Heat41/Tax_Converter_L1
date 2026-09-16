@@ -53,10 +53,27 @@ class TestWorksheetPPhStage7Fix(unittest.TestCase):
     def _fill_evy_bupot_total(self):
         self.page._add_bupot_row()
         self.page.bupot_table.item(0, 1).setText("BP21")
-        self.page.bupot_table.item(0, 2).setText("0123456789012345")
-        self.page.bupot_table.item(0, 3).setText("TEST-EVY-2025")
-        self.page.bupot_table.item(0, 4).setText("1.037.999.641")
-        self.page.bupot_table.item(0, 5).setText("249.079.224")
+        self.page.bupot_table.item(0, 2).setText("TEST-EVY-2025")
+        self.page.bupot_table.item(0, 7).setText("6101015612710001")
+        self.page.bupot_table.item(0, 8).setText("EVY BACHTIAR")
+        self.page.bupot_table.item(0, 12).setText("1.037.999.641")
+        self.page.bupot_table.item(0, 15).setText("249.079.224")
+        self.page.bupot_table.item(0, 16).setText("105.486.376")
+        self.page.bupot_table.item(0, 20).setText("0123456789012345")
+
+    def test_bupot_table_uses_rekap_bupot_field_structure(self):
+        self.assertEqual(self.page.bupot_table.columnCount(), 25)
+        headers = [
+            self.page.bupot_table.horizontalHeaderItem(index).text()
+            for index in range(self.page.bupot_table.columnCount())
+        ]
+        self.assertEqual(headers[1], "JENIS BUPOT")
+        self.assertEqual(headers[2], "NO BUKPOT")
+        self.assertEqual(headers[12], "BRUTO")
+        self.assertEqual(headers[15], "PENGURANG BRUTO")
+        self.assertEqual(headers[16], "PPH")
+        self.assertIn("NPWP PENERIMA", headers)
+        self.assertIn("NPWP PEMOTONG", headers)
 
     def test_linked_other_income_and_zakat_are_visible_in_summary(self):
         self._fill_evy_bupot_total()
