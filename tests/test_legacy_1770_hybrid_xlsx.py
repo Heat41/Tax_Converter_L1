@@ -194,6 +194,33 @@ class TestLegacy1770HybridXlsx(unittest.TestCase):
             self.assertFalse(ws.sheet_view.showGridLines)
             self.assertTrue(str(ws.print_area).startswith("'") or str(ws.print_area).startswith("$A$1"))
 
+    def test_all_visible_output_sheets_use_legal_paper(self):
+        self.service.export(
+            _input(),
+            self.path,
+            revision=3,
+            snapshot_hash="snapshot-abc",
+        )
+        wb = load_workbook(self.path, data_only=False)
+
+        expected = (
+            "01 eForm Induk H1",
+            "02 eForm Induk H2",
+            "03 Legacy Lamp I H2",
+            "04 Legacy Lamp II",
+            "05 Legacy Lamp III",
+            "06 Legacy Lamp IV",
+            DATA_HARTA_SHEET,
+            DATA_BUPOT_SHEET,
+        )
+        for sheet_name in expected:
+            ws = wb[sheet_name]
+            self.assertEqual(
+                ws.page_setup.paperSize,
+                ws.PAPERSIZE_LEGAL,
+                sheet_name,
+            )
+
     def test_roundtrip_reads_user_edits_and_keeps_provenance(self):
         self.service.export(
             _input(),
