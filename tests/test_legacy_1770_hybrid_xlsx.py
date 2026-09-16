@@ -121,8 +121,8 @@ class TestLegacy1770HybridXlsx(unittest.TestCase):
         self.assertEqual(
             wb.sheetnames[:6],
             [
-                "01 eForm Induk",
-                "02 eForm Lamp I H1",
+                "01 eForm Induk H1",
+                "02 eForm Induk H2",
                 "03 Legacy Lamp I H2",
                 "04 Legacy Lamp II",
                 "05 Legacy Lamp III",
@@ -132,8 +132,48 @@ class TestLegacy1770HybridXlsx(unittest.TestCase):
         self.assertIn(DATA_HARTA_SHEET, wb.sheetnames)
         self.assertIn(DATA_BUPOT_SHEET, wb.sheetnames)
         self.assertEqual(wb[META_SHEET].sheet_state, "veryHidden")
-        self.assertEqual(wb["01 eForm Induk"]["A2"].value, "FORMAT BARU e-FORM")
+        self.assertEqual(
+            wb["01 eForm Induk H1"]["A2"].value,
+            "SPT TAHUNAN PAJAK PENGHASILAN (PPh) WAJIB PAJAK ORANG PRIBADI",
+        )
+        self.assertEqual(wb["01 eForm Induk H1"]["I3"].value, "HALAMAN 1")
+        self.assertEqual(wb["02 eForm Induk H2"]["I3"].value, "HALAMAN 2")
         self.assertEqual(wb["03 Legacy Lamp I H2"]["A2"].value, "FORMAT LAMA / LEGACY DJP")
+
+    def test_first_two_pages_follow_new_eform_sections(self):
+        self.service.export(
+            _input(),
+            self.path,
+            revision=3,
+            snapshot_hash="snapshot-abc",
+        )
+        wb = load_workbook(self.path, data_only=False)
+        page1 = wb["01 eForm Induk H1"]
+        page2 = wb["02 eForm Induk H2"]
+
+        page1_values = [
+            str(page1.cell(row, 1).value or "")
+            for row in range(1, page1.max_row + 1)
+        ]
+        page2_values = [
+            str(page2.cell(row, 1).value or "")
+            for row in range(1, page2.max_row + 1)
+        ]
+
+        self.assertIn("A. IDENTITAS WAJIB PAJAK", page1_values)
+        self.assertIn("B. IKHTISAR PENGHASILAN NETO", page1_values)
+        self.assertIn("C. PERHITUNGAN PPh TERUTANG", page1_values)
+        self.assertIn("D. KREDIT PAJAK", page1_values)
+
+        self.assertIn("E. PPh KURANG/LEBIH BAYAR", page2_values)
+        self.assertIn(
+            "F. PEMBETULAN (DIISI JIKA STATUS SPT ADALAH PEMBETULAN)",
+            page2_values,
+        )
+        self.assertIn("H. ANGSURAN PPh PASAL 25 TAHUN PAJAK BERIKUTNYA", page2_values)
+        self.assertIn("I. PERNYATAAN TRANSAKSI LAINNYA", page2_values)
+        self.assertIn("J. LAMPIRAN TAMBAHAN", page2_values)
+        self.assertIn("K. PERNYATAAN", page2_values)
 
     def test_roundtrip_reads_user_edits_and_keeps_provenance(self):
         self.service.export(
