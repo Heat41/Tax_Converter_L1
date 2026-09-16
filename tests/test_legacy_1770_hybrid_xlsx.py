@@ -305,6 +305,35 @@ class TestLegacy1770HybridXlsx(unittest.TestCase):
             self.assertLessEqual(max(widths), 13.0, sheet_name)
             self.assertLessEqual(widths[0], 5.0, sheet_name)
 
+    def test_hybrid_format_boundary_is_locked_after_page_two(self):
+        self.service.export(
+            _input(),
+            self.path,
+            revision=3,
+            snapshot_hash="snapshot-abc",
+        )
+        wb = load_workbook(self.path, data_only=False)
+
+        self.assertEqual(wb["01 eForm Induk H1"]["I3"].value, "HALAMAN 1")
+        self.assertEqual(wb["02 eForm Induk H2"]["I3"].value, "HALAMAN 2")
+
+        self.assertEqual(
+            wb["03 Legacy Lamp I H2"]["A3"].value,
+            "LAMPIRAN - I",
+        )
+        self.assertEqual(wb["04 Legacy Lamp II"]["H3"].value, "FORMAT LAMA / LEGACY DJP")
+        self.assertEqual(wb["05 Legacy Lamp III"]["H3"].value, "FORMAT LAMA / LEGACY DJP")
+        self.assertEqual(wb["06 Legacy Lamp IV"]["H3"].value, "FORMAT LAMA / LEGACY DJP")
+
+        for sheet_name in (
+            "03 Legacy Lamp I H2",
+            "04 Legacy Lamp II",
+            "05 Legacy Lamp III",
+            "06 Legacy Lamp IV",
+        ):
+            ws = wb[sheet_name]
+            self.assertEqual(str(ws.page_setup.paperSize), str(ws.PAPERSIZE_LEGAL))
+
     def test_roundtrip_reads_user_edits_and_keeps_provenance(self):
         self.service.export(
             _input(),
