@@ -621,40 +621,119 @@ class Legacy1770HybridXlsxService:
         self._field_row(ws, row, "", "Nama", str(data.nama_wp or "").upper())
 
     def _render_legacy_placeholder(self, ws, data, heading: str, revision: int) -> None:
-        ws.merge_cells("A1:H1")
-        ws["A1"] = heading
-        ws["A1"].font = Font(size=14, bold=True)
-        ws["A1"].alignment = Alignment(horizontal="center")
+        """Kerangka visual legacy untuk Lampiran II dan seterusnya.
 
-        ws.merge_cells("A2:H2")
-        ws["A2"] = "FORMAT LAMA / LEGACY DJP"
-        ws["A2"].font = Font(bold=True)
-        ws["A2"].alignment = Alignment(horizontal="center")
+        Mulai sheet 03 seluruh keluaran harus memakai karakter format lama DJP:
+        putih/monokrom, header formulir klasik, area isian kuning muda, Legal.
+        """
+        thin = Side(style="thin", color="7F8C8D")
+        border = Border(left=thin, right=thin, top=thin, bottom=thin)
+        value_fill = PatternFill("solid", fgColor="FFF2CC")
 
-        rows = [
-            ("Nama Wajib Pajak", data.nama_wp),
-            ("NPWP", str(data.npwp)),
-            ("Tahun Pajak", data.tahun_pajak),
-            ("Revision", revision),
-            ("Status", "FINAL"),
-        ]
-        for offset, (label, value) in enumerate(rows, start=4):
-            ws.cell(offset, 1).value = label
-            ws.cell(offset, 2).value = value
-            ws.cell(offset, 1).font = Font(bold=True)
+        ws.sheet_view.showGridLines = False
 
-        ws["A11"] = "CATATAN"
-        ws["A11"].font = Font(bold=True)
-        ws.merge_cells("A12:H14")
-        ws["A12"] = (
-            "Mulai Lampiran I Halaman 2 dan seluruh lampiran berikutnya "
-            "menggunakan format lama/legacy yang sudah dikunci."
+        ws.merge_cells("A1:C2")
+        ws["A1"] = "KEMENTERIAN KEUANGAN RI\nDIREKTORAT JENDERAL PAJAK"
+        ws["A1"].font = Font(size=8, bold=True)
+        ws["A1"].alignment = Alignment(
+            horizontal="center",
+            vertical="center",
+            wrap_text=True,
         )
-        ws["A12"].alignment = Alignment(wrap_text=True, vertical="top")
 
-        for col in range(1, 9):
-            ws.column_dimensions[get_column_letter(col)].width = 17
-        self._setup_print(ws)
+        ws.merge_cells("D1:H2")
+        ws["D1"] = "SPT TAHUNAN PPh WAJIB PAJAK ORANG PRIBADI"
+        ws["D1"].font = Font(size=11, bold=True)
+        ws["D1"].alignment = Alignment(
+            horizontal="center",
+            vertical="center",
+            wrap_text=True,
+        )
+
+        form_code = {
+            "LAMPIRAN II": "1770 - II",
+            "LAMPIRAN III": "1770 - III",
+            "LAMPIRAN IV": "1770 - IV",
+        }.get(heading, "1770")
+
+        ws.merge_cells("I1:J2")
+        ws["I1"] = f"FORMULIR\n{form_code}"
+        ws["I1"].font = Font(size=10, bold=True)
+        ws["I1"].alignment = Alignment(
+            horizontal="center",
+            vertical="center",
+            wrap_text=True,
+        )
+
+        ws.merge_cells("A3:G3")
+        ws["A3"] = heading
+        ws["A3"].font = Font(size=10, bold=True)
+        ws.merge_cells("H3:J3")
+        ws["H3"] = "FORMAT LAMA / LEGACY DJP"
+        ws["H3"].font = Font(size=8, bold=True)
+        ws["H3"].alignment = Alignment(horizontal="right")
+
+        ws.merge_cells("A5:E5")
+        ws["A5"] = f"NPWP : {data.npwp}"
+        ws.merge_cells("F5:J5")
+        ws["F5"] = f"NAMA WAJIB PAJAK : {str(data.nama_wp or '').upper()}"
+        ws["A5"].font = Font(bold=True)
+        ws["F5"].font = Font(bold=True)
+
+        ws.merge_cells("A6:C6")
+        ws["A6"] = f"TAHUN PAJAK : {data.tahun_pajak}"
+        ws.merge_cells("D6:F6")
+        ws["D6"] = "01 s.d 12"
+        ws.merge_cells("G6:J6")
+        ws["G6"] = f"REVISION : {revision}"
+        for key in ("A6", "D6", "G6"):
+            ws[key].font = Font(size=8, bold=True)
+            ws[key].alignment = Alignment(horizontal="center")
+
+        ws.merge_cells("A8:J8")
+        ws["A8"] = heading
+        ws["A8"].font = Font(size=9, bold=True)
+        ws["A8"].border = border
+
+        ws.merge_cells("A10:G12")
+        ws["A10"] = (
+            "Kerangka halaman legacy. Isi detail lampiran akan dipetakan dari "
+            "snapshot FINAL pada tahap berikutnya tanpa mengubah gaya format lama."
+        )
+        ws["A10"].alignment = Alignment(
+            vertical="top",
+            wrap_text=True,
+        )
+
+        ws.merge_cells("H10:J12")
+        ws["H10"] = ""
+        ws["H10"].fill = value_fill
+        for row in range(10, 13):
+            for col in range(1, 11):
+                ws.cell(row, col).border = border
+
+        widths = {
+            "A": 4.0,
+            "B": 5.0,
+            "C": 12.0,
+            "D": 12.0,
+            "E": 11.0,
+            "F": 11.0,
+            "G": 11.0,
+            "H": 11.0,
+            "I": 11.0,
+            "J": 11.0,
+        }
+        for col, width in widths.items():
+            ws.column_dimensions[col].width = width
+
+        self._setup_print(ws, "portrait")
+        ws.page_setup.fitToHeight = 1
+        ws.page_margins.left = 0.2
+        ws.page_margins.right = 0.2
+        ws.page_margins.top = 0.3
+        ws.page_margins.bottom = 0.3
+        ws.print_area = "A1:J12"
 
     def _render_form_sheet(self, ws, data, mode: str, heading: str, revision: int) -> None:
         if mode == "NEW_EFORM_H1":
