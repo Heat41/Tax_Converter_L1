@@ -9,6 +9,8 @@ from PySide6.QtWidgets import (
     QTableWidgetItem,
 )
 
+from core.worksheet_pph_state import WorksheetBupotRow
+
 from ui.pages.worksheet_pph_stage7 import WorksheetPage as BaseWorksheetPage
 from ui.performance import optimize_scroll_area
 
@@ -58,8 +60,368 @@ class WorksheetPage(BaseWorksheetPage):
         self._repolish_widget(self.harta_prev_value)
         self._configure_harta_visible_rows()
         self._install_harta_page_scrolling()
+        self._upgrade_bupot_table_to_rekap_fields()
         self._render_reconciliation()
         self._recalculate_pph_summary()
+
+
+    BUPOT_HEADERS = (
+        "NO",
+        "JENIS BUPOT",
+        "NO BUKPOT",
+        "MASA",
+        "TAHUN",
+        "SIFAT",
+        "STATUS",
+        "NPWP PENERIMA",
+        "NAMA PENERIMA",
+        "FASILITAS",
+        "JENIS PPH",
+        "KOP",
+        "BRUTO",
+        "DPP PERSEN",
+        "TARIF",
+        "PENGURANG BRUTO",
+        "PPH",
+        "BUKTI",
+        "NO BUKTI",
+        "TANGGAL BUKTI",
+        "NPWP PEMOTONG",
+        "NAMA PEMOTONG",
+        "TANGGAL PEMOTONGAN",
+        "MEKANISME SP2D",
+        "NO SP2D",
+    )
+    BUPOT_BRUTO_COLUMN = 12
+    BUPOT_DPP_COLUMN = 13
+    BUPOT_TARIF_COLUMN = 14
+    BUPOT_PENGURANG_COLUMN = 15
+    BUPOT_PPH_COLUMN = 16
+    BUPOT_MONEY_COLUMNS = {12, 15, 16}
+    BUPOT_RATE_COLUMNS = {13, 14}
+
+    def _upgrade_bupot_table_to_rekap_fields(self):
+        """Gunakan struktur kolom Rekap Bupot sebagai tampilan Worksheet."""
+        if not hasattr(self, "bupot_table"):
+            return
+
+        self.bupot_table.blockSignals(True)
+        try:
+            self.bupot_table.clearContents()
+            self.bupot_table.setRowCount(0)
+            self.bupot_table.setColumnCount(len(self.BUPOT_HEADERS))
+            self.bupot_table.setHorizontalHeaderLabels(self.BUPOT_HEADERS)
+            self.bupot_table.setHorizontalScrollBarPolicy(Qt.ScrollBarAsNeeded)
+            self.bupot_table.setVerticalScrollBarPolicy(Qt.ScrollBarAsNeeded)
+
+            widths = {
+                0: 55, 1: 110, 2: 145, 3: 70, 4: 75, 5: 110, 6: 100,
+                7: 170, 8: 190, 9: 145, 10: 100, 11: 100,
+                12: 125, 13: 95, 14: 85, 15: 145, 16: 125,
+                17: 145, 18: 190, 19: 125, 20: 170, 21: 190,
+                22: 135, 23: 135, 24: 140,
+            }
+            for column, width in widths.items():
+                self.bupot_table.setColumnWidth(column, width)
+        finally:
+            self.bupot_table.blockSignals(False)
+
+        self._load_pph_state_for_current_wp()
+
+    def _render_bupot_rows(self, rows):
+        if not hasattr(self, "bupot_table"):
+            return
+
+        self._rendering_bupot = True
+        self.bupot_table.blockSignals(True)
+        try:
+            self.bupot_table.clearContents()
+            self.bupot_table.setRowCount(len(rows))
+
+            for row_index, row in enumerate(rows):
+                values = (
+                    row_index + 1,
+                    getattr(row, "jenis", ""),
+                    getattr(row, "no_bupot", ""),
+                    getattr(row, "masa", ""),
+                    getattr(row, "tahun", ""),
+                    getattr(row, "sifat", ""),
+                    getattr(row, "status", ""),
+                    getattr(row, "npwp_penerima", ""),
+                    getattr(row, "nama_penerima", ""),
+                    getattr(row, "fasilitas", ""),
+                    getattr(row, "jenis_pph", ""),
+                    getattr(row, "kop", ""),
+                    getattr(row, "bruto", 0.0),
+                    getattr(row, "dpp_persen", 0.0),
+                    getattr(row, "tarif", 0.0),
+                    getattr(row, "pengurang", 0.0),
+                    getattr(row, "pph_dipotong", 0.0),
+                    getattr(row, "bukti", ""),
+                    getattr(row, "no_bukti", ""),
+                    getattr(row, "tanggal_bukti", ""),
+                    getattr(row, "npwp_pemotong", "")
+                    or getattr(row, "npwp_pemberi_kerja", ""),
+                    getattr(row, "nama_pemotong", ""),
+                    getattr(row, "tanggal_pemotongan", ""),
+                    getattr(row, "mekanisme_sp2d", ""),
+                    getattr(row, "no_sp2d", ""),
+                )
+
+                for column, value in enumerate(values):
+                    if column in self.BUPOT_MONEY_COLUMNS:
+                        item = QTableWidgetItem(self._format_bupot_money(value))
+                        item.setData(Qt.UserRole, float(value or 0))
+                    elif column in self.BUPOT_RATE_COLUMNS:
+                        item = QTableWidgetItem(self._format_rekap_rate(value))
+                        item.setData(Qt.UserRole, float(value or 0))
+                    else:
+                        item = QTableWidgetItem(str(value or ""))
+
+                    if column == 0:
+                        item.setFlags(item.flags() & ~Qt.ItemIsEditable)
+                    self.bupot_table.setItem(row_index, column, item)
+        finally:
+            self.bupot_table.blockSignals(False)
+            self._rendering_bupot = False
+
+        self._refresh_pph_status()
+        self._refresh_bupot_actions()
+
+    def _add_bupot_row(self):
+        if not hasattr(self, "bupot_table"):
+            return
+
+        self._rendering_bupot = True
+        self.bupot_table.blockSignals(True)
+        try:
+            row = self.bupot_table.rowCount()
+            self.bupot_table.insertRow(row)
+            for column in range(len(self.BUPOT_HEADERS)):
+                if column == 0:
+                    item = QTableWidgetItem(str(row + 1))
+                    item.setFlags(item.flags() & ~Qt.ItemIsEditable)
+                elif column in self.BUPOT_MONEY_COLUMNS:
+                    item = QTableWidgetItem("0")
+                    item.setData(Qt.UserRole, 0.0)
+                elif column in self.BUPOT_RATE_COLUMNS:
+                    item = QTableWidgetItem("0")
+                    item.setData(Qt.UserRole, 0.0)
+                else:
+                    item = QTableWidgetItem("")
+                self.bupot_table.setItem(row, column, item)
+        finally:
+            self.bupot_table.blockSignals(False)
+            self._rendering_bupot = False
+
+        self.bupot_table.selectRow(self.bupot_table.rowCount() - 1)
+        self._validate_and_refresh_bupot()
+
+    def _on_bupot_item_changed(self, item: QTableWidgetItem):
+        if self._rendering_bupot or item is None:
+            return
+
+        column = item.column()
+        if column in self.BUPOT_MONEY_COLUMNS:
+            previous = item.data(Qt.UserRole)
+            try:
+                value = self._parse_bupot_money(item.text())
+            except ValueError:
+                value = float(previous or 0.0)
+                self.toast_notification.show_message(
+                    "Nilai Bupot tidak valid. Gunakan angka.",
+                    "warning",
+                    3200,
+                )
+            self.bupot_table.blockSignals(True)
+            try:
+                item.setData(Qt.UserRole, value)
+                item.setText(self._format_bupot_money(value))
+            finally:
+                self.bupot_table.blockSignals(False)
+
+        elif column in self.BUPOT_RATE_COLUMNS:
+            previous = item.data(Qt.UserRole)
+            try:
+                value = self._parse_rekap_rate(item.text())
+            except ValueError:
+                value = float(previous or 0.0)
+                self.toast_notification.show_message(
+                    "DPP Persen / Tarif tidak valid.",
+                    "warning",
+                    3200,
+                )
+            self.bupot_table.blockSignals(True)
+            try:
+                item.setData(Qt.UserRole, value)
+                item.setText(self._format_rekap_rate(value))
+            finally:
+                self.bupot_table.blockSignals(False)
+
+        self._validate_and_refresh_bupot()
+
+    def _snapshot_bupot_rows(self):
+        rows = []
+        for row in range(self.bupot_table.rowCount()):
+            npwp_pemotong = self.pph_state_store.normalize_npwp(
+                self._cell_text(row, 20)
+            )
+            rows.append(
+                WorksheetBupotRow(
+                    jenis=self._cell_text(row, 1),
+                    no_bupot=self._cell_text(row, 2),
+                    masa=self._cell_text(row, 3),
+                    tahun=self._cell_text(row, 4),
+                    sifat=self._cell_text(row, 5),
+                    status=self._cell_text(row, 6),
+                    npwp_penerima=self.pph_state_store.normalize_npwp(
+                        self._cell_text(row, 7)
+                    ),
+                    nama_penerima=self._cell_text(row, 8),
+                    fasilitas=self._cell_text(row, 9),
+                    jenis_pph=self._cell_text(row, 10),
+                    kop=self._cell_text(row, 11),
+                    bruto=self._money_value(row, self.BUPOT_BRUTO_COLUMN),
+                    dpp_persen=self._rate_value(row, self.BUPOT_DPP_COLUMN),
+                    tarif=self._rate_value(row, self.BUPOT_TARIF_COLUMN),
+                    pengurang=self._money_value(row, self.BUPOT_PENGURANG_COLUMN),
+                    pph_dipotong=self._money_value(row, self.BUPOT_PPH_COLUMN),
+                    bukti=self._cell_text(row, 17),
+                    no_bukti=self._cell_text(row, 18),
+                    tanggal_bukti=self._cell_text(row, 19),
+                    npwp_pemotong=npwp_pemotong,
+                    nama_pemotong=self._cell_text(row, 21),
+                    tanggal_pemotongan=self._cell_text(row, 22),
+                    mekanisme_sp2d=self._cell_text(row, 23),
+                    no_sp2d=self._cell_text(row, 24),
+                    npwp_pemberi_kerja=npwp_pemotong,
+                )
+            )
+        return rows
+
+    def _row_pph_dipotong(self, row_index: int) -> float:
+        return self._money_value(row_index, self.BUPOT_PPH_COLUMN)
+
+    def _validate_bupot_rows(self):
+        """Validasi memakai lima anchor utama Rekap Bupot."""
+        errors = []
+        seen = {}
+
+        for row in range(self.bupot_table.rowCount()):
+            jenis = self._cell_text(row, 1)
+            no_bupot = self._cell_text(row, 2)
+            bruto = self._money_value(row, self.BUPOT_BRUTO_COLUMN)
+            pengurang = self._money_value(row, self.BUPOT_PENGURANG_COLUMN)
+            pph = self._money_value(row, self.BUPOT_PPH_COLUMN)
+
+            if not jenis:
+                errors.append((row, 1, "JENIS BUPOT wajib diisi."))
+            if not no_bupot:
+                errors.append((row, 2, "NO BUKPOT wajib diisi."))
+            if bruto < 0:
+                errors.append((row, self.BUPOT_BRUTO_COLUMN, "BRUTO tidak boleh negatif."))
+            if pengurang < 0:
+                errors.append((row, self.BUPOT_PENGURANG_COLUMN, "PENGURANG BRUTO tidak boleh negatif."))
+            if pph < 0:
+                errors.append((row, self.BUPOT_PPH_COLUMN, "PPH tidak boleh negatif."))
+
+            if no_bupot:
+                key = (jenis.casefold(), no_bupot.casefold())
+                if key in seen:
+                    first = seen[key]
+                    errors.append((first, 2, "NO BUKPOT duplikat untuk jenis yang sama."))
+                    errors.append((row, 2, "NO BUKPOT duplikat untuk jenis yang sama."))
+                else:
+                    seen[key] = row
+
+        return errors
+
+    def _apply_bupot_validation(self, errors):
+        error_map = {}
+        for row, column, message in errors:
+            error_map.setdefault((row, column), message)
+
+        self.bupot_table.blockSignals(True)
+        try:
+            for row in range(self.bupot_table.rowCount()):
+                for column in range(1, self.bupot_table.columnCount()):
+                    item = self.bupot_table.item(row, column)
+                    if item is None:
+                        continue
+                    message = error_map.get((row, column))
+                    if message:
+                        item.setBackground(self.INVALID_BACKGROUND)
+                        item.setToolTip(message)
+                    else:
+                        item.setData(Qt.BackgroundRole, None)
+                        item.setToolTip("")
+        finally:
+            self.bupot_table.blockSignals(False)
+
+    def _refresh_pph_status(self):
+        if not hasattr(self, "pph_status"):
+            return
+        rows = self.bupot_table.rowCount()
+        total_bruto = sum(
+            self._money_value(row, self.BUPOT_BRUTO_COLUMN)
+            for row in range(rows)
+        )
+        total_pengurang = sum(
+            self._money_value(row, self.BUPOT_PENGURANG_COLUMN)
+            for row in range(rows)
+        )
+        total_pph = sum(
+            self._money_value(row, self.BUPOT_PPH_COLUMN)
+            for row in range(rows)
+        )
+        total_netto = total_bruto - total_pengurang
+        self.pph_status.setText(
+            f"{rows} baris Bupot • Total Bruto Rp {self._format_bupot_money(total_bruto)} • "
+            f"Total Pengurang Bruto Rp {self._format_bupot_money(total_pengurang)} • "
+            f"Total Netto Rp {self._format_bupot_money(total_netto)} • "
+            f"Total PPh Rp {self._format_bupot_money(total_pph)}"
+        )
+
+    def _rate_value(self, row: int, column: int) -> float:
+        item = self.bupot_table.item(row, column)
+        if item is None:
+            return 0.0
+        stored = item.data(Qt.UserRole)
+        if stored is not None:
+            try:
+                return float(stored)
+            except (TypeError, ValueError):
+                pass
+        try:
+            return self._parse_rekap_rate(item.text())
+        except ValueError:
+            return 0.0
+
+    @staticmethod
+    def _parse_rekap_rate(value: object) -> float:
+        text = str(value or "").strip().replace("%", "").replace(" ", "")
+        if not text:
+            return 0.0
+        text = text.replace(",", ".")
+        try:
+            number = float(text)
+        except ValueError as exc:
+            raise ValueError("rate tidak valid") from exc
+        if number < 0:
+            raise ValueError("rate negatif")
+        return number
+
+    @staticmethod
+    def _format_rekap_rate(value: object) -> str:
+        try:
+            number = float(value or 0)
+        except (TypeError, ValueError):
+            number = 0.0
+        if number == 0:
+            return "0"
+        if abs(number - round(number)) < 1e-9:
+            return str(int(round(number)))
+        return f"{number:.4f}".rstrip("0").rstrip(".")
 
     def _configure_harta_visible_rows(self):
         """Pastikan tabel Harta menampilkan sekitar 10 baris tanpa mengecilkan row height."""
@@ -116,50 +478,20 @@ class WorksheetPage(BaseWorksheetPage):
         self.tabs.setTabToolTip(tab_index, tab_tooltip)
 
     def load_workbook_import_result(self, import_result):
-        """Muat hasil Stage 8B.1 langsung ke seluruh Worksheet.
-
-        Persistence tetap dilakukan oleh WorksheetWorkbookImporter. Method ini
-        khusus menyinkronkan state UI setelah import. Bupot memakai baris hasil
-        parser secara langsung agar data yang baru diimpor langsung terlihat.
-        """
+        """Sinkronkan Kertas Kerja ke Worksheet; Bupot berasal dari input terpisah."""
         pipeline = getattr(import_result, "pipeline_result", None)
         if pipeline is not None:
             self.load_harta_preview(pipeline)
 
-        rows = list(getattr(import_result, "bupot_rows", None) or [])
-        if hasattr(self, "_render_bupot_rows"):
-            self._render_bupot_rows(rows)
-            self._bupot_saved_rows = list(rows)
-            self._bupot_restored_from_db = bool(rows)
-            self._bupot_last_save_error = None
-            self._validate_and_refresh_bupot()
-
-        # Komponen PPh/penghasilan sudah dipersist sebelum signal diterima.
-        # Muat ulang sekali setelah identitas Harta tersambung agar seluruh card
-        # turunan (PTKP, UMKM, penghasilan lainnya, analisis) memakai state yang sama.
         if pipeline is not None and hasattr(self, "_load_pph_state_for_current_wp"):
             self._load_pph_state_for_current_wp()
-            # _load_pph_state_for_current_wp membaca database; render ulang hasil
-            # parser setelahnya agar Bupot workbook menjadi sumber tampilan langsung.
-            if rows:
-                self._render_bupot_rows(rows)
-                self._bupot_saved_rows = list(rows)
-                self._bupot_restored_from_db = True
-                self._validate_and_refresh_bupot()
 
         if hasattr(self, "toast_notification"):
-            if rows:
-                self.toast_notification.show_message(
-                    f"{len(rows)} baris Bupot dari kertas kerja dimuat otomatis.",
-                    "success",
-                    3200,
-                )
-            else:
-                self.toast_notification.show_message(
-                    "Kertas kerja berhasil dimuat, tetapi tidak ada baris Bupot yang terbaca.",
-                    "warning",
-                    4200,
-                )
+            self.toast_notification.show_message(
+                "Kertas Kerja berhasil dimuat. Bupot menggunakan input Rekap/PDF terpisah.",
+                "success",
+                3200,
+            )
 
     @staticmethod
     def _repolish_widget(widget):
