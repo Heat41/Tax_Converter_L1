@@ -27,6 +27,7 @@ from core.finalization import FinalizationService, ValidationSeverity
 from core.finalization_adapter import FinalizationAdapter
 from core.export_audit import ExportAuditRecord, ExportAuditService
 from core.legacy_1770_static_pdf import Legacy1770StaticPdfService
+from core.legacy_1770_hybrid_xlsx import Legacy1770HybridXlsxService
 from core.physical_reconciliation import PhysicalSourceExportReconciler
 from core.reverse_coretax_mapping import ReverseCoretaxMappingService
 from core.reverse_coretax_official_package import OfficialCoretaxPackageExporter
@@ -670,6 +671,18 @@ class FinalizationPage(QWidget):
             "Membuat Form 1770 format lama berbentuk PDF statis dari snapshot FINAL."
         )
 
+        self.export_legacy_xlsx_button = QPushButton("Export Format Lama (Excel)")
+        self.export_legacy_xlsx_button.setObjectName("primaryButton")
+        self.export_legacy_xlsx_button.setToolTip(
+            "Membuat workbook HYBRID XLSX yang dapat diedit dan diimpor kembali sebagai revisi."
+        )
+
+        self.import_legacy_xlsx_button = QPushButton("Import Revisi Excel")
+        self.import_legacy_xlsx_button.setObjectName("secondaryButton")
+        self.import_legacy_xlsx_button.setToolTip(
+            "Impor kembali workbook HYBRID hasil export setelah Worksheet dibuka kembali."
+        )
+
         self.preview_coretax_button = QPushButton("Preview Paket Coretax")
         self.preview_coretax_button.setObjectName("secondaryButton")
         self.preview_coretax_button.setToolTip(
@@ -688,6 +701,8 @@ class FinalizationPage(QWidget):
         self.reopen_button.clicked.connect(self._reopen)
         self.preview_legacy_button.clicked.connect(self._preview_legacy_pdf)
         self.export_legacy_button.clicked.connect(self._export_legacy_pdf)
+        self.export_legacy_xlsx_button.clicked.connect(self._export_legacy_xlsx)
+        self.import_legacy_xlsx_button.clicked.connect(self._import_legacy_xlsx_revision)
         self.preview_coretax_button.clicked.connect(self._preview_coretax_package)
         self.export_coretax_button.clicked.connect(self._export_official_coretax)
 
@@ -702,6 +717,8 @@ class FinalizationPage(QWidget):
 
         output_actions.addWidget(self.preview_legacy_button)
         output_actions.addWidget(self.export_legacy_button)
+        output_actions.addWidget(self.export_legacy_xlsx_button)
+        output_actions.addWidget(self.import_legacy_xlsx_button)
         output_actions.addWidget(self.preview_coretax_button)
         output_actions.addWidget(self.export_coretax_button)
         output_actions.addStretch()
@@ -875,6 +892,8 @@ class FinalizationPage(QWidget):
         self.reopen_button.setVisible(False)
         self.preview_legacy_button.setEnabled(False)
         self.export_legacy_button.setEnabled(False)
+        self.export_legacy_xlsx_button.setEnabled(False)
+        self.import_legacy_xlsx_button.setEnabled(False)
         self.preview_coretax_button.setEnabled(False)
         self.export_coretax_button.setEnabled(False)
 
@@ -967,6 +986,8 @@ class FinalizationPage(QWidget):
             self.reopen_button.setEnabled(True)
             self.preview_legacy_button.setEnabled(True)
             self.export_legacy_button.setEnabled(True)
+            self.export_legacy_xlsx_button.setEnabled(True)
+            self.import_legacy_xlsx_button.setEnabled(False)
             self.preview_coretax_button.setEnabled(True)
             self.export_coretax_button.setEnabled(True)
             return
@@ -989,6 +1010,8 @@ class FinalizationPage(QWidget):
         self.reopen_button.setVisible(False)
         self.preview_legacy_button.setEnabled(False)
         self.export_legacy_button.setEnabled(False)
+        self.export_legacy_xlsx_button.setEnabled(False)
+        self.import_legacy_xlsx_button.setEnabled(bool(self.current_input))
         self.preview_coretax_button.setEnabled(False)
         self.export_coretax_button.setEnabled(False)
 
@@ -1053,6 +1076,199 @@ class FinalizationPage(QWidget):
                 result.message or "Worksheet gagal difinalisasi.", "error", 4200
             )
         self.refresh_page()
+
+    def _export_legacy_xlsx(self):
+        if not self.current_input or not self.active_snapshot:
+            self.toast_notification.show_message(
+                "Export Excel Format Lama hanya tersedia untuk Worksheet berstatus FINAL.",
+                "warning",
+                3600,
+            )
+            return
+
+        revision = int(self.active_snapshot["revision"] or 0)
+        snapshot_hash = str(self.active_snapshot["snapshot_hash"] or "")
+        suggested_name = (
+            f"1770_hybrid_{self.current_input.npwp}_"
+            f"{self.current_input.tahun_pajak}_rev{revision}.xlsx"
+        )
+        output_path, _ = QFileDialog.getSaveFileName(
+            self,
+            "Simpan Format Lama HYBRID Excel",
+            suggested_name,
+            "Excel Workbook (*.xlsx)",
+        )
+        if not output_path:
+            return
+
+        try:
+            result = Legacy1770HybridXlsxService().export(
+                self.current_input,
+                output_path,
+                revision=revision,
+                snapshot_hash=snapshot_hash,
+            )
+        except Exception as exc:
+            QMessageBox.warning(self, "Export Excel Gagal", str(exc))
+            return
+
+        if not result.ok:
+            detail = "\n".join(
+                f"[{item.severity}] {item.code}: {item.message}"
+                for item in result.issues
+            ) or "Workbook HYBRID gagal dibuat."
+            QMessageBox.warning(self, "Export Excel Gagal", detail)
+            return
+
+        self.audit_service.record(
+            ExportAuditRecord(
+                npwp=self.current_input.npwp,
+                nama_wp=self.current_input.nama_wp,
+                tahun_pajak=self.current_input.tahun_pajak,
+                revision=revision,
+                export_type="FORMAT_LAMA_XLSX",
+                status="PASS",
+                output_path=str(result.output_path),
+                artifact_count=1,
+                validator_status="PASS",
+                reconciliation_status="ROUNDTRIP_READY",
+                sha256=result.sha256,
+                message="Workbook HYBRID round-trip siap direvisi.",
+            )
+        )
+        self._render_export_history()
+        self.toast_notification.show_message(
+            "Format Lama HYBRID Excel berhasil dibuat dan siap round-trip.",
+            "success",
+            4200,
+        )
+
+    def _import_legacy_xlsx_revision(self):
+        if self.active_snapshot is not None:
+            self.toast_notification.show_message(
+                "Buka kembali Worksheet terlebih dahulu sebelum mengimpor revisi Excel.",
+                "warning",
+                4200,
+            )
+            return
+        if self.current_input is None or self.worksheet_source is None:
+            self.toast_notification.show_message(
+                "Worksheet aktif belum tersedia.",
+                "warning",
+                3600,
+            )
+            return
+
+        input_path, _ = QFileDialog.getOpenFileName(
+            self,
+            "Pilih Revisi Format Lama HYBRID",
+            "",
+            "Excel Workbook (*.xlsx)",
+        )
+        if not input_path:
+            return
+
+        service = Legacy1770HybridXlsxService()
+        try:
+            result = service.import_revision(
+                input_path,
+                expected_npwp=self.current_input.npwp,
+                expected_year=self.current_input.tahun_pajak,
+            )
+        except Exception as exc:
+            QMessageBox.warning(self, "Import Revisi Gagal", str(exc))
+            return
+
+        # Base revision/hash harus berasal dari riwayat snapshot WP yang sama.
+        history = self.service.list_snapshots(
+            self.current_input.npwp,
+            self.current_input.tahun_pajak,
+        )
+        matched_base = any(
+            int(row["revision"] or 0) == int(result.base_revision or 0)
+            and str(row["snapshot_hash"] or "") == str(result.base_snapshot_hash or "")
+            for row in history
+        )
+        if result.ok and not matched_base:
+            result.issues.append(
+                type(result.issues[0])(
+                    "LX_112",
+                    "ERROR",
+                    "Revision/hash sumber workbook tidak ditemukan pada riwayat finalisasi WP ini.",
+                )
+                if result.issues
+                else __import__(
+                    "core.legacy_1770_hybrid_xlsx",
+                    fromlist=["LegacyXlsxIssue"],
+                ).LegacyXlsxIssue(
+                    "LX_112",
+                    "ERROR",
+                    "Revision/hash sumber workbook tidak ditemukan pada riwayat finalisasi WP ini.",
+                )
+            )
+
+        if result.errors:
+            detail = "\n".join(
+                f"[{item.severity}] {item.code}: {item.message}"
+                for item in result.errors
+            )
+            QMessageBox.warning(self, "Import Revisi Ditolak", detail)
+            return
+
+        answer = QMessageBox.question(
+            self,
+            "Terapkan Revisi Excel",
+            (
+                f"Workbook berasal dari Revision {result.base_revision}.\n"
+                f"Harta: {len(result.harta_rows)} baris\n"
+                f"Bupot: {len(result.bupot_rows)} baris\n\n"
+                "Terapkan sebagai Edited / Current? Original Import tidak akan diubah."
+            ),
+            QMessageBox.Yes | QMessageBox.No,
+            QMessageBox.No,
+        )
+        if answer != QMessageBox.Yes:
+            return
+
+        source = self.worksheet_source
+        try:
+            old_count = len(getattr(source, "harta_current_rows", []) or [])
+            source.harta_current_rows = list(result.harta_rows)
+            source.harta_mode = "current"
+
+            if hasattr(source, "harta_origin_indices"):
+                old_origins = list(getattr(source, "harta_origin_indices", []) or [])
+                if len(old_origins) == len(result.harta_rows) == old_count:
+                    source.harta_origin_indices = old_origins
+                else:
+                    source.harta_origin_indices = [None] * len(result.harta_rows)
+
+            if hasattr(source, "_render_harta_rows"):
+                source._render_harta_rows(source.harta_current_rows)
+            if hasattr(source, "save_harta_changes"):
+                source.save_harta_changes()
+
+            if hasattr(source, "_render_bupot_rows"):
+                source._render_bupot_rows(result.bupot_rows)
+            if hasattr(source, "save_bupot_changes"):
+                saved = source.save_bupot_changes()
+                if saved is None and result.bupot_rows:
+                    raise ValueError(
+                        "Bupot revisi belum lolos validasi Worksheet."
+                    )
+
+            self.toast_notification.show_message(
+                f"Revisi Excel dari Revision {result.base_revision} diterapkan ke Edited / Current.",
+                "success",
+                4200,
+            )
+            self.refresh_page()
+        except Exception as exc:
+            QMessageBox.warning(
+                self,
+                "Import Revisi Belum Diterapkan",
+                str(exc),
+            )
 
     def _preview_legacy_pdf(self):
         if not self.current_input or not self.active_snapshot:
