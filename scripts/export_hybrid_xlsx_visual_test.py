@@ -197,7 +197,7 @@ def main() -> int:
     print("  3. 03 Legacy Lamp I H2")
     print()
     print("Gunakan Excel > File > Print untuk memastikan H1 dan H2 masing-masing")
-    print("muat dalam satu halaman A4.")
+    print("muat dalam satu halaman Legal.")
     return 0
 
 
