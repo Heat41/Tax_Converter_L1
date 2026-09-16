@@ -187,7 +187,10 @@ class TestLegacy1770HybridXlsx(unittest.TestCase):
         for sheet_name in ("01 eForm Induk H1", "02 eForm Induk H2"):
             ws = wb[sheet_name]
             self.assertEqual(ws.page_setup.orientation, "portrait")
-            self.assertEqual(ws.page_setup.paperSize, ws.PAPERSIZE_LEGAL)
+            self.assertEqual(
+                str(ws.page_setup.paperSize),
+                str(ws.PAPERSIZE_LEGAL),
+            )
             self.assertEqual(ws.page_setup.fitToWidth, 1)
             self.assertEqual(ws.page_setup.fitToHeight, 1)
             self.assertTrue(ws.sheet_properties.pageSetUpPr.fitToPage)
@@ -216,8 +219,8 @@ class TestLegacy1770HybridXlsx(unittest.TestCase):
         for sheet_name in expected:
             ws = wb[sheet_name]
             self.assertEqual(
-                ws.page_setup.paperSize,
-                ws.PAPERSIZE_LEGAL,
+                str(ws.page_setup.paperSize),
+                str(ws.PAPERSIZE_LEGAL),
                 sheet_name,
             )
 
