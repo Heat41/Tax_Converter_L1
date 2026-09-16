@@ -92,13 +92,15 @@ class WorksheetPage(BaseWorksheetPage):
         "MEKANISME SP2D",
         "NO SP2D",
     )
-    BUPOT_BRUTO_COLUMN = 12
-    BUPOT_DPP_COLUMN = 13
-    BUPOT_TARIF_COLUMN = 14
-    BUPOT_PENGURANG_COLUMN = 15
-    BUPOT_PPH_COLUMN = 16
-    BUPOT_MONEY_COLUMNS = {12, 15, 16}
-    BUPOT_RATE_COLUMNS = {13, 14}
+    # Jangan override konstanta Stage 1/2 saat __init__ base masih berjalan.
+    # Gunakan konstanta khusus tabel Rekap setelah upgrade selesai.
+    REKAP_BRUTO_COLUMN = 12
+    REKAP_DPP_COLUMN = 13
+    REKAP_TARIF_COLUMN = 14
+    REKAP_PENGURANG_COLUMN = 15
+    REKAP_PPH_COLUMN = 16
+    REKAP_MONEY_COLUMNS = {12, 15, 16}
+    REKAP_RATE_COLUMNS = {13, 14}
 
     def _upgrade_bupot_table_to_rekap_fields(self):
         """Gunakan struktur kolom Rekap Bupot sebagai tampilan Worksheet."""
@@ -169,10 +171,10 @@ class WorksheetPage(BaseWorksheetPage):
                 )
 
                 for column, value in enumerate(values):
-                    if column in self.BUPOT_MONEY_COLUMNS:
+                    if column in self.REKAP_MONEY_COLUMNS:
                         item = QTableWidgetItem(self._format_bupot_money(value))
                         item.setData(Qt.UserRole, float(value or 0))
-                    elif column in self.BUPOT_RATE_COLUMNS:
+                    elif column in self.REKAP_RATE_COLUMNS:
                         item = QTableWidgetItem(self._format_rekap_rate(value))
                         item.setData(Qt.UserRole, float(value or 0))
                     else:
@@ -201,10 +203,10 @@ class WorksheetPage(BaseWorksheetPage):
                 if column == 0:
                     item = QTableWidgetItem(str(row + 1))
                     item.setFlags(item.flags() & ~Qt.ItemIsEditable)
-                elif column in self.BUPOT_MONEY_COLUMNS:
+                elif column in self.REKAP_MONEY_COLUMNS:
                     item = QTableWidgetItem("0")
                     item.setData(Qt.UserRole, 0.0)
-                elif column in self.BUPOT_RATE_COLUMNS:
+                elif column in self.REKAP_RATE_COLUMNS:
                     item = QTableWidgetItem("0")
                     item.setData(Qt.UserRole, 0.0)
                 else:
@@ -222,7 +224,7 @@ class WorksheetPage(BaseWorksheetPage):
             return
 
         column = item.column()
-        if column in self.BUPOT_MONEY_COLUMNS:
+        if column in self.REKAP_MONEY_COLUMNS:
             previous = item.data(Qt.UserRole)
             try:
                 value = self._parse_bupot_money(item.text())
@@ -240,7 +242,7 @@ class WorksheetPage(BaseWorksheetPage):
             finally:
                 self.bupot_table.blockSignals(False)
 
-        elif column in self.BUPOT_RATE_COLUMNS:
+        elif column in self.REKAP_RATE_COLUMNS:
             previous = item.data(Qt.UserRole)
             try:
                 value = self._parse_rekap_rate(item.text())
@@ -281,11 +283,11 @@ class WorksheetPage(BaseWorksheetPage):
                     fasilitas=self._cell_text(row, 9),
                     jenis_pph=self._cell_text(row, 10),
                     kop=self._cell_text(row, 11),
-                    bruto=self._money_value(row, self.BUPOT_BRUTO_COLUMN),
-                    dpp_persen=self._rate_value(row, self.BUPOT_DPP_COLUMN),
-                    tarif=self._rate_value(row, self.BUPOT_TARIF_COLUMN),
-                    pengurang=self._money_value(row, self.BUPOT_PENGURANG_COLUMN),
-                    pph_dipotong=self._money_value(row, self.BUPOT_PPH_COLUMN),
+                    bruto=self._money_value(row, self.REKAP_BRUTO_COLUMN),
+                    dpp_persen=self._rate_value(row, self.REKAP_DPP_COLUMN),
+                    tarif=self._rate_value(row, self.REKAP_TARIF_COLUMN),
+                    pengurang=self._money_value(row, self.REKAP_PENGURANG_COLUMN),
+                    pph_dipotong=self._money_value(row, self.REKAP_PPH_COLUMN),
                     bukti=self._cell_text(row, 17),
                     no_bukti=self._cell_text(row, 18),
                     tanggal_bukti=self._cell_text(row, 19),
@@ -300,7 +302,7 @@ class WorksheetPage(BaseWorksheetPage):
         return rows
 
     def _row_pph_dipotong(self, row_index: int) -> float:
-        return self._money_value(row_index, self.BUPOT_PPH_COLUMN)
+        return self._money_value(row_index, self.REKAP_PPH_COLUMN)
 
     def _validate_bupot_rows(self):
         """Validasi memakai lima anchor utama Rekap Bupot."""
@@ -310,20 +312,20 @@ class WorksheetPage(BaseWorksheetPage):
         for row in range(self.bupot_table.rowCount()):
             jenis = self._cell_text(row, 1)
             no_bupot = self._cell_text(row, 2)
-            bruto = self._money_value(row, self.BUPOT_BRUTO_COLUMN)
-            pengurang = self._money_value(row, self.BUPOT_PENGURANG_COLUMN)
-            pph = self._money_value(row, self.BUPOT_PPH_COLUMN)
+            bruto = self._money_value(row, self.REKAP_BRUTO_COLUMN)
+            pengurang = self._money_value(row, self.REKAP_PENGURANG_COLUMN)
+            pph = self._money_value(row, self.REKAP_PPH_COLUMN)
 
             if not jenis:
                 errors.append((row, 1, "JENIS BUPOT wajib diisi."))
             if not no_bupot:
                 errors.append((row, 2, "NO BUKPOT wajib diisi."))
             if bruto < 0:
-                errors.append((row, self.BUPOT_BRUTO_COLUMN, "BRUTO tidak boleh negatif."))
+                errors.append((row, self.REKAP_BRUTO_COLUMN, "BRUTO tidak boleh negatif."))
             if pengurang < 0:
-                errors.append((row, self.BUPOT_PENGURANG_COLUMN, "PENGURANG BRUTO tidak boleh negatif."))
+                errors.append((row, self.REKAP_PENGURANG_COLUMN, "PENGURANG BRUTO tidak boleh negatif."))
             if pph < 0:
-                errors.append((row, self.BUPOT_PPH_COLUMN, "PPH tidak boleh negatif."))
+                errors.append((row, self.REKAP_PPH_COLUMN, "PPH tidak boleh negatif."))
 
             if no_bupot:
                 key = (jenis.casefold(), no_bupot.casefold())
@@ -363,15 +365,15 @@ class WorksheetPage(BaseWorksheetPage):
             return
         rows = self.bupot_table.rowCount()
         total_bruto = sum(
-            self._money_value(row, self.BUPOT_BRUTO_COLUMN)
+            self._money_value(row, self.REKAP_BRUTO_COLUMN)
             for row in range(rows)
         )
         total_pengurang = sum(
-            self._money_value(row, self.BUPOT_PENGURANG_COLUMN)
+            self._money_value(row, self.REKAP_PENGURANG_COLUMN)
             for row in range(rows)
         )
         total_pph = sum(
-            self._money_value(row, self.BUPOT_PPH_COLUMN)
+            self._money_value(row, self.REKAP_PPH_COLUMN)
             for row in range(rows)
         )
         total_netto = total_bruto - total_pengurang
