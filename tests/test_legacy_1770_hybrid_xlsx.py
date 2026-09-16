@@ -283,6 +283,28 @@ class TestLegacy1770HybridXlsx(unittest.TestCase):
         self.assertEqual(ws.page_setup.orientation, "portrait")
         self.assertEqual(ws.page_setup.fitToHeight, 1)
 
+    def test_hybrid_pages_keep_compact_column_widths(self):
+        self.service.export(
+            _input(),
+            self.path,
+            revision=3,
+            snapshot_hash="snapshot-abc",
+        )
+        wb = load_workbook(self.path, data_only=False)
+
+        for sheet_name in (
+            "01 eForm Induk H1",
+            "02 eForm Induk H2",
+            "03 Legacy Lamp I H2",
+        ):
+            ws = wb[sheet_name]
+            widths = [
+                float(ws.column_dimensions[col].width or 0)
+                for col in ("A", "B", "C", "D", "E", "F", "G", "H", "I", "J")
+            ]
+            self.assertLessEqual(max(widths), 13.0, sheet_name)
+            self.assertLessEqual(widths[0], 5.0, sheet_name)
+
     def test_roundtrip_reads_user_edits_and_keeps_provenance(self):
         self.service.export(
             _input(),
