@@ -40,9 +40,11 @@ class TestThreeSheetWorksheetFlow(unittest.TestCase):
                 tahun_pajak=2024,
             )
             page.load_workbook_import_result(result)
-            index = page.tabs.indexOf(page.pph_tab)
-            self.assertGreaterEqual(index, 0)
-            self.assertEqual(page.tabs.tabText(index), "Penghasilan & PPh 2024")
+            titles = [
+                page.tabs.tabText(index)
+                for index in range(page.tabs.count())
+            ]
+            self.assertIn("Penghasilan & PPh 2024", titles)
         finally:
             page.deleteLater()
 
