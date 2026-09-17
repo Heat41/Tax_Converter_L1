@@ -26,7 +26,7 @@ from ui.performance import optimize_scroll_area, optimize_table_interaction, sus
 
 
 class WorksheetPage(BaseWorksheetPage):
-    """Stage 7: Analisis Penghasilan vs Kenaikan Harta acuan EVY BACHTIAR."""
+    """Stage 7: Analisis Penghasilan vs Kenaikan Harta berdasarkan struktur SIMULASI I."""
 
     ANALYSIS_MANUAL_ROW_KEYS = {
         3: "pengeluaran_lain_lain",
@@ -70,7 +70,7 @@ class WorksheetPage(BaseWorksheetPage):
         title = QLabel("Perhitungan Penghasilan vs Kenaikan Harta")
         title.setObjectName("sectionTitle")
         description = QLabel(
-            "Mengikuti blok ANALISIS pada SIMULASI I kertas kerja EVY BACHTIAR. "
+            "Mengikuti blok ANALISIS pada SIMULASI I kertas kerja aktif. "
             "Total Harta diambil otomatis dari Edited / Current. Total Utang sementara "
             "diinput manual sampai modul L-2 Utang disambungkan."
         )
@@ -307,7 +307,7 @@ class WorksheetPage(BaseWorksheetPage):
             analysis_rows = (
                 ("a", "Naik/Turun Harta dan Utang", "Otomatis Harta & Utang", result.naik_turun_harta_utang, False),
                 ("b", "Biaya Hidup Setahun", f"Status PTKP {self._status_ptkp}", result.biaya_hidup_setahun, False),
-                ("c", "Pajak-pajak", "Formula SIMULASI I Evy", result.pajak_pajak, False),
+                ("c", "Pajak-pajak", "Formula SIMULASI I", result.pajak_pajak, False),
                 ("d", "Pengeluaran lain-lain", "Manual", result.pengeluaran_lain_lain, True),
                 ("e", "Kerugian (Keuntungan) penjualan aset", "Manual", result.kerugian_keuntungan_penjualan_aset, True),
                 ("f", "Utang baru atas kredit", "Manual", result.utang_baru_atas_kredit, True),
@@ -335,7 +335,7 @@ class WorksheetPage(BaseWorksheetPage):
                 ("Penghasilan Bruto UMKM", "Otomatis dari tabel UMKM", result.penghasilan_bruto_umkm, False),
                 ("Penambahan Penghasilan Bruto UMKM", "Manual", result.penambahan_penghasilan_bruto_umkm, True),
                 ("Margin Usaha", "Manual / Tarif NPPN", self._format_rate(result.margin_usaha), True),
-                ("Penghasilan Netto", "Formula SIMULASI I Evy", result.penghasilan_netto, False),
+                ("Penghasilan Netto", "Formula SIMULASI I", result.penghasilan_netto, False),
                 ("Selisih Total Pengeluaran vs Penghasilan Netto", "Penghasilan Netto - Total Pengeluaran", result.selisih_pengeluaran_vs_penghasilan, False),
             )
             with suspended_updates(self.reconciliation_income_table):
