@@ -20,19 +20,19 @@ from PySide6.QtWidgets import (
 
 from core.bupot_pdf_importer import BupotPdfImporter
 from core.rekap_bupot_importer import RekapBupotImporter
-from core.selectable_worksheet_importer import SelectableWorksheetWorkbookImporter
+from core.three_sheet_worksheet_importer import ThreeSheetWorksheetWorkbookImporter
 from core.worksheet_pph_state import WorksheetBupotRow
 
 
 class InputDataPage(QWidget):
-    """Halaman input sederhana: Kertas Kerja + Bupot."""
+    """Halaman input sederhana: Kertas Kerja tiga-sheet + Bupot."""
 
     worksheet_workbook_imported = Signal(object)
     continue_requested = Signal()
 
     def __init__(self, parent=None):
         super().__init__(parent)
-        self.worksheet_importer = SelectableWorksheetWorkbookImporter()
+        self.worksheet_importer = ThreeSheetWorksheetWorkbookImporter()
         self.rekap_importer = RekapBupotImporter()
         self.pdf_importer = BupotPdfImporter()
 
@@ -63,7 +63,7 @@ class InputDataPage(QWidget):
         title = QLabel("Input Data")
         title.setObjectName("pageTitle")
         subtitle = QLabel(
-            "Masukkan Kertas Kerja dan Bupot. Pilih sendiri sheet Kertas Kerja yang akan dipakai."
+            "Masukkan Kertas Kerja dan Bupot. Kertas Kerja memakai tiga sumber sheet: Tahun, SIMULASI I, dan REVISI."
         )
         subtitle.setObjectName("pageSubTitle")
         subtitle.setWordWrap(True)
@@ -78,6 +78,18 @@ class InputDataPage(QWidget):
         scroll.setWidget(content)
         root.addWidget(scroll)
 
+    @staticmethod
+    def _sheet_selector_row(caption: str):
+        row = QHBoxLayout()
+        label = QLabel(caption)
+        label.setMinimumWidth(110)
+        combo = QComboBox()
+        combo.setMinimumWidth(260)
+        combo.setEnabled(False)
+        row.addWidget(label)
+        row.addWidget(combo, 1)
+        return row, combo
+
     def _build_worksheet_card(self):
         card = QFrame(objectName="card")
         box = QVBoxLayout(card)
@@ -87,7 +99,8 @@ class InputDataPage(QWidget):
         title = QLabel("1. Kertas Kerja")
         title.setObjectName("sectionTitle")
         note = QLabel(
-            "Pilih file Excel, lalu pilih sheet data/tahun. Sheet SIMULASI I tetap dibaca sebagai sumber Harta."
+            "Pilih file Excel lalu tentukan tiga sheet. Sheet Tahun menjadi sumber Penghasilan/PPh, "
+            "SIMULASI I menjadi Original Import Harta, dan REVISI menjadi Edited / Current bila tersedia."
         )
         note.setObjectName("mutedLabel")
         note.setWordWrap(True)
@@ -103,20 +116,22 @@ class InputDataPage(QWidget):
         file_row.addWidget(self.choose_worksheet_button)
         file_row.addStretch()
 
-        sheet_row = QHBoxLayout()
-        sheet_label = QLabel("Sheet data:")
-        self.sheet_combo = QComboBox()
-        self.sheet_combo.setMinimumWidth(260)
-        self.sheet_combo.setEnabled(False)
+        year_row, self.year_sheet_combo = self._sheet_selector_row("Sheet Tahun:")
+        simulasi_row, self.simulasi_sheet_combo = self._sheet_selector_row("SIMULASI I:")
+        revisi_row, self.revisi_sheet_combo = self._sheet_selector_row("REVISI:")
+
+        # Alias kompatibilitas untuk test/kode lama yang masih membaca sheet_combo.
+        self.sheet_combo = self.year_sheet_combo
+
+        action_row = QHBoxLayout()
+        action_row.addStretch()
         self.import_worksheet_button = QPushButton("Import Kertas Kerja")
         self.import_worksheet_button.setObjectName("primaryButton")
         self.import_worksheet_button.setEnabled(False)
         self.import_worksheet_button.clicked.connect(self.import_worksheet)
-        sheet_row.addWidget(sheet_label)
-        sheet_row.addWidget(self.sheet_combo, 1)
-        sheet_row.addWidget(self.import_worksheet_button)
+        action_row.addWidget(self.import_worksheet_button)
 
-        self.simulasi_status = QLabel("SIMULASI I: belum diperiksa")
+        self.simulasi_status = QLabel("SIMULASI I: belum diperiksa • REVISI: belum diperiksa")
         self.simulasi_status.setObjectName("mutedLabel")
         self.worksheet_status = QLabel("Belum diimport")
         self.worksheet_status.setObjectName("mutedLabel")
@@ -126,7 +141,10 @@ class InputDataPage(QWidget):
         box.addWidget(note)
         box.addWidget(self.worksheet_file_label)
         box.addLayout(file_row)
-        box.addLayout(sheet_row)
+        box.addLayout(year_row)
+        box.addLayout(simulasi_row)
+        box.addLayout(revisi_row)
+        box.addLayout(action_row)
         box.addWidget(self.simulasi_status)
         box.addWidget(self.worksheet_status)
         return card
@@ -217,6 +235,11 @@ class InputDataPage(QWidget):
         box.addLayout(footer)
         return card
 
+    def _select_combo_value(self, combo: QComboBox, value: str):
+        index = combo.findText(str(value or ""))
+        if index >= 0:
+            combo.setCurrentIndex(index)
+
     def choose_worksheet(self):
         path, _ = QFileDialog.getOpenFileName(
             self,
@@ -236,30 +259,55 @@ class InputDataPage(QWidget):
             QMessageBox.warning(self, "Kertas Kerja Tidak Dapat Dibaca", str(exc))
             return
 
-        self.sheet_combo.clear()
-        self.sheet_combo.addItems(sheets)
-        suggestion = self.worksheet_importer.suggested_sheet(sheets)
-        if suggestion:
-            index = self.sheet_combo.findText(suggestion)
-            if index >= 0:
-                self.sheet_combo.setCurrentIndex(index)
+        self.year_sheet_combo.clear()
+        self.simulasi_sheet_combo.clear()
+        self.revisi_sheet_combo.clear()
 
-        self.sheet_combo.setEnabled(bool(sheets))
-        self.import_worksheet_button.setEnabled(bool(sheets))
-        has_simulasi = any(str(name).strip().casefold() == "simulasi i" for name in sheets)
+        self.year_sheet_combo.addItems(sheets)
+        self.simulasi_sheet_combo.addItems(sheets)
+        self.revisi_sheet_combo.addItem("")
+        self.revisi_sheet_combo.addItems(sheets)
+
+        year_sheet, simulasi_sheet, revisi_sheet = self.worksheet_importer.suggested_sheets(sheets)
+        self._select_combo_value(self.year_sheet_combo, year_sheet)
+        self._select_combo_value(self.simulasi_sheet_combo, simulasi_sheet)
+        self._select_combo_value(self.revisi_sheet_combo, revisi_sheet)
+
+        enabled = bool(sheets)
+        self.year_sheet_combo.setEnabled(enabled)
+        self.simulasi_sheet_combo.setEnabled(enabled)
+        self.revisi_sheet_combo.setEnabled(enabled)
+        self.import_worksheet_button.setEnabled(bool(year_sheet and simulasi_sheet))
+
+        has_simulasi = bool(simulasi_sheet)
+        has_revisi = bool(revisi_sheet)
         self.simulasi_status.setText(
-            "SIMULASI I: ✓ ditemukan" if has_simulasi else "SIMULASI I: tidak ditemukan"
+            f"SIMULASI I: {'✓ ditemukan' if has_simulasi else 'tidak ditemukan'} • "
+            f"REVISI: {'✓ ditemukan' if has_revisi else 'tidak ditemukan / opsional'}"
         )
-        self.worksheet_status.setText("Pilih sheet lalu klik Import Kertas Kerja.")
+        self.worksheet_status.setText("Pilih tiga sheet lalu klik Import Kertas Kerja.")
 
     def import_worksheet(self):
         if self.worksheet_path is None:
             return
-        sheet_name = self.sheet_combo.currentText().strip()
-        if not sheet_name:
+
+        year_sheet = self.year_sheet_combo.currentText().strip()
+        simulasi_sheet = self.simulasi_sheet_combo.currentText().strip()
+        revisi_sheet = self.revisi_sheet_combo.currentText().strip()
+        if not year_sheet or not simulasi_sheet:
+            QMessageBox.information(
+                self,
+                "Sheet Belum Lengkap",
+                "Pilih Sheet Tahun dan SIMULASI I. Sheet REVISI boleh dikosongkan jika belum tersedia.",
+            )
             return
 
-        result = self.worksheet_importer.parse_selected(self.worksheet_path, sheet_name)
+        result = self.worksheet_importer.parse_selected_triplet(
+            self.worksheet_path,
+            year_sheet,
+            simulasi_sheet,
+            revisi_sheet,
+        )
         if result.errors:
             QMessageBox.warning(
                 self,
@@ -269,17 +317,18 @@ class InputDataPage(QWidget):
             return
 
         try:
-            # Bupot dipisahkan dari Kertas Kerja. Jika state lama sudah punya Bupot,
-            # persist(include_bupot=False) mempertahankannya.
+            # Bupot tetap sumber terpisah. Persist hanya state Kertas Kerja utama;
+            # REVISI dibawa ke Worksheet sebagai Edited / Current.
             self.worksheet_importer.persist(result, include_bupot=False)
         except Exception as exc:
             QMessageBox.critical(self, "Import Kertas Kerja Gagal", str(exc))
             return
 
         self.worksheet_result = result
+        revision_rows = list(getattr(result, "revision_harta_rows", []) or [])
         self.worksheet_status.setText(
             f"✓ {result.nama_wp or '-'} • NPWP {result.npwp} • Tahun {result.tahun_pajak} • "
-            f"{len(result.harta_rows)} Harta"
+            f"SIMULASI I {len(result.harta_rows)} Harta • REVISI {len(revision_rows)} Harta"
         )
         self.worksheet_workbook_imported.emit(result)
         self._load_current_bupot_count()
@@ -438,10 +487,17 @@ class InputDataPage(QWidget):
             self.continue_button.setEnabled(False)
             return
 
+        revision_rows = list(getattr(result, "revision_harta_rows", []) or [])
         self.identity_summary.setText(
             f"WP: {result.nama_wp or '-'} • NPWP {result.npwp} • Tahun {result.tahun_pajak}"
         )
-        self.sheet_summary.setText(f"Sheet: {self.sheet_combo.currentText() or '-'}")
-        self.harta_summary.setText(f"Harta: {len(result.harta_rows)} baris")
+        self.sheet_summary.setText(
+            f"Sheet Tahun: {self.year_sheet_combo.currentText() or '-'} • "
+            f"SIMULASI I: {self.simulasi_sheet_combo.currentText() or '-'} • "
+            f"REVISI: {self.revisi_sheet_combo.currentText() or '-'}"
+        )
+        self.harta_summary.setText(
+            f"Harta: {len(result.harta_rows)} Original • {len(revision_rows)} Revisi"
+        )
         self.bupot_summary.setText(f"Bupot: {self.bupot_count} baris")
         self.continue_button.setEnabled(True)
