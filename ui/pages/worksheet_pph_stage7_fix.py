@@ -491,8 +491,16 @@ class WorksheetPage(BaseWorksheetPage):
             self._update_harta_status(saved=True)
 
         year = int(getattr(import_result, "tahun_pajak", 0) or 0)
-        if year and hasattr(self, "pph_tab"):
-            pph_index = self.tabs.indexOf(self.pph_tab)
+        if year:
+            pph_container = getattr(self, "pph_scroll_area", None)
+            if pph_container is None:
+                pph_container = getattr(self, "pph_tab", None)
+            pph_index = self.tabs.indexOf(pph_container) if pph_container is not None else -1
+            if pph_index < 0:
+                for index in range(self.tabs.count()):
+                    if "PPh" in self.tabs.tabText(index):
+                        pph_index = index
+                        break
             if pph_index >= 0:
                 self.tabs.setTabText(pph_index, f"Penghasilan & PPh {year}")
 
