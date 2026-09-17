@@ -2,7 +2,7 @@ from __future__ import annotations
 
 import hashlib
 import json
-from dataclasses import asdict, dataclass, field
+from dataclasses import dataclass, field
 from datetime import datetime, timezone
 from pathlib import Path
 from typing import List, Optional
@@ -15,6 +15,8 @@ from core.finalization import FinalizationInput
 from core.worksheet_pph_state import WorksheetBupotRow
 from core.mapping.worksheet_harta_mapper import WorksheetHartaRow
 from core.legacy_1770_hybrid_l1h2 import LegacyLampiranIH2XlsxRenderer
+from core.legacy_1770_hybrid_l2 import LegacyLampiranIIXlsxRenderer
+from core.legacy_1770_hybrid_l3 import LegacyLampiranIIIXlsxRenderer
 
 
 ROUNDTRIP_SCHEMA = "TAX_CONVERTER_L1_LEGACY_XLSX_V1"
@@ -72,14 +74,10 @@ class Legacy1770HybridXlsxService:
     """XLSX Format Lama HYBRID yang aman untuk round-trip revisi.
 
     Visual workbook:
-    - 01-02: area e-Form baru.
-    - 03 dst: area legacy/format lama.
+    - 01-02: format baru e-Form.
+    - 03 dst: format lama/legacy DJP.
     - DATA REVISI: canonical editable tables untuk Harta dan Bupot.
     - _TC_META: metadata tersembunyi untuk traceability snapshot/revision.
-
-    Import revisi TIDAK menebak posisi field dari sheet visual; hanya canonical
-    DATA REVISI yang dibaca. Dengan demikian perubahan user/client tetap stabil
-    walau layout form visual berkembang.
     """
 
     HARTA_HEADERS = (
@@ -99,8 +97,8 @@ class Legacy1770HybridXlsxService:
         ("01 eForm Induk H1", "NEW_EFORM_H1", "SPT TAHUNAN PPh WAJIB PAJAK ORANG PRIBADI"),
         ("02 eForm Induk H2", "NEW_EFORM_H2", "SPT TAHUNAN PPh WAJIB PAJAK ORANG PRIBADI"),
         ("03 Legacy Lamp I H2", "LEGACY_L1_H2", "LAMPIRAN I - HALAMAN 2"),
-        ("04 Legacy Lamp II", "LEGACY", "LAMPIRAN II"),
-        ("05 Legacy Lamp III", "LEGACY", "LAMPIRAN III"),
+        ("04 Legacy Lamp II", "LEGACY_L2", "LAMPIRAN II"),
+        ("05 Legacy Lamp III", "LEGACY_L3", "LAMPIRAN III"),
         ("06 Legacy Lamp IV", "LEGACY", "LAMPIRAN IV"),
     )
 
@@ -152,7 +150,6 @@ class Legacy1770HybridXlsxService:
 
     @staticmethod
     def _autofit_columns(ws, *, min_width: float = 8.0, max_width: float = 32.0) -> None:
-        """Auto-fit sederhana dengan batas agar workbook tetap compact saat dicetak."""
         for column_cells in ws.columns:
             first = column_cells[0]
             letter = get_column_letter(first.column)
@@ -161,7 +158,10 @@ class Legacy1770HybridXlsxService:
                 if cell.value is None:
                     continue
                 text = str(cell.value)
-                longest = max(longest, max((len(line) for line in text.splitlines()), default=0))
+                longest = max(
+                    longest,
+                    max((len(line) for line in text.splitlines()), default=0),
+                )
             ws.column_dimensions[letter].width = min(
                 max_width,
                 max(min_width, longest + 2),
@@ -194,7 +194,6 @@ class Legacy1770HybridXlsxService:
             revision=int(revision or 0),
             snapshot_hash=str(snapshot_hash or ""),
         )
-
         if not data.npwp or not data.tahun_pajak:
             result.issues.append(
                 LegacyXlsxIssue("LX_001", "ERROR", "Identitas snapshot FINAL belum lengkap.")
@@ -203,7 +202,6 @@ class Legacy1770HybridXlsxService:
 
         wb = Workbook()
         wb.remove(wb.active)
-
         for title, mode, heading in self.FORM_SHEETS:
             ws = wb.create_sheet(title)
             self._render_form_sheet(ws, data, mode, heading, revision)
@@ -216,7 +214,6 @@ class Legacy1770HybridXlsxService:
             revision=revision,
             snapshot_hash=snapshot_hash,
         )
-
         wb[META_SHEET].sheet_state = "veryHidden"
         target.parent.mkdir(parents=True, exist_ok=True)
         wb.save(target)
@@ -239,7 +236,6 @@ class Legacy1770HybridXlsxService:
 
     @staticmethod
     def _yes_no_code(condition: bool) -> int:
-        # Acuan e-Form memakai 1 = Tidak, 2 = Ya.
         return 2 if condition else 1
 
     def _pph_value(self, data: FinalizationInput, key: str, default=0.0) -> float:
@@ -251,23 +247,12 @@ class Legacy1770HybridXlsxService:
 
     def _setup_eform_sheet(self, ws, *, page_no: int) -> None:
         ws.sheet_view.showGridLines = False
-        # Proporsi dibuat lebih dekat ke halaman form cetak: kolom nomor sempit,
-        # area uraian dominan, sedangkan pilihan/nilai tidak dibiarkan melebar.
         widths = {
-            "A": 4.0,
-            "B": 5.0,
-            "C": 12.0,
-            "D": 12.0,
-            "E": 12.0,
-            "F": 12.0,
-            "G": 12.0,
-            "H": 7.0,
-            "I": 12.5,
-            "J": 12.5,
+            "A": 4.0, "B": 5.0, "C": 12.0, "D": 12.0, "E": 12.0,
+            "F": 12.0, "G": 12.0, "H": 7.0, "I": 12.5, "J": 12.5,
         }
         for col, width in widths.items():
             ws.column_dimensions[col].width = width
-
         ws.page_setup.orientation = "portrait"
         ws.page_setup.paperSize = ws.PAPERSIZE_LEGAL
         ws.page_setup.fitToWidth = 1
@@ -281,7 +266,6 @@ class Legacy1770HybridXlsxService:
 
     def _eform_banner(self, ws, data: FinalizationInput, *, page_no: int, revision: int) -> int:
         self._setup_eform_sheet(ws, page_no=page_no)
-
         ws.merge_cells("A1:J1")
         ws["A1"] = "KEMENTERIAN KEUANGAN REPUBLIK INDONESIA • DIREKTORAT JENDERAL PAJAK"
         ws["A1"].font = Font(size=10, bold=True, color="FFFFFF")
@@ -305,13 +289,12 @@ class Legacy1770HybridXlsxService:
         ws["I3"].font = Font(size=11, bold=True)
         ws["I3"].alignment = Alignment(horizontal="right", vertical="center")
 
-        header_items = [
+        for coord, label, value in (
             ("A5", "TAHUN PAJAK", int(data.tahun_pajak or 0)),
             ("D5", "PERIODE", "1 s.d 12"),
             ("G5", "STATUS", "NORMAL"),
             ("I5", "REVISION", int(revision or 0)),
-        ]
-        for coord, label, value in header_items:
+        ):
             col = ws[coord].column
             row = ws[coord].row
             ws.cell(row, col).value = label
@@ -319,14 +302,18 @@ class Legacy1770HybridXlsxService:
             ws.cell(row, col).fill = self.EFORM_SECTION_FILL
             ws.cell(row, col).border = self.EFORM_BORDER
             ws.cell(row, col).alignment = Alignment(horizontal="center", vertical="center")
-            ws.merge_cells(start_row=row + 1, start_column=col, end_row=row + 1, end_column=min(col + 1, 10))
+            ws.merge_cells(
+                start_row=row + 1,
+                start_column=col,
+                end_row=row + 1,
+                end_column=min(col + 1, 10),
+            )
             value_cell = ws.cell(row + 1, col)
             value_cell.value = value
             value_cell.font = Font(size=9, bold=True)
             value_cell.fill = self.EFORM_VALUE_FILL
             value_cell.border = self.EFORM_BORDER
             value_cell.alignment = Alignment(horizontal="center", vertical="center")
-
         return 8
 
     def _section_header(self, ws, row: int, title: str) -> int:
@@ -355,10 +342,8 @@ class Legacy1770HybridXlsxService:
         ws.cell(row, 1).value = no
         ws.cell(row, 1).alignment = Alignment(horizontal="center", vertical="top")
         ws.merge_cells(start_row=row, start_column=2, end_row=row, end_column=7)
-        label_cell = ws.cell(row, 2)
-        label_cell.value = label
-        label_cell.alignment = Alignment(vertical="top", wrap_text=wrap)
-
+        ws.cell(row, 2).value = label
+        ws.cell(row, 2).alignment = Alignment(vertical="top", wrap_text=wrap)
         if choice is not None:
             ws.cell(row, 8).value = choice
             ws.cell(row, 8).alignment = Alignment(horizontal="center", vertical="center")
@@ -367,10 +352,13 @@ class Legacy1770HybridXlsxService:
         value_cell = ws.cell(row, 9)
         value_cell.value = value
         value_cell.fill = self.EFORM_VALUE_FILL
-        value_cell.alignment = Alignment(horizontal="right" if money else "left", vertical="top", wrap_text=wrap)
+        value_cell.alignment = Alignment(
+            horizontal="right" if money else "left",
+            vertical="top",
+            wrap_text=wrap,
+        )
         if money:
             value_cell.number_format = '#,##0;[Red]-#,##0;-'
-
         for col in range(1, 11):
             ws.cell(row, col).border = self.EFORM_BORDER
         ws.row_dimensions[row].height = 29 if wrap else 22
@@ -378,7 +366,6 @@ class Legacy1770HybridXlsxService:
 
     def _render_eform_induk_h1(self, ws, data: FinalizationInput, revision: int) -> None:
         row = self._eform_banner(ws, data, page_no=1, revision=revision)
-
         row = self._section_header(ws, row, "A. IDENTITAS WAJIB PAJAK")
         row = self._field_row(ws, row, "1", "NIK/NPWP", str(data.npwp or ""))
         row = self._field_row(ws, row, "2", "Nama", str(data.nama_wp or "").upper())
@@ -386,11 +373,7 @@ class Legacy1770HybridXlsxService:
         row = self._field_row(ws, row, "4", "No. ID", str(data.npwp or ""))
         row = self._field_row(ws, row, "5", "No. Telepon", "")
         row = self._field_row(ws, row, "6", "Email", "")
-        row = self._field_row(
-            ws, row, "7",
-            "Status Kewajiban Perpajakan Suami dan Istri",
-            "",
-        )
+        row = self._field_row(ws, row, "7", "Status Kewajiban Perpajakan Suami dan Istri", "")
         row = self._field_row(ws, row, "8", "NIK/NPWP Suami/Istri", "")
 
         row = self._section_header(ws, row, "B. IKHTISAR PENGHASILAN NETO")
@@ -399,9 +382,7 @@ class Legacy1770HybridXlsxService:
             for item in (data.bupot_rows or [])
         )
         domestic_other = self._pph_value(data, "penghasilan_neto_lainnya")
-        foreign_income = 0.0
         business_net = 0.0
-
         row = self._field_row(
             ws, row, "1a",
             "Apakah Anda menerima penghasilan dalam negeri dari pekerjaan?",
@@ -410,25 +391,20 @@ class Legacy1770HybridXlsxService:
             money=True,
         )
         row = self._field_row(
-            ws, row, "1b",
-            "Penghasilan neto dari usaha dan/atau pekerjaan bebas",
+            ws, row, "1b", "Penghasilan neto dari usaha dan/atau pekerjaan bebas",
             self._money_excel(business_net),
             choice=self._yes_no_code(abs(business_net) > 0.5),
             money=True,
         )
         row = self._field_row(
-            ws, row, "1c",
-            "Apakah Anda menerima penghasilan dalam negeri lainnya?",
+            ws, row, "1c", "Apakah Anda menerima penghasilan dalam negeri lainnya?",
             self._money_excel(domestic_other),
             choice=self._yes_no_code(abs(domestic_other) > 0.5),
             money=True,
         )
         row = self._field_row(
-            ws, row, "1d",
-            "Apakah Anda menerima penghasilan luar negeri?",
-            self._money_excel(foreign_income),
-            choice=1,
-            money=True,
+            ws, row, "1d", "Apakah Anda menerima penghasilan luar negeri?",
+            0, choice=1, money=True,
         )
 
         row = self._section_header(ws, row, "C. PERHITUNGAN PPh TERUTANG")
@@ -446,7 +422,6 @@ class Legacy1770HybridXlsxService:
         ptkp = self._pph_value(data, "ptkp")
         pkp = self._pph_value(data, "pkp")
         pph_terutang = self._pph_value(data, "pph_terutang")
-
         row = self._field_row(ws, row, "2", "Penghasilan neto setahun (1a+1b+1c+1d)", self._money_excel(neto_setahun), money=True)
         row = self._field_row(
             ws, row, "3",
@@ -477,14 +452,11 @@ class Legacy1770HybridXlsxService:
         self._field_row(
             ws, row, "10d",
             "Apakah Anda menerima pengembalian/pengurangan kredit PPh luar negeri yang telah dikreditkan?",
-            0,
-            choice=1,
-            money=True,
+            0, choice=1, money=True,
         )
 
     def _render_eform_induk_h2(self, ws, data: FinalizationInput, revision: int) -> None:
         row = self._eform_banner(ws, data, page_no=2, revision=revision)
-
         ws.merge_cells(start_row=row, start_column=1, end_row=row, end_column=5)
         ws.cell(row, 1).value = f"NIK/NPWP  {data.npwp}"
         ws.merge_cells(start_row=row, start_column=6, end_row=row, end_column=10)
@@ -497,19 +469,18 @@ class Legacy1770HybridXlsxService:
 
         kurang_lebih = self._pph_value(data, "kurang_lebih_bayar")
         if abs(kurang_lebih) < 0.5:
-            pph_terutang = self._pph_value(data, "pph_terutang")
-            kredit = self._pph_value(data, "kredit_pajak")
-            pph25 = self._pph_value(data, "pph25")
-            kurang_lebih = pph_terutang - kredit - pph25
+            kurang_lebih = (
+                self._pph_value(data, "pph_terutang")
+                - self._pph_value(data, "kredit_pajak")
+                - self._pph_value(data, "pph25")
+            )
 
         row = self._section_header(ws, row, "E. PPh KURANG/LEBIH BAYAR")
         row = self._field_row(ws, row, "11a", "PPh kurang/lebih bayar (9-10a-10b-10c+10d)", self._money_excel(kurang_lebih), money=True)
         row = self._field_row(
             ws, row, "11b",
             "Apakah terdapat Surat Keputusan Persetujuan Pengangsuran atau Penundaan Pembayaran Pajak?",
-            0,
-            choice=1,
-            money=True,
+            0, choice=1, money=True,
         )
         row = self._field_row(ws, row, "11c", "PPh yang masih harus dibayar (11a-11b)", self._money_excel(kurang_lebih), money=True)
 
@@ -525,21 +496,17 @@ class Legacy1770HybridXlsxService:
         row = self._field_row(
             ws, row, "13a",
             "Apakah Anda hanya menerima penghasilan teratur dan berkewajiban membayar angsuran PPh Pasal 25 Tahun Pajak berikutnya?",
-            0,
-            choice=1,
-            money=True,
+            0, choice=1, money=True,
         )
         row = self._field_row(
             ws, row, "13b",
             "Apakah Anda menyusun perhitungan tersendiri angsuran PPh Pasal 25 Tahun Pajak berikutnya?",
-            "",
-            choice=1,
+            "", choice=1,
         )
         row = self._field_row(
             ws, row, "13c",
             "Apakah Anda membayar angsuran PPh Pasal 25 OPPT Tahun Pajak berikutnya?",
-            "",
-            choice=1,
+            "", choice=1,
         )
 
         row = self._section_header(ws, row, "I. PERNYATAAN TRANSAKSI LAINNYA")
@@ -549,19 +516,24 @@ class Legacy1770HybridXlsxService:
         )
         other = data.penghasilan_lainnya or {}
         umkm = data.umkm_state or {}
-        final_income = sum(
-            self._safe_float(value)
-            for value in (umkm.get("bruto_bulanan") or [])
-        )
-        final_income += sum(
-            self._safe_float(item.get("dpp"))
-            for item in (other.get("final_other_rows") or [])
-            if isinstance(item, dict)
-        )
-        bukan_objek = (
-            self._safe_float(other.get("prive_dpp"))
-            + self._safe_float(other.get("hibah_warisan_dpp"))
-        )
+        bruto_bulanan = umkm.get("bruto_bulanan") or [] if isinstance(umkm, dict) else []
+        if isinstance(bruto_bulanan, dict):
+            bruto_values = bruto_bulanan.values()
+        else:
+            bruto_values = bruto_bulanan
+        final_income = sum(self._safe_float(value) for value in bruto_values)
+        if isinstance(other, dict):
+            final_income += sum(
+                self._safe_float(item.get("dpp"))
+                for item in (other.get("final_other_rows") or [])
+                if isinstance(item, dict)
+            )
+            bukan_objek = (
+                self._safe_float(other.get("prive_dpp"))
+                + self._safe_float(other.get("hibah_warisan_dpp"))
+            )
+        else:
+            bukan_objek = 0.0
 
         row = self._field_row(ws, row, "14a", "Harta pada akhir Tahun Pajak", self._money_excel(total_harta), money=True)
         row = self._field_row(ws, row, "14b", "Apakah Anda memiliki utang pada akhir tahun pajak?", 0, choice=1, money=True)
@@ -583,20 +555,17 @@ class Legacy1770HybridXlsxService:
         row = self._field_row(
             ws, row, "14f",
             "Apakah Anda melaporkan biaya entertainment, biaya promosi, natura/kenikmatan, serta piutang yang nyata-nyata tidak dapat ditagih?",
-            "",
-            choice=1,
+            "", choice=1,
         )
         row = self._field_row(
             ws, row, "14g",
             "Apakah Anda menerima dividen dan/atau penghasilan lain dari luar negeri dan melaporkannya sebagai penghasilan tidak termasuk objek pajak?",
-            "",
-            choice=1,
+            "", choice=1,
         )
         row = self._field_row(
             ws, row, "14h",
             "Kelebihan PPh Final atas penghasilan dari usaha dengan peredaran bruto tertentu yang dapat dimintakan pengembalian",
-            0,
-            money=True,
+            0, money=True,
         )
 
         row = self._section_header(ws, row, "J. LAMPIRAN TAMBAHAN")
@@ -613,58 +582,35 @@ class Legacy1770HybridXlsxService:
         row = self._field_row(
             ws, row, "",
             "Saya menyatakan bahwa apa yang telah diberitahukan di atas beserta lampirannya adalah benar, lengkap, dan jelas.",
-            "",
-            choice=1,
+            "", choice=1,
         )
         row = self._field_row(ws, row, "", "Penandatangan", "Wajib Pajak")
         row = self._field_row(ws, row, "", "NIK/NPWP", str(data.npwp or ""))
         self._field_row(ws, row, "", "Nama", str(data.nama_wp or "").upper())
 
     def _render_legacy_placeholder(self, ws, data, heading: str, revision: int) -> None:
-        """Kerangka visual legacy untuk Lampiran II dan seterusnya.
-
-        Mulai sheet 03 seluruh keluaran harus memakai karakter format lama DJP:
-        putih/monokrom, header formulir klasik, area isian kuning muda, Legal.
-        """
         thin = Side(style="thin", color="7F8C8D")
         border = Border(left=thin, right=thin, top=thin, bottom=thin)
         value_fill = PatternFill("solid", fgColor="FFF2CC")
-
         ws.sheet_view.showGridLines = False
 
         ws.merge_cells("A1:C2")
         ws["A1"] = "KEMENTERIAN KEUANGAN RI\nDIREKTORAT JENDERAL PAJAK"
         ws["A1"].font = Font(size=8, bold=True)
-        ws["A1"].alignment = Alignment(
-            horizontal="center",
-            vertical="center",
-            wrap_text=True,
-        )
-
+        ws["A1"].alignment = Alignment(horizontal="center", vertical="center", wrap_text=True)
         ws.merge_cells("D1:H2")
         ws["D1"] = "SPT TAHUNAN PPh WAJIB PAJAK ORANG PRIBADI"
         ws["D1"].font = Font(size=11, bold=True)
-        ws["D1"].alignment = Alignment(
-            horizontal="center",
-            vertical="center",
-            wrap_text=True,
-        )
-
+        ws["D1"].alignment = Alignment(horizontal="center", vertical="center", wrap_text=True)
         form_code = {
             "LAMPIRAN II": "1770 - II",
             "LAMPIRAN III": "1770 - III",
             "LAMPIRAN IV": "1770 - IV",
         }.get(heading, "1770")
-
         ws.merge_cells("I1:J2")
         ws["I1"] = f"FORMULIR\n{form_code}"
         ws["I1"].font = Font(size=10, bold=True)
-        ws["I1"].alignment = Alignment(
-            horizontal="center",
-            vertical="center",
-            wrap_text=True,
-        )
-
+        ws["I1"].alignment = Alignment(horizontal="center", vertical="center", wrap_text=True)
         ws.merge_cells("A3:G3")
         ws["A3"] = heading
         ws["A3"].font = Font(size=10, bold=True)
@@ -672,14 +618,12 @@ class Legacy1770HybridXlsxService:
         ws["H3"] = "FORMAT LAMA / LEGACY DJP"
         ws["H3"].font = Font(size=8, bold=True)
         ws["H3"].alignment = Alignment(horizontal="right")
-
         ws.merge_cells("A5:E5")
         ws["A5"] = f"NPWP : {data.npwp}"
         ws.merge_cells("F5:J5")
         ws["F5"] = f"NAMA WAJIB PAJAK : {str(data.nama_wp or '').upper()}"
         ws["A5"].font = Font(bold=True)
         ws["F5"].font = Font(bold=True)
-
         ws.merge_cells("A6:C6")
         ws["A6"] = f"TAHUN PAJAK : {data.tahun_pajak}"
         ws.merge_cells("D6:F6")
@@ -689,44 +633,28 @@ class Legacy1770HybridXlsxService:
         for key in ("A6", "D6", "G6"):
             ws[key].font = Font(size=8, bold=True)
             ws[key].alignment = Alignment(horizontal="center")
-
         ws.merge_cells("A8:J8")
         ws["A8"] = heading
         ws["A8"].font = Font(size=9, bold=True)
         ws["A8"].border = border
-
         ws.merge_cells("A10:G12")
         ws["A10"] = (
             "Kerangka halaman legacy. Isi detail lampiran akan dipetakan dari "
             "snapshot FINAL pada tahap berikutnya tanpa mengubah gaya format lama."
         )
-        ws["A10"].alignment = Alignment(
-            vertical="top",
-            wrap_text=True,
-        )
-
+        ws["A10"].alignment = Alignment(vertical="top", wrap_text=True)
         ws.merge_cells("H10:J12")
         ws["H10"] = ""
         ws["H10"].fill = value_fill
         for row in range(10, 13):
             for col in range(1, 11):
                 ws.cell(row, col).border = border
-
         widths = {
-            "A": 4.0,
-            "B": 5.0,
-            "C": 12.0,
-            "D": 12.0,
-            "E": 11.0,
-            "F": 11.0,
-            "G": 11.0,
-            "H": 11.0,
-            "I": 11.0,
-            "J": 11.0,
+            "A": 4.0, "B": 5.0, "C": 12.0, "D": 12.0, "E": 11.0,
+            "F": 11.0, "G": 11.0, "H": 11.0, "I": 11.0, "J": 11.0,
         }
         for col, width in widths.items():
             ws.column_dimensions[col].width = width
-
         self._setup_print(ws, "portrait")
         ws.page_setup.fitToHeight = 1
         ws.page_margins.left = 0.2
@@ -745,6 +673,12 @@ class Legacy1770HybridXlsxService:
         if mode == "LEGACY_L1_H2":
             LegacyLampiranIH2XlsxRenderer().render(ws, data)
             return
+        if mode == "LEGACY_L2":
+            LegacyLampiranIIXlsxRenderer().render(ws, data)
+            return
+        if mode == "LEGACY_L3":
+            LegacyLampiranIIIXlsxRenderer().render(ws, data)
+            return
         self._render_legacy_placeholder(ws, data, heading, revision)
 
     def _write_harta_sheet(self, ws, data: FinalizationInput) -> None:
@@ -752,15 +686,9 @@ class Legacy1770HybridXlsxService:
         self._style_header(ws, 1, len(self.HARTA_HEADERS))
         for index, row in enumerate(data.harta_current_rows, start=1):
             ws.append([
-                index,
-                row.kode_eform,
-                row.kode_ct,
-                row.nama_harta,
-                row.nomor_akun_keterangan,
-                row.atas_nama,
-                row.nama_bank,
-                row.tahun_perolehan,
-                float(row.nilai_tahun_sebelumnya or 0),
+                index, row.kode_eform, row.kode_ct, row.nama_harta,
+                row.nomor_akun_keterangan, row.atas_nama, row.nama_bank,
+                row.tahun_perolehan, float(row.nilai_tahun_sebelumnya or 0),
                 float(row.nilai_tahun_berjalan or 0),
             ])
         self._autofit_columns(ws, min_width=8.0, max_width=28.0)
@@ -773,31 +701,15 @@ class Legacy1770HybridXlsxService:
         self._style_header(ws, 1, len(self.BUPOT_HEADERS))
         for index, row in enumerate(data.bupot_rows, start=1):
             ws.append([
-                index,
-                row.jenis,
-                row.no_bupot,
-                row.masa,
-                row.tahun,
-                row.sifat,
-                row.status,
-                row.npwp_penerima,
-                row.nama_penerima,
-                row.fasilitas,
-                row.jenis_pph,
-                row.kop,
-                float(row.bruto or 0),
-                float(row.dpp_persen or 0),
-                float(row.tarif or 0),
-                float(row.pengurang or 0),
-                float(row.pph_dipotong or 0),
-                row.bukti,
-                row.no_bukti,
-                row.tanggal_bukti,
+                index, row.jenis, row.no_bupot, row.masa, row.tahun, row.sifat,
+                row.status, row.npwp_penerima, row.nama_penerima, row.fasilitas,
+                row.jenis_pph, row.kop, float(row.bruto or 0),
+                float(row.dpp_persen or 0), float(row.tarif or 0),
+                float(row.pengurang or 0), float(row.pph_dipotong or 0),
+                row.bukti, row.no_bukti, row.tanggal_bukti,
                 row.npwp_pemotong or row.npwp_pemberi_kerja,
-                row.nama_pemotong,
-                row.tanggal_pemotongan,
-                row.mekanisme_sp2d,
-                row.no_sp2d,
+                row.nama_pemotong, row.tanggal_pemotongan,
+                row.mekanisme_sp2d, row.no_sp2d,
             ])
         self._autofit_columns(ws, min_width=8.0, max_width=24.0)
         self._setup_print(ws, "landscape")
@@ -841,7 +753,6 @@ class Legacy1770HybridXlsxService:
         if not path.is_file():
             result.issues.append(LegacyXlsxIssue("LX_101", "ERROR", "File Excel revisi tidak ditemukan."))
             return result
-
         try:
             wb = load_workbook(path, data_only=False)
         except Exception as exc:
