@@ -17,6 +17,7 @@ from core.mapping.worksheet_harta_mapper import WorksheetHartaRow
 from core.legacy_1770_hybrid_l1h2 import LegacyLampiranIH2XlsxRenderer
 from core.legacy_1770_hybrid_l2 import LegacyLampiranIIXlsxRenderer
 from core.legacy_1770_hybrid_l3 import LegacyLampiranIIIXlsxRenderer
+from core.legacy_1770_hybrid_l4 import LegacyLampiranIVXlsxRenderer
 
 
 ROUNDTRIP_SCHEMA = "TAX_CONVERTER_L1_LEGACY_XLSX_V1"
@@ -99,7 +100,7 @@ class Legacy1770HybridXlsxService:
         ("03 Legacy Lamp I H2", "LEGACY_L1_H2", "LAMPIRAN I - HALAMAN 2"),
         ("04 Legacy Lamp II", "LEGACY_L2", "LAMPIRAN II"),
         ("05 Legacy Lamp III", "LEGACY_L3", "LAMPIRAN III"),
-        ("06 Legacy Lamp IV", "LEGACY", "LAMPIRAN IV"),
+        ("06 Legacy Lamp IV", "LEGACY_L4", "LAMPIRAN IV"),
     )
 
     EFORM_DARK_FILL = PatternFill("solid", fgColor="1F4E78")
@@ -678,6 +679,9 @@ class Legacy1770HybridXlsxService:
             return
         if mode == "LEGACY_L3":
             LegacyLampiranIIIXlsxRenderer().render(ws, data)
+            return
+        if mode == "LEGACY_L4":
+            LegacyLampiranIVXlsxRenderer().render(ws, data)
             return
         self._render_legacy_placeholder(ws, data, heading, revision)
 
