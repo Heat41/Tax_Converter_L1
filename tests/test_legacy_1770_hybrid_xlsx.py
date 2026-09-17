@@ -257,8 +257,10 @@ class TestLegacy1770HybridXlsx(unittest.TestCase):
         self.assertIn("1770 - III", str(lamp3["A1"].value or ""))
         self.assertEqual(lamp3["C2"].value, "SPT TAHUNAN PPh WAJIB PAJAK ORANG PRIBADI")
 
-        # Lampiran IV masih memakai kerangka legacy sampai renderernya diisi.
-        self.assertEqual(wb["06 Legacy Lamp IV"]["H3"].value, "FORMAT LAMA / LEGACY DJP")
+        lamp4 = wb["06 Legacy Lamp IV"]
+        self.assertEqual(lamp4["C1"].value, "LAMPIRAN - IV")
+        self.assertIn("1770 - IV", str(lamp4["A1"].value or ""))
+        self.assertEqual(lamp4["C2"].value, "SPT TAHUNAN PPh WAJIB PAJAK ORANG PRIBADI")
 
         for sheet_name in (
             "03 Legacy Lamp I H2",
