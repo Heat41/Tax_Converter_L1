@@ -43,13 +43,11 @@ class StaticPdfResult:
 class Legacy1770StaticPdfService:
     """Stage 8C.10 - final static PDF untuk Form 1770 lama.
 
-    Tahap ini TIDAK merasterisasi, memperkecil, atau mengubah skala halaman.
-    Seluruh vector content dan ukuran font yang sudah dikalibrasi pada Stage
-    8C.4-8C.9 dipertahankan persis. Pekerjaan di sini hanya:
-    - membentuk output multipage final,
-    - menghapus elemen interaktif/annotation/action,
-    - menulis ulang PDF statis,
-    - memverifikasi hasil akhir.
+    ``finalize_document`` tetap menjadi engine legacy murni yang dipakai oleh
+    renderer HYBRID untuk membangun halaman format lama. Entry-point
+    ``finalize_active_final`` adalah jalur aplikasi/UI dan sekarang menghasilkan
+    PDF HYBRID: dua halaman Induk format baru, lalu Lampiran I H2 s.d akhir
+    memakai renderer legacy yang sudah dikalibrasi.
     """
 
     ROOT_INTERACTIVE_KEYS = (
@@ -69,9 +67,6 @@ class Legacy1770StaticPdfService:
             if key in root:
                 del root[key]
 
-        # JavaScript, embedded files, dan name-tree interaktif tidak diperlukan
-        # pada arsip Form 1770 statis. Menghapus /Names tidak memengaruhi isi
-        # visual halaman yang sudah menjadi page content.
         if "/Names" in root:
             del root["/Names"]
 
@@ -93,8 +88,6 @@ class Legacy1770StaticPdfService:
         reader = PdfReader(str(source))
         writer = PdfWriter()
 
-        # add_page mempertahankan ukuran media box dan content stream asli,
-        # sehingga font/posisi hasil kalibrasi tidak berubah.
         for source_page in reader.pages:
             cls._remove_page_interactivity(source_page)
             writer.add_page(source_page)
@@ -258,15 +251,31 @@ class Legacy1770StaticPdfService:
         template_path: Optional[str | Path] = None,
         db_path: Optional[str | Path] = None,
     ) -> StaticPdfResult:
-        clean_npwp = "".join(ch for ch in str(npwp or "") if ch.isdigit())
-        document = Legacy1770DocumentService(
-            db_path=db_path
-        ).build_active_final(
-            clean_npwp,
-            int(tahun_pajak),
-        )
-        return self.finalize_document(
-            document,
+        """Entry-point final dari UI: hasilkan PDF HYBRID satu arah.
+
+        Import dilakukan lokal untuk menghindari circular import karena service
+        HYBRID memakai ``finalize_document`` di class ini untuk bagian legacy.
+        Return type tetap ``StaticPdfResult`` agar kontrak UI/audit lama tidak
+        berubah.
+        """
+        from core.legacy_1770_hybrid_pdf import Legacy1770HybridPdfService
+
+        hybrid = Legacy1770HybridPdfService(db_path=db_path).export_active_final(
+            npwp,
+            tahun_pajak,
             output_path,
             template_path=template_path,
         )
+
+        result = StaticPdfResult(
+            output_path=hybrid.output_path,
+            page_count=hybrid.page_count,
+            size_bytes=hybrid.size_bytes,
+            sha256=hybrid.sha256,
+            is_static=not hybrid.errors and hybrid.output_path.is_file(),
+        )
+        result.issues.extend(
+            StaticPdfIssue(issue.code, issue.severity, issue.message)
+            for issue in hybrid.issues
+        )
+        return result
