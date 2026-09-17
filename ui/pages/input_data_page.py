@@ -173,7 +173,7 @@ class InputDataPage(QWidget):
         single_row.addWidget(self.choose_single_button)
         single_row.addWidget(self.import_single_button)
 
-        self.bupot_status = QLabel("Import Kertas Kerja terlebih dahulu agar NPWP dan tahun pajak menjadi acuan.")
+        self.bupot_status = QLabel("Import Kertas Kerja terlebih dahulu agar NPWP menjadi acuan.")
         self.bupot_status.setObjectName("mutedLabel")
         self.bupot_status.setWordWrap(True)
 
@@ -303,7 +303,7 @@ class InputDataPage(QWidget):
             QMessageBox.information(
                 self,
                 "Kertas Kerja Diperlukan",
-                "Import Kertas Kerja terlebih dahulu agar NPWP dan Tahun Pajak menjadi acuan.",
+                "Import Kertas Kerja terlebih dahulu agar NPWP menjadi acuan.",
             )
             return
 
@@ -347,7 +347,7 @@ class InputDataPage(QWidget):
             QMessageBox.information(
                 self,
                 "Kertas Kerja Diperlukan",
-                "Import Kertas Kerja terlebih dahulu agar NPWP dan Tahun Pajak menjadi acuan.",
+                "Import Kertas Kerja terlebih dahulu agar NPWP menjadi acuan.",
             )
             return
 
@@ -379,6 +379,7 @@ class InputDataPage(QWidget):
         self._refresh_summary()
 
     def _validate_bupot_identity(self, rows: List[WorksheetBupotRow]) -> bool:
+        """Blokir hanya perbedaan WP; perbedaan tahun Bupot tetap diizinkan."""
         if self.worksheet_result is None:
             return False
 
@@ -397,18 +398,24 @@ class InputDataPage(QWidget):
             if row.tahun and str(row.tahun) != expected_year
         })
 
-        if wrong_npwp or wrong_year:
-            details = []
-            if wrong_npwp:
-                details.append("NPWP penerima berbeda dengan Kertas Kerja")
-            if wrong_year:
-                details.append("Tahun Bupot berbeda dengan sheet Kertas Kerja")
+        if wrong_npwp:
             QMessageBox.warning(
                 self,
                 "Bupot Tidak Sesuai",
-                "\n".join(details) + "\n\nImport dibatalkan agar data antar-WP/tahun tidak tercampur.",
+                "NPWP penerima berbeda dengan Kertas Kerja\n\n"
+                "Import dibatalkan agar data antar-WP tidak tercampur.",
             )
             return False
+
+        if wrong_year:
+            years = ", ".join(wrong_year)
+            QMessageBox.information(
+                self,
+                "Tahun Bupot Berbeda",
+                f"Tahun Bupot berbeda dengan sheet Kertas Kerja ({years}).\n\n"
+                "Import tetap dilanjutkan; tahun Bupot tidak dikunci ke tahun sheet Kertas Kerja.",
+            )
+
         return True
 
     def _load_current_bupot_count(self):
