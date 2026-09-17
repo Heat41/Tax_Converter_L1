@@ -1,5 +1,6 @@
 from __future__ import annotations
 
+from dataclasses import replace
 from pathlib import Path
 from typing import List, Tuple
 
@@ -33,6 +34,50 @@ class ThreeSheetWorksheetWorkbookImporter(SelectableWorksheetWorkbookImporter):
         )
         return year_sheet, simulasi_sheet, revisi_sheet
 
+    @staticmethod
+    def _is_harta_header_row(row) -> bool:
+        """Kenali baris header Excel yang ikut terbaca sebagai data Harta.
+
+        Beberapa workbook memiliki header bertingkat/berulang sehingga parser
+        fleksibel dapat memulai satu baris terlalu awal. Jangan pernah membawa
+        label seperti KODE EFORM, KODE CT, NAMA HARTA, dst. sebagai aset.
+        """
+        values = {
+            str(getattr(row, "kode_eform", "") or "").strip().casefold(),
+            str(getattr(row, "kode_ct", "") or "").strip().casefold(),
+            str(getattr(row, "nama_harta", "") or "").strip().casefold(),
+            str(getattr(row, "nomor_akun_keterangan", "") or "").strip().casefold(),
+            str(getattr(row, "atas_nama", "") or "").strip().casefold(),
+            str(getattr(row, "nama_bank", "") or "").strip().casefold(),
+        }
+        expected = {
+            "kode eform",
+            "kode ct",
+            "nama harta",
+            "nomor akun / keterangan",
+            "nomor akun/keterangan",
+            "atas nama",
+            "nama bank",
+        }
+        # Dua label header yang cocok sudah cukup kuat untuk membedakan header
+        # dari data Harta nyata, tanpa bergantung pada posisi kolom workbook.
+        return len(values & expected) >= 2
+
+    def _parse_harta(self, df, result):
+        """Gunakan parser fleksibel lalu buang baris header yang tersalin."""
+        start_index = len(result.harta_rows)
+        super()._parse_harta(df, result)
+
+        prefix = list(result.harta_rows[:start_index])
+        parsed = list(result.harta_rows[start_index:])
+        filtered = [row for row in parsed if not self._is_harta_header_row(row)]
+
+        # Nomor harus kembali kontinu setelah baris header dibuang.
+        result.harta_rows = prefix + [
+            replace(row, nomor=start_index + index + 1)
+            for index, row in enumerate(filtered)
+        ]
+
     def parse_selected_triplet(
         self,
         file_path: str | Path,
@@ -43,8 +88,8 @@ class ThreeSheetWorksheetWorkbookImporter(SelectableWorksheetWorkbookImporter):
         path = Path(file_path)
 
         # Gunakan parser produksi yang sudah stabil untuk Sheet Tahun dan
-        # SIMULASI I. Setelah itu, bila user memilih sumber SIMULASI lain,
-        # ganti Harta dengan sheet yang dipilih secara eksplisit.
+        # SIMULASI I. Karena method _parse_harta dioverride di class ini,
+        # header berulang juga dibersihkan pada SIMULASI I default.
         result = self.parse_selected(path, year_sheet)
         if result.errors:
             return result
