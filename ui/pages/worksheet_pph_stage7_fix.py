@@ -16,17 +16,17 @@ from ui.performance import optimize_scroll_area
 
 
 class WorksheetPage(BaseWorksheetPage):
-    """Perbaikan Stage 7 berdasarkan hasil uji nyata worksheet EVY BACHTIAR.
+    """Perbaikan Stage 7 untuk alur Worksheet produksi.
 
     Perbaikan:
     - field Penghasilan Dalam Negeri Lainnya dan Zakat pada Ringkasan PPh selalu
       mengikuti state yang benar-benar dipakai engine kalkulasi;
     - Total Harta Tahun Sebelumnya dapat diisi sebagai baseline manual bila file
-      Coretax tahun berjalan tidak membawa nilai tahun sebelumnya;
+      tahun berjalan tidak membawa nilai tahun sebelumnya;
     - rekonsiliasi memberi informasi sumber baseline agar nilai 0 yang sebenarnya
       berarti 'belum tersedia' tidak dianggap sebagai baseline valid;
-    - hasil impor workbook Stage 8B.1 langsung mengisi tabel Bupot dari hasil
-      parsing workbook, sehingga UI tidak bergantung pada siklus reload database;
+    - hasil impor workbook langsung mengisi tabel Bupot dari hasil parsing workbook,
+      sehingga UI tidak bergantung pada siklus reload database;
     - tabel Harta / SIMULASI I menyediakan viewport minimal 10 baris data;
     - halaman Harta / SIMULASI I memiliki vertical page scrolling seperti halaman
       Penghasilan dan Analisis, sehingga toolbar dan tabel tetap dapat diakses pada
@@ -45,13 +45,10 @@ class WorksheetPage(BaseWorksheetPage):
     def __init__(self, parent=None):
         super().__init__(parent)
 
-        # Baseline tahun sebelumnya tidak selalu tersedia di file Coretax 2025.
-        # Field ini tetap menampilkan nilai otomatis bila ada, tetapi user boleh
-        # memberikan override manual. Masukkan 0 untuk kembali ke nilai otomatis.
         self.harta_prev_value.setReadOnly(False)
         self.harta_prev_value.setObjectName("")
         self.harta_prev_value.setToolTip(
-            "Isi Total Harta Tahun Sebelumnya bila baseline tidak tersedia dari file Coretax. "
+            "Isi Total Harta Tahun Sebelumnya bila baseline tidak tersedia dari file Kertas Kerja. "
             "Masukkan 0 untuk menggunakan nilai otomatis."
         )
         self.harta_prev_value.editingFinished.connect(
@@ -63,7 +60,6 @@ class WorksheetPage(BaseWorksheetPage):
         self._upgrade_bupot_table_to_rekap_fields()
         self._render_reconciliation()
         self._recalculate_pph_summary()
-
 
     BUPOT_HEADERS = (
         "NO",
@@ -92,8 +88,6 @@ class WorksheetPage(BaseWorksheetPage):
         "MEKANISME SP2D",
         "NO SP2D",
     )
-    # Jangan override konstanta Stage 1/2 saat __init__ base masih berjalan.
-    # Gunakan konstanta khusus tabel Rekap setelah upgrade selesai.
     REKAP_BRUTO_COLUMN = 12
     REKAP_DPP_COLUMN = 13
     REKAP_TARIF_COLUMN = 14
@@ -103,7 +97,6 @@ class WorksheetPage(BaseWorksheetPage):
     REKAP_RATE_COLUMNS = {13, 14}
 
     def _upgrade_bupot_table_to_rekap_fields(self):
-        """Gunakan struktur kolom Rekap Bupot sebagai tampilan Worksheet."""
         if not hasattr(self, "bupot_table"):
             return
 
@@ -302,12 +295,6 @@ class WorksheetPage(BaseWorksheetPage):
         return rows
 
     def _money_value(self, row: int, column: int) -> float:
-        """Bridge indeks tabel lama ke struktur Rekap Bupot.
-
-        Stage 3/4 lama masih meminta NETTO melalui BUPOT_NETTO_COLUMN=6.
-        Setelah tabel di-upgrade menjadi 25 kolom, kolom 6 adalah STATUS,
-        sehingga NETTO dihitung langsung dari BRUTO - PENGURANG BRUTO.
-        """
         if (
             hasattr(self, "bupot_table")
             and self.bupot_table.columnCount() >= len(self.BUPOT_HEADERS)
@@ -322,7 +309,6 @@ class WorksheetPage(BaseWorksheetPage):
         return self._money_value(row_index, self.REKAP_PPH_COLUMN)
 
     def _validate_bupot_rows(self):
-        """Validasi memakai lima anchor utama Rekap Bupot."""
         errors = []
         seen = {}
 
@@ -443,7 +429,6 @@ class WorksheetPage(BaseWorksheetPage):
         return f"{number:.4f}".rstrip("0").rstrip(".")
 
     def _configure_harta_visible_rows(self):
-        """Pastikan tabel Harta menampilkan sekitar 10 baris tanpa mengecilkan row height."""
         header = self.harta_table.horizontalHeader()
         header_height = max(header.height(), header.sizeHint().height())
         scrollbar_height = self.harta_table.horizontalScrollBar().sizeHint().height()
@@ -459,12 +444,6 @@ class WorksheetPage(BaseWorksheetPage):
         self.harta_table.setMinimumHeight(target_height)
 
     def _install_harta_page_scrolling(self):
-        """Bungkus seluruh isi tab Harta dengan scroll vertikal level halaman.
-
-        Tabel tetap mempunyai scroll horizontal sendiri untuk kolom yang lebar.
-        Scroll vertikal ini khusus untuk bergerak dari info/header ke toolbar dan
-        area tabel ketika tinggi jendela tidak cukup menampilkan semuanya sekaligus.
-        """
         tab_index = self.tabs.indexOf(self.harta_tab)
         if tab_index < 0:
             return
@@ -485,8 +464,6 @@ class WorksheetPage(BaseWorksheetPage):
         self.harta_scroll_area.setMinimumWidth(0)
         self.harta_scroll_area.setSizePolicy(QSizePolicy.Expanding, QSizePolicy.Expanding)
 
-        # Tinggi minimum konten memaksa QScrollArea menyediakan range vertikal saat
-        # aplikasi berada pada mode windowed. Lebar tetap mengikuti viewport.
         self.harta_tab.setMinimumWidth(0)
         self.harta_tab.setMinimumHeight(720)
         self.harta_tab.setSizePolicy(QSizePolicy.Expanding, QSizePolicy.MinimumExpanding)
@@ -497,17 +474,39 @@ class WorksheetPage(BaseWorksheetPage):
         self.tabs.setTabToolTip(tab_index, tab_tooltip)
 
     def load_workbook_import_result(self, import_result):
-        """Sinkronkan Kertas Kerja ke Worksheet; Bupot berasal dari input terpisah."""
+        """Sinkronkan Sheet Tahun, SIMULASI I, dan REVISI ke Worksheet."""
         pipeline = getattr(import_result, "pipeline_result", None)
         if pipeline is not None:
             self.load_harta_preview(pipeline)
+
+        revision_rows = list(
+            getattr(import_result, "revision_harta_rows", []) or []
+        )
+        if pipeline is not None and revision_rows:
+            # SIMULASI I tetap menjadi Original Import. REVISI menjadi kondisi
+            # Edited / Current awal, sehingga perbedaan tetap dapat diaudit.
+            self.harta_current_rows = list(revision_rows)
+            self.harta_saved_rows = list(revision_rows)
+            self._refresh_harta_actions()
+            self._update_harta_status(saved=True)
+
+        year = int(getattr(import_result, "tahun_pajak", 0) or 0)
+        if year and hasattr(self, "pph_tab"):
+            pph_index = self.tabs.indexOf(self.pph_tab)
+            if pph_index >= 0:
+                self.tabs.setTabText(pph_index, f"Penghasilan & PPh {year}")
 
         if pipeline is not None and hasattr(self, "_load_pph_state_for_current_wp"):
             self._load_pph_state_for_current_wp()
 
         if hasattr(self, "toast_notification"):
+            revision_note = (
+                f" REVISI dimuat sebagai Edited / Current ({len(revision_rows)} Harta)."
+                if revision_rows
+                else ""
+            )
             self.toast_notification.show_message(
-                "Kertas Kerja berhasil dimuat. Bupot menggunakan input Rekap/PDF terpisah.",
+                f"Kertas Kerja Tahun {year or '-'} berhasil dimuat.{revision_note}",
                 "success",
                 3200,
             )
@@ -553,8 +552,6 @@ class WorksheetPage(BaseWorksheetPage):
                 3600,
             )
 
-        # Jika user mengetik nilai yang sama dengan sumber otomatis, tidak perlu
-        # menyimpan override. Nilai 0 juga berarti kembali ke sumber otomatis.
         if value <= 0 or (
             automatic_previous > 0 and abs(value - automatic_previous) < 0.5
         ):
@@ -567,9 +564,6 @@ class WorksheetPage(BaseWorksheetPage):
     def _recalculate_pph_summary(self):
         super()._recalculate_pph_summary()
 
-        # Stage 6 mengubah dua komponen ini menjadi read-only karena nilainya
-        # berasal dari card Penghasilan Lainnya. Pastikan teks ringkasan juga
-        # mengikuti state internal setiap kali kalkulasi dilakukan.
         if not hasattr(self, "pph_auto_values"):
             return
         for key in (
@@ -594,8 +588,6 @@ class WorksheetPage(BaseWorksheetPage):
             self._reconciliation_manual.get("harta_sebelumnya_override", 0.0) or 0
         )
 
-        # Super menampilkan effective previous. Pastikan field baseline tetap
-        # editable setelah render dan jelaskan sumber nilai yang sedang digunakan.
         self.harta_prev_value.setReadOnly(False)
         self.harta_prev_value.setObjectName("")
         self._repolish_widget(self.harta_prev_value)
