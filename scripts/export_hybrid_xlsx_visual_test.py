@@ -196,13 +196,16 @@ def main() -> int:
     print("HYBRID XLSX VISUAL TEST BERHASIL")
     print("=" * 62)
     print(f"File      : {result.output_path.resolve()}")
-    print("Cek sheet :")
-    print("  1. 01 eForm Induk H1")
-    print("  2. 02 eForm Induk H2")
-    print("  3. 03 Legacy Lamp I H2")
+    print("Cek keenam sheet visual:")
+    print("  1. 01 eForm Induk H1          -> format baru")
+    print("  2. 02 eForm Induk H2          -> format baru")
+    print("  3. 03 Legacy Lamp I H2        -> format lama")
+    print("  4. 04 Legacy Lamp II          -> format lama")
+    print("  5. 05 Legacy Lamp III         -> format lama")
+    print("  6. 06 Legacy Lamp IV          -> format lama")
     print()
-    print("Gunakan Excel > File > Print untuk memastikan H1 dan H2 masing-masing")
-    print("muat dalam satu halaman Legal.")
+    print("Pastikan seluruh halaman menggunakan kertas Legal dan proporsi tidak melebar.")
+    print("Khusus Lampiran IV, cek data Harta, JUMLAH BAGIAN A, serta struktur Bagian B dan C.")
     return 0
 
 
