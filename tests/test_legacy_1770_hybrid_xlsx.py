@@ -110,10 +110,7 @@ class TestLegacy1770HybridXlsx(unittest.TestCase):
 
     def test_export_builds_hybrid_and_roundtrip_sheets(self):
         result = self.service.export(
-            _input(),
-            self.path,
-            revision=3,
-            snapshot_hash="snapshot-abc",
+            _input(), self.path, revision=3, snapshot_hash="snapshot-abc"
         )
         self.assertTrue(result.ok)
 
@@ -142,66 +139,37 @@ class TestLegacy1770HybridXlsx(unittest.TestCase):
             wb["03 Legacy Lamp I H2"]["D1"].value,
             "SPT TAHUNAN PPh WAJIB PAJAK ORANG PRIBADI",
         )
-        self.assertEqual(
-            wb["03 Legacy Lamp I H2"]["A3"].value,
-            "LAMPIRAN - I",
-        )
-        self.assertEqual(
-            wb["03 Legacy Lamp I H2"]["I1"].value,
-            "FORMULIR\n1770 - I",
-        )
+        self.assertEqual(wb["03 Legacy Lamp I H2"]["A3"].value, "LAMPIRAN - I")
+        self.assertEqual(wb["03 Legacy Lamp I H2"]["I1"].value, "FORMULIR\n1770 - I")
 
     def test_first_two_pages_follow_new_eform_sections(self):
-        self.service.export(
-            _input(),
-            self.path,
-            revision=3,
-            snapshot_hash="snapshot-abc",
-        )
+        self.service.export(_input(), self.path, revision=3, snapshot_hash="snapshot-abc")
         wb = load_workbook(self.path, data_only=False)
         page1 = wb["01 eForm Induk H1"]
         page2 = wb["02 eForm Induk H2"]
 
-        page1_values = [
-            str(page1.cell(row, 1).value or "")
-            for row in range(1, page1.max_row + 1)
-        ]
-        page2_values = [
-            str(page2.cell(row, 1).value or "")
-            for row in range(1, page2.max_row + 1)
-        ]
+        page1_values = [str(page1.cell(row, 1).value or "") for row in range(1, page1.max_row + 1)]
+        page2_values = [str(page2.cell(row, 1).value or "") for row in range(1, page2.max_row + 1)]
 
         self.assertIn("A. IDENTITAS WAJIB PAJAK", page1_values)
         self.assertIn("B. IKHTISAR PENGHASILAN NETO", page1_values)
         self.assertIn("C. PERHITUNGAN PPh TERUTANG", page1_values)
         self.assertIn("D. KREDIT PAJAK", page1_values)
-
         self.assertIn("E. PPh KURANG/LEBIH BAYAR", page2_values)
-        self.assertIn(
-            "F. PEMBETULAN (DIISI JIKA STATUS SPT ADALAH PEMBETULAN)",
-            page2_values,
-        )
+        self.assertIn("F. PEMBETULAN (DIISI JIKA STATUS SPT ADALAH PEMBETULAN)", page2_values)
         self.assertIn("H. ANGSURAN PPh PASAL 25 TAHUN PAJAK BERIKUTNYA", page2_values)
         self.assertIn("I. PERNYATAAN TRANSAKSI LAINNYA", page2_values)
         self.assertIn("J. LAMPIRAN TAMBAHAN", page2_values)
         self.assertIn("K. PERNYATAAN", page2_values)
 
     def test_new_eform_pages_are_print_ready_legal_single_page(self):
-        self.service.export(
-            _input(),
-            self.path,
-            revision=3,
-            snapshot_hash="snapshot-abc",
-        )
+        self.service.export(_input(), self.path, revision=3, snapshot_hash="snapshot-abc")
         wb = load_workbook(self.path, data_only=False)
 
         for sheet_name in ("01 eForm Induk H1", "02 eForm Induk H2"):
             ws = wb[sheet_name]
             self.assertEqual(ws.page_setup.orientation, "portrait")
-            self.assertEqual(
-                str(ws.page_setup.paperSize),
-                str(ws.PAPERSIZE_LEGAL),
-            )
+            self.assertEqual(str(ws.page_setup.paperSize), str(ws.PAPERSIZE_LEGAL))
             self.assertEqual(ws.page_setup.fitToWidth, 1)
             self.assertEqual(ws.page_setup.fitToHeight, 1)
             self.assertTrue(ws.sheet_properties.pageSetUpPr.fitToPage)
@@ -209,12 +177,7 @@ class TestLegacy1770HybridXlsx(unittest.TestCase):
             self.assertTrue(str(ws.print_area).startswith("'") or str(ws.print_area).startswith("$A$1"))
 
     def test_all_visible_output_sheets_use_legal_paper(self):
-        self.service.export(
-            _input(),
-            self.path,
-            revision=3,
-            snapshot_hash="snapshot-abc",
-        )
+        self.service.export(_input(), self.path, revision=3, snapshot_hash="snapshot-abc")
         wb = load_workbook(self.path, data_only=False)
 
         expected = (
@@ -229,30 +192,17 @@ class TestLegacy1770HybridXlsx(unittest.TestCase):
         )
         for sheet_name in expected:
             ws = wb[sheet_name]
-            self.assertEqual(
-                str(ws.page_setup.paperSize),
-                str(ws.PAPERSIZE_LEGAL),
-                sheet_name,
-            )
+            self.assertEqual(str(ws.page_setup.paperSize), str(ws.PAPERSIZE_LEGAL), sheet_name)
 
     def test_legacy_lampiran_i_h2_renders_bagian_b_c_d_from_final_data(self):
         data = _input()
         data.pph_components["penghasilan_neto_lainnya"] = 54001000.0
         data.pph_calc_result["penghasilan_neto_lainnya"] = 54001000.0
 
-        self.service.export(
-            data,
-            self.path,
-            revision=3,
-            snapshot_hash="snapshot-abc",
-        )
-        wb = load_workbook(self.path, data_only=False)
-        ws = wb["03 Legacy Lamp I H2"]
+        self.service.export(data, self.path, revision=3, snapshot_hash="snapshot-abc")
+        ws = load_workbook(self.path, data_only=False)["03 Legacy Lamp I H2"]
+        values = [str(ws.cell(row, 1).value or "") for row in range(1, ws.max_row + 1)]
 
-        values = [
-            str(ws.cell(row, 1).value or "")
-            for row in range(1, ws.max_row + 1)
-        ]
         self.assertIn(
             "BAGIAN B : PENGHASILAN NETO DALAM NEGERI DARI USAHA DAN/ATAU PEKERJAAN BEBAS",
             values,
@@ -261,46 +211,26 @@ class TestLegacy1770HybridXlsx(unittest.TestCase):
             "BAGIAN C : PENGHASILAN NETO DALAM NEGERI SEHUBUNGAN DENGAN PEKERJAAN",
             values,
         )
-        self.assertIn(
-            "BAGIAN D : PENGHASILAN NETO DALAM NEGERI LAINNYA",
-            values,
+        self.assertIn("BAGIAN D : PENGHASILAN NETO DALAM NEGERI LAINNYA", values)
+
+        text = " ".join(
+            str(ws.cell(row, col).value or "")
+            for row in range(1, ws.max_row + 1)
+            for col in range(1, 11)
         )
-
-        # Sample Bupot: bruto 500.000 - pengurang 250.000 = netto 250.000.
-        found_bupot_identity = False
-        found_netto = False
-        found_domestic_other = False
-        for row in range(1, ws.max_row + 1):
-            row_values = [ws.cell(row, col).value for col in range(1, 11)]
-            joined = " ".join(str(v or "") for v in row_values)
-            if "PEMOTONG" in joined and "0072103856707000" in joined:
-                found_bupot_identity = True
-            if 250000 in row_values:
-                found_netto = True
-            if 54001000 in row_values:
-                found_domestic_other = True
-
-        self.assertTrue(found_bupot_identity)
-        self.assertTrue(found_netto)
-        self.assertTrue(found_domestic_other)
+        self.assertIn("PEMOTONG", text)
+        self.assertIn("0072103856707000", text)
+        self.assertIn("250000", text)
+        self.assertIn("54001000", text)
         self.assertEqual(str(ws.page_setup.paperSize), str(ws.PAPERSIZE_LEGAL))
         self.assertEqual(ws.page_setup.orientation, "portrait")
         self.assertEqual(ws.page_setup.fitToHeight, 1)
 
     def test_hybrid_pages_keep_compact_column_widths(self):
-        self.service.export(
-            _input(),
-            self.path,
-            revision=3,
-            snapshot_hash="snapshot-abc",
-        )
+        self.service.export(_input(), self.path, revision=3, snapshot_hash="snapshot-abc")
         wb = load_workbook(self.path, data_only=False)
 
-        for sheet_name in (
-            "01 eForm Induk H1",
-            "02 eForm Induk H2",
-            "03 Legacy Lamp I H2",
-        ):
+        for sheet_name in ("01 eForm Induk H1", "02 eForm Induk H2", "03 Legacy Lamp I H2"):
             ws = wb[sheet_name]
             widths = [
                 float(ws.column_dimensions[col].width or 0)
@@ -310,22 +240,19 @@ class TestLegacy1770HybridXlsx(unittest.TestCase):
             self.assertLessEqual(widths[0], 5.0, sheet_name)
 
     def test_hybrid_format_boundary_is_locked_after_page_two(self):
-        self.service.export(
-            _input(),
-            self.path,
-            revision=3,
-            snapshot_hash="snapshot-abc",
-        )
+        self.service.export(_input(), self.path, revision=3, snapshot_hash="snapshot-abc")
         wb = load_workbook(self.path, data_only=False)
 
         self.assertEqual(wb["01 eForm Induk H1"]["I3"].value, "HALAMAN 1")
         self.assertEqual(wb["02 eForm Induk H2"]["I3"].value, "HALAMAN 2")
+        self.assertEqual(wb["03 Legacy Lamp I H2"]["A3"].value, "LAMPIRAN - I")
 
-        self.assertEqual(
-            wb["03 Legacy Lamp I H2"]["A3"].value,
-            "LAMPIRAN - I",
-        )
-        self.assertEqual(wb["04 Legacy Lamp II"]["H3"].value, "FORMAT LAMA / LEGACY DJP")
+        lamp2 = wb["04 Legacy Lamp II"]
+        self.assertEqual(lamp2["C1"].value, "LAMPIRAN - II")
+        self.assertIn("1770 - II", str(lamp2["A1"].value or ""))
+        self.assertEqual(lamp2["C2"].value, "SPT TAHUNAN PPh WAJIB PAJAK ORANG PRIBADI")
+
+        # Lampiran III-IV masih memakai kerangka legacy sampai renderernya diisi.
         self.assertEqual(wb["05 Legacy Lamp III"]["H3"].value, "FORMAT LAMA / LEGACY DJP")
         self.assertEqual(wb["06 Legacy Lamp IV"]["H3"].value, "FORMAT LAMA / LEGACY DJP")
 
@@ -339,12 +266,7 @@ class TestLegacy1770HybridXlsx(unittest.TestCase):
             self.assertEqual(str(ws.page_setup.paperSize), str(ws.PAPERSIZE_LEGAL))
 
     def test_roundtrip_reads_user_edits_and_keeps_provenance(self):
-        self.service.export(
-            _input(),
-            self.path,
-            revision=7,
-            snapshot_hash="snapshot-final-7",
-        )
+        self.service.export(_input(), self.path, revision=7, snapshot_hash="snapshot-final-7")
 
         wb = load_workbook(self.path)
         harta = wb[DATA_HARTA_SHEET]
@@ -362,7 +284,6 @@ class TestLegacy1770HybridXlsx(unittest.TestCase):
             expected_year=2025,
             expected_snapshot_hash="snapshot-final-7",
         )
-
         self.assertTrue(result.ok)
         self.assertEqual(result.base_revision, 7)
         self.assertEqual(result.base_snapshot_hash, "snapshot-final-7")
@@ -373,12 +294,7 @@ class TestLegacy1770HybridXlsx(unittest.TestCase):
         self.assertEqual(result.bupot_rows[0].pph_dipotong, 15000)
 
     def test_roundtrip_rejects_wrong_wp_or_snapshot(self):
-        self.service.export(
-            _input(),
-            self.path,
-            revision=2,
-            snapshot_hash="snapshot-2",
-        )
+        self.service.export(_input(), self.path, revision=2, snapshot_hash="snapshot-2")
 
         wrong_wp = self.service.import_revision(
             self.path,
