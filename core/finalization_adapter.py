@@ -42,7 +42,9 @@ class FinalizationAdapter:
                 zakat=0.0,
                 status_ptkp="",
                 pph_calc_result={},
-                analisis_result=getattr(worksheet, "_last_reconciliation", None),
+                # Jangan membawa hasil rekonsiliasi dari sesi/WP sebelumnya
+                # ketika belum ada pipeline aktif.
+                analisis_result=None,
                 is_harta_dirty=False,
                 is_pph_dirty=False,
                 is_analisis_dirty=False,
@@ -99,7 +101,16 @@ class FinalizationAdapter:
         pph_calc_result = cls._dataclass_dict(
             getattr(worksheet, "_last_pph_calculation", None)
         )
-        analisis_result = getattr(worksheet, "_last_reconciliation", None)
+
+        # Engine Analisis dapat menghasilkan angka default (misalnya biaya hidup)
+        # walaupun identitas pajak aktif belum lengkap. Jangan perlakukan angka
+        # default/stale tersebut sebagai data Finalisasi. Status PTKP adalah
+        # prasyarat minimum sebelum hasil rekonsiliasi dianggap milik konteks aktif.
+        analisis_result = (
+            getattr(worksheet, "_last_reconciliation", None)
+            if status_ptkp
+            else None
+        )
 
         is_harta_dirty = bool(
             getattr(worksheet, "_has_unsaved_harta_changes", lambda: False)()
