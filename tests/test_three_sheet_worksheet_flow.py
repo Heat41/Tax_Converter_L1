@@ -4,6 +4,7 @@ from types import SimpleNamespace
 
 from PySide6.QtWidgets import QApplication
 
+from core.mapping.worksheet_harta_mapper import WorksheetHartaRow
 from core.three_sheet_worksheet_importer import ThreeSheetWorksheetWorkbookImporter
 from ui.pages.input_data_page import InputDataPage
 from ui.pages.worksheet_pph_stage7_fix import WorksheetPage
@@ -47,6 +48,36 @@ class TestThreeSheetWorksheetFlow(unittest.TestCase):
             self.assertIn("Penghasilan & PPh 2024", titles)
         finally:
             page.deleteLater()
+
+    def test_harta_header_row_is_not_asset(self):
+        importer = ThreeSheetWorksheetWorkbookImporter()
+        header = WorksheetHartaRow(
+            nomor=1,
+            kode_eform="KODE EFORM",
+            kode_ct="KODE CT",
+            nama_harta="NAMA HARTA",
+            nomor_akun_keterangan="NOMOR AKUN / KETERANGAN",
+            atas_nama="ATAS NAMA",
+            nama_bank="NAMA BANK",
+            tahun_perolehan=2025,
+            nilai_tahun_sebelumnya=0,
+            nilai_tahun_berjalan=0,
+        )
+        real_asset = WorksheetHartaRow(
+            nomor=2,
+            kode_eform="011",
+            kode_ct="0101",
+            nama_harta="Kas",
+            nomor_akun_keterangan="",
+            atas_nama="VIKTOR",
+            nama_bank="",
+            tahun_perolehan=2024,
+            nilai_tahun_sebelumnya=1000000,
+            nilai_tahun_berjalan=1500000,
+        )
+
+        self.assertTrue(importer._is_harta_header_row(header))
+        self.assertFalse(importer._is_harta_header_row(real_asset))
 
 
 if __name__ == "__main__":
