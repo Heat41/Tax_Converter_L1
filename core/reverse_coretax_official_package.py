@@ -6,7 +6,9 @@ from dataclasses import asdict, dataclass, field
 from pathlib import Path
 from typing import Dict, List, Optional
 
+from core.coretax_official_schema import get_official_schema
 from core.reverse_coretax_mapping import (
+    CATEGORY_ORDER,
     ReverseCoretaxMappingService,
     ReverseCoretaxPackage,
 )
@@ -60,9 +62,12 @@ class OfficialCoretaxPackageExporter:
 
     Output:
       <output>/
-        excel/   -> Excel hanya untuk kategori yang memiliki data
-        xml/     -> XML hanya untuk kategori berdata yang punya referensi resmi
+        excel/   -> enam Excel resmi L-1; kategori kosong tetap dibuat
+        xml/     -> XML untuk kategori yang sudah memiliki kontrak XML resmi
         manifest.json
+
+    Manifest mencatat coverage XML agar paket tidak mengklaim 6/6 sebelum
+    kontrak resmi PIUTANG dan LAINNYA tersedia.
     """
 
     MANIFEST_VERSION = 1
@@ -113,6 +118,17 @@ class OfficialCoretaxPackageExporter:
                 "sha256": self._sha256(path),
             }
 
+        xml_supported_categories = [
+            category
+            for category in CATEGORY_ORDER
+            if get_official_schema(category).has_xml_reference
+        ]
+        xml_missing_schema_categories = [
+            category
+            for category in CATEGORY_ORDER
+            if not get_official_schema(category).has_xml_reference
+        ]
+
         return {
             "manifest_version": self.MANIFEST_VERSION,
             "stage": "8D.4E",
@@ -134,7 +150,9 @@ class OfficialCoretaxPackageExporter:
             "xml": {
                 "file_count": len(xml_files),
                 "files": xml_files,
-                "unsupported_categories": list(
+                "supported_categories": xml_supported_categories,
+                "missing_schema_categories": xml_missing_schema_categories,
+                "unsupported_active_categories": list(
                     result.xml_result.unsupported_categories
                 ),
             },
