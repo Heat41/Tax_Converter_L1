@@ -9,19 +9,19 @@ from ui.pages.worksheet_pph_stage7_fix import WorksheetPage
 app = QApplication.instance() or QApplication(sys.argv)
 
 
-class TestEvyStage7SummaryGolden(unittest.TestCase):
+class TestStage7SummaryGolden(unittest.TestCase):
     def setUp(self):
         self.page = WorksheetPage()
 
     def tearDown(self):
         self.page.deleteLater()
 
-    def test_evy_honor_does_not_become_domestic_other_income(self):
+    def test_honor_does_not_become_domestic_other_income(self):
         self.page._add_bupot_row()
         self.page.bupot_table.item(0, 1).setText("BP21")
-        self.page.bupot_table.item(0, 2).setText("TEST-EVY-2025")
+        self.page.bupot_table.item(0, 2).setText("TEST-BUPOT-2025")
         self.page.bupot_table.item(0, 7).setText("6101015612710001")
-        self.page.bupot_table.item(0, 8).setText("EVY BACHTIAR")
+        self.page.bupot_table.item(0, 8).setText("WAJIB PAJAK TEST")
         self.page.bupot_table.item(0, 12).setText("1.037.999.641")
         self.page.bupot_table.item(0, 15).setText("249.079.224")
         self.page.bupot_table.item(0, 20).setText("0123456789012345")
