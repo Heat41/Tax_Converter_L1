@@ -51,7 +51,7 @@ def test_stage8d4k_source_and_export_match(tmp_path):
         (
             "0102",
             "12345",
-            "EVY",
+            "TEST WP",
             "BANK",
             "Indonesia",
             2025,
@@ -63,7 +63,7 @@ def test_stage8d4k_source_and_export_match(tmp_path):
         (
             "0102",
             "12345",
-            "EVY",
+            "TEST WP",
             "BANK",
             "Indonesia",
             2025,
@@ -94,7 +94,7 @@ def test_stage8d4k_numeric_representation_does_not_create_false_difference(tmp_p
         (
             "0102",
             "12345",
-            "EVY",
+            "TEST WP",
             "BANK",
             "Indonesia",
             "2025",
@@ -106,7 +106,7 @@ def test_stage8d4k_numeric_representation_does_not_create_false_difference(tmp_p
         (
             "0102",
             "12345",
-            "EVY",
+            "TEST WP",
             "BANK",
             "Indonesia",
             2025,
@@ -134,7 +134,7 @@ def test_stage8d4k_reports_exact_different_field(tmp_path):
         (
             "0102",
             "12345",
-            "EVY",
+            "TEST WP",
             "BANK A",
             "Indonesia",
             2025,
@@ -146,7 +146,7 @@ def test_stage8d4k_reports_exact_different_field(tmp_path):
         (
             "0102",
             "12345",
-            "EVY",
+            "TEST WP",
             "BANK B",
             "Indonesia",
             2025,
