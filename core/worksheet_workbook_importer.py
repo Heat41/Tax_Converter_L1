@@ -321,26 +321,131 @@ class WorksheetWorkbookImporter:
                 return value
         return default
 
+    def _value_right_of_labels(
+        self,
+        df,
+        labels,
+        preferred_col: Optional[int] = None,
+        default=0.0,
+    ):
+        """Ambil nilai dari salah satu variasi label Kertas Kerja."""
+        for label in labels:
+            row = self._find_label_row(
+                df,
+                label,
+                columns=range(min(df.shape[1], 12)),
+            )
+            if row is None:
+                continue
+
+            if preferred_col is not None and preferred_col < df.shape[1]:
+                value = df.iat[row, preferred_col]
+                if not pd.isna(value) and value != "":
+                    return value
+
+            target = self._label(label)
+            for col in range(df.shape[1]):
+                value = df.iat[row, col]
+                if self._label(value) == target:
+                    continue
+                if not pd.isna(value) and value != "":
+                    return value
+        return default
+
+    def _find_tax_year_value_column(self, df, tahun_pajak: int) -> Optional[int]:
+        """Cari kolom nilai tahun aktif pada blok ringkasan Penghasilan."""
+        if not tahun_pajak:
+            return None
+
+        current = str(int(tahun_pajak))
+        previous = str(int(tahun_pajak) - 1)
+        fallback = None
+
+        for row in range(min(len(df), 80)):
+            labels = [
+                self._label(df.iat[row, col])
+                for col in range(df.shape[1])
+            ]
+            if current not in labels:
+                continue
+
+            current_col = labels.index(current)
+            if previous in labels:
+                return current_col
+            if fallback is None:
+                fallback = current_col
+
+        return fallback
+
     def _parse_pph_components(self, df, result):
-        status_ptkp = self._text(self._value_right_of_label(df, "PTKP", preferred_col=5, default="TK/0")) or "TK/0"
-        zakat = self._number(self._value_right_of_label(df, "PENGURANG PENGHASILAN NETO", preferred_col=5, default=0.0))
-        domestic_status = self._text(self._value_right_of_label(df, "Penghasilan Dalam Negeri Lainnya", preferred_col=4, default="TIDAK")).upper()
-        domestic_dpp = self._number(self._value_right_of_label(df, "Penghasilan Dalam Negeri Lainnya", preferred_col=5, default=0.0))
+        year_col = self._find_tax_year_value_column(
+            df,
+            int(getattr(result, "tahun_pajak", 0) or 0),
+        )
+
+        def annual_value(labels, fallback_col=5, default=0.0):
+            preferred = year_col if year_col is not None else fallback_col
+            return self._value_right_of_labels(
+                df,
+                labels,
+                preferred_col=preferred,
+                default=default,
+            )
+
+        status_ptkp = self._text(
+            self._value_right_of_label(
+                df, "PTKP", preferred_col=5, default="TK/0"
+            )
+        ) or "TK/0"
+        zakat = self._number(
+            self._value_right_of_label(
+                df,
+                "PENGURANG PENGHASILAN NETO",
+                preferred_col=5,
+                default=0.0,
+            )
+        )
+
+        domestic_labels = (
+            "Penghasilan Dalam Negeri Lainnya",
+            "Jumlah Penghasilan Dalam Negeri Lainnya",
+        )
+        domestic_dpp = self._number(
+            annual_value(domestic_labels, fallback_col=5, default=0.0)
+        )
+        domestic_status = self._text(
+            self._value_right_of_labels(
+                df,
+                domestic_labels,
+                preferred_col=4 if year_col is None else year_col,
+                default="TIDAK",
+            )
+        ).upper()
 
         other = {
-            "domestic_other_enabled": domestic_status not in {"", "TIDAK", "TIDAK ADA", "NO"} or domestic_dpp != 0,
+            "domestic_other_enabled": domestic_status not in {"", "0", "-", "TIDAK", "TIDAK ADA", "NO"} or domestic_dpp != 0,
             "domestic_other_dpp": domestic_dpp,
-            "sewa_dpp": self._number(self._value_right_of_label(df, "Sewa atas Tanah dan/atau Bangunan", preferred_col=5)),
-            "sewa_pph": self._number(self._value_right_of_label(df, "Sewa atas Tanah dan/atau Bangunan", preferred_col=6)),
-            "honor_dpp": self._number(self._value_right_of_label(df, "Honor", preferred_col=5)),
-            "honor_pph": self._number(self._value_right_of_label(df, "Honor", preferred_col=6)),
-            "pekerjaan_bebas_dpp": self._number(self._value_right_of_label(df, "Pekerjaan bebas", preferred_col=5)),
-            "prive_dpp": self._number(self._value_right_of_label(df, "Prive", preferred_col=5)),
-            "hibah_warisan_dpp": self._number(self._value_right_of_label(df, "Hibah / Warisan", preferred_col=5)),
+            "sewa_dpp": self._number(
+                annual_value((
+                    "Sewa atas Tanah dan/atau Bangunan",
+                    "Jumlah Penghasilan Sewa atas Tanah dan/atau Bangunan",
+                ))
+            ),
+            "sewa_pph": self._number(self._value_right_of_label(df, "Sewa atas Tanah dan/atau Bangunan", preferred_col=6, default=0.0)),
+            "honor_dpp": self._number(annual_value(("Honor", "Jumlah Penghasilan Honor"))),
+            "honor_pph": self._number(self._value_right_of_label(df, "Honor", preferred_col=6, default=0.0)),
+            "pekerjaan_bebas_dpp": self._number(
+                annual_value((
+                    "Pekerjaan bebas",
+                    "Jumlah Penghasilan Dari Pekerjaan Bebas",
+                    "Jumlah Penghasilan Pekerjaan Bebas",
+                ))
+            ),
+            "prive_dpp": self._number(annual_value(("Prive",), fallback_col=5)),
+            "hibah_warisan_dpp": self._number(annual_value(("Hibah / Warisan",), fallback_col=5)),
             "hibah_warisan_note": self._text(self._value_right_of_label(df, "Hibah / Warisan", preferred_col=7, default="")),
             "zakat": zakat,
         }
-
         final_rows = []
         final_row = self._find_label_row(df, "Penghasilan Final Lainnya", columns=range(min(df.shape[1], 10)))
         if final_row is not None:
