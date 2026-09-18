@@ -78,7 +78,7 @@ def test_lampiran_iii_keeps_aggregate_non_object_income_without_guessing_categor
     assert any(issue.code == "L3_W01" for issue in result.warnings)
 
 
-def test_lampiran_iii_is_not_hardcoded_to_evy_values():
+def test_lampiran_iii_is_not_hardcoded_to_sample_values():
     document = Legacy1770Document(
         npwp="1234567890123456",
         nama_wp="DATA DINAMIS",
