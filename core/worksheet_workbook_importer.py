@@ -470,11 +470,42 @@ class WorksheetWorkbookImporter:
                     umkm_bruto[idx] = self._number(df.iat[row, 4]) if df.shape[1] > 4 else 0.0
                     umkm_pph_setor[idx] = self._number(df.iat[row, 6]) if df.shape[1] > 6 else 0.0
 
+        imported_neto_gabungan = self._number(
+            self._value_right_of_labels(
+                df,
+                (
+                    "Penghasilan Neto Gabungan",
+                    "Jumlah Penghasilan Neto Gabungan",
+                ),
+                preferred_col=year_col if year_col is not None else 5,
+                default=0.0,
+            )
+        )
+        imported_pkp = self._number(
+            self._value_right_of_labels(
+                df,
+                ("Penghasilan Kena Pajak",),
+                preferred_col=year_col if year_col is not None else 5,
+                default=0.0,
+            )
+        )
+        imported_pph_terutang = self._number(
+            self._value_right_of_labels(
+                df,
+                ("PPh21 Terutang", "PPh 21 Terutang"),
+                preferred_col=year_col if year_col is not None else 5,
+                default=0.0,
+            )
+        )
+
         result.pph_components = {
             "penghasilan_neto_lainnya": domestic_dpp if other["domestic_other_enabled"] else 0.0,
             "pengurang_penghasilan_neto": zakat,
             "ptkp": self._number(self._value_right_of_label(df, "PTKP", preferred_col=5, default=0.0)),
-            "pph_terutang": self._number(self._value_right_of_label(df, "PPh21 Terutang", preferred_col=5, default=0.0)),
+            "pph_terutang": imported_pph_terutang,
+            "penghasilan_neto_gabungan_imported": imported_neto_gabungan,
+            "pkp_imported": imported_pkp,
+            "pph_terutang_imported": imported_pph_terutang,
             "kredit_pajak": self._number(self._value_right_of_label(df, "PPh21 sudah dipotong/ dipungut", preferred_col=5, default=0.0)),
             "pph25": self._number(self._value_right_of_label(df, "Angsuran PPh Pasal 25", preferred_col=5, default=0.0)),
             "status_ptkp": status_ptkp,
