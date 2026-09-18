@@ -17,7 +17,7 @@ def test_cash_official_metadata_is_preserved_in_worksheet_row():
             kode_harta="0102",
             tahun_perolehan=2025,
             nomor_akun="116801005138508",
-            atas_nama="DR EVY BACHTIAR SPOG",
+            atas_nama="DR WAJIB PAJAK TEST SPOG",
             nama_bank_institusi="BRI",
             lokasi_negara="Indonesia",
             saldo_current=391742658,
@@ -27,7 +27,7 @@ def test_cash_official_metadata_is_preserved_in_worksheet_row():
 
     meta = row.coretax_metadata
     assert meta["account_number"] == "116801005138508"
-    assert meta["account_on_behalf_of"] == "DR EVY BACHTIAR SPOG"
+    assert meta["account_on_behalf_of"] == "DR WAJIB PAJAK TEST SPOG"
     assert meta["bank_name"] == "BRI"
     assert meta["country"] == "Indonesia"
     assert meta["balance"] == 391742658
@@ -44,7 +44,7 @@ def test_movable_asset_metadata_preserves_official_detail():
             nomor_polisi_registrasi="KB 1476 PI",
             jenis_kepemilikan=JenisKepemilikan.TAXPAYER,
             npwp_pemilik="6101015612710001",
-            nama_pemilik="EVY BACHTIAR",
+            nama_pemilik="WAJIB PAJAK TEST",
             biaya_perolehan_current=343750000,
             nilai_saat_ini_current=325000000,
         )
@@ -93,7 +93,7 @@ def test_metadata_survives_dataclass_snapshot_serialization():
             kode_harta="0305",
             tahun_perolehan=2025,
             nomor_identitas_institusi="6101015612710001",
-            nama_institusi="EVY BACHTIAR",
+            nama_institusi="WAJIB PAJAK TEST",
             nomor_akun_bukti="1971197117",
             lokasi_negara="Indonesia",
             biaya_perolehan_current=1000000000,
@@ -103,6 +103,6 @@ def test_metadata_survives_dataclass_snapshot_serialization():
 
     payload = asdict(row)
     assert payload["coretax_metadata"]["institution_tin"] == "6101015612710001"
-    assert payload["coretax_metadata"]["institution_name"] == "EVY BACHTIAR"
+    assert payload["coretax_metadata"]["institution_name"] == "WAJIB PAJAK TEST"
     assert payload["coretax_metadata"]["account_number"] == "1971197117"
     assert payload["coretax_metadata"]["current_balance"] == 1000000000
