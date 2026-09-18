@@ -89,7 +89,7 @@ def test_stage8d4e_builds_excel_xml_and_manifest(tmp_path):
     assert result.excel_result is not None
     assert set(result.excel_result.files) == set(CATEGORIES)
     assert result.xml_result is not None
-    assert set(result.xml_result.files) == {"KAS"}
+    assert set(result.xml_result.files) == set(CATEGORIES)
     assert result.manifest_path == output / "manifest.json"
     assert result.manifest_path.is_file()
 
@@ -149,14 +149,10 @@ def test_stage8d4e_manifest_records_supported_and_unsupported_outputs(tmp_path):
 
     assert manifest["excel"]["file_count"] == 6
     assert set(manifest["excel"]["files"]) == set(CATEGORIES)
-    assert manifest["xml"]["file_count"] == 1
-    assert set(manifest["xml"]["files"]) == {"KAS"}
-    assert manifest["xml"]["supported_categories"] == [
-        "KAS", "INVESTASI", "BERGERAK", "HTB"
-    ]
-    assert manifest["xml"]["missing_schema_categories"] == [
-        "PIUTANG", "LAINNYA"
-    ]
+    assert manifest["xml"]["file_count"] == 6
+    assert set(manifest["xml"]["files"]) == set(CATEGORIES)
+    assert manifest["xml"]["supported_categories"] == list(CATEGORIES)
+    assert manifest["xml"]["missing_schema_categories"] == []
     assert manifest["xml"]["unsupported_active_categories"] == []
 
 
