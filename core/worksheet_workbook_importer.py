@@ -589,15 +589,56 @@ class WorksheetWorkbookImporter:
         utang_row = self._find_label_row(df, "UTANG", columns=(0, 1, 2))
         if utang_row is not None:
             total_row = None
-            for row in range(utang_row + 1, min(len(df), utang_row + 12)):
-                if self._label(df.iat[row, 0]) == "total":
+            previous_col = None
+            current_col = None
+            current_year = int(getattr(result, "tahun_pajak", 0) or 0)
+            previous_year = current_year - 1 if current_year else 0
+
+            # Header UTANG biasanya memuat tahun sebelumnya dan tahun berjalan.
+            # Cari kolomnya secara dinamis agar tidak bergantung pada posisi tetap.
+            for scan_row in range(
+                max(0, utang_row - 1),
+                min(len(df), utang_row + 3),
+            ):
+                labels = [
+                    self._label(df.iat[scan_row, col])
+                    for col in range(df.shape[1])
+                ]
+                if current_year and str(current_year) in labels:
+                    current_col = labels.index(str(current_year))
+                if previous_year and str(previous_year) in labels:
+                    previous_col = labels.index(str(previous_year))
+
+            # Jangan batasi 11 baris. Pada workbook riil blok Utang bisa lebih
+            # panjang; cari TOTAL sampai blok berikutnya/akhir sheet.
+            for row in range(utang_row + 1, min(len(df), utang_row + 80)):
+                row_labels = {
+                    self._label(df.iat[row, col])
+                    for col in range(min(df.shape[1], 4))
+                }
+                if "total" in row_labels:
                     total_row = row
                     break
+                if any(
+                    label.startswith("perhitungan penghasilan")
+                    for label in row_labels
+                ):
+                    break
+
             if total_row is not None:
-                if df.shape[1] > 8:
-                    state["utang_sebelumnya"] = self._number(df.iat[total_row, 8])
-                if df.shape[1] > 9:
-                    state["utang_berjalan"] = self._number(df.iat[total_row, 9])
+                if previous_col is None and df.shape[1] > 8:
+                    previous_col = 8
+                if current_col is None and df.shape[1] > 9:
+                    current_col = 9
+
+                if previous_col is not None and previous_col < df.shape[1]:
+                    state["utang_sebelumnya"] = self._number(
+                        df.iat[total_row, previous_col]
+                    )
+                if current_col is not None and current_col < df.shape[1]:
+                    state["utang_berjalan"] = self._number(
+                        df.iat[total_row, current_col]
+                    )
 
         label_map = {
             "pengeluaran lain-lain": "pengeluaran_lain_lain",
