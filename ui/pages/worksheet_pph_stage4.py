@@ -205,6 +205,14 @@ class WorksheetPage(BaseWorksheetPage):
         kredit = float(self._pph_component_values.get("kredit_pajak", 0.0))
         pph25 = float(self._pph_component_values.get("pph25", 0.0))
 
+        imported_neto_gabungan = float(
+            self._pph_component_values.get(
+                "penghasilan_neto_gabungan_imported",
+                0.0,
+            )
+            or 0.0
+        )
+
         result = calculate_annual_pph(
             total_netto_bupot=total_netto,
             penghasilan_neto_lainnya=lainnya,
@@ -212,6 +220,11 @@ class WorksheetPage(BaseWorksheetPage):
             status_ptkp=self._status_ptkp,
             kredit_pajak=kredit,
             pph25=pph25,
+            penghasilan_neto_gabungan_override=(
+                imported_neto_gabungan
+                if imported_neto_gabungan > 0
+                else None
+            ),
         )
         self._last_pph_calculation = result
         self._pph_component_values["ptkp"] = result.ptkp
