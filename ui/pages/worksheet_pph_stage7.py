@@ -55,6 +55,7 @@ class WorksheetPage(BaseWorksheetPage):
             "harta_baru_dari_kredit": 0.0,
             "penambahan_penghasilan_bruto_umkm": 0.0,
             "margin_usaha": 0.0,
+            "penghasilan_netto_analisis": 0.0,
         }
 
     def _install_pph_stage7(self):
@@ -251,12 +252,24 @@ class WorksheetPage(BaseWorksheetPage):
         umkm_bruto = sum(float(value) for value in self._umkm_bruto)
         umkm_setor = sum(float(value) for value in self._umkm_pph_setor)
 
+        analysis_net_income = float(
+            self._reconciliation_manual.get(
+                "penghasilan_netto_analisis",
+                0.0,
+            )
+            or 0.0
+        )
         imported_net_income = float(
             self._pph_component_values.get(
                 "penghasilan_neto_gabungan_imported",
                 0.0,
             )
             or 0.0
+        )
+        reconciliation_net_income = (
+            analysis_net_income
+            if analysis_net_income > 0
+            else imported_net_income
         )
 
         result = calculate_reconciliation(
@@ -291,7 +304,9 @@ class WorksheetPage(BaseWorksheetPage):
             honor_dpp=self._other_income_state.get("honor_dpp", 0.0),
             final_other_dpp=final_result.total_dpp,
             penghasilan_netto_override=(
-                imported_net_income if imported_net_income > 0 else None
+                reconciliation_net_income
+                if reconciliation_net_income > 0
+                else None
             ),
         )
         self._last_reconciliation = result
