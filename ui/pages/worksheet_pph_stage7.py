@@ -21,6 +21,7 @@ from PySide6.QtWidgets import (
 
 from core.other_income import calculate_final_other_income
 from core.reconciliation import calculate_reconciliation
+from core.state_key_migration import legacy_component_key
 from ui.pages.worksheet_pph_stage6 import WorksheetPage as BaseWorksheetPage
 from ui.performance import optimize_scroll_area, optimize_table_interaction, suspended_updates
 
@@ -454,7 +455,7 @@ class WorksheetPage(BaseWorksheetPage):
             except Exception:
                 persisted = None
             if persisted is not None:
-                raw = persisted.components.get("reconciliation")\n                if not isinstance(raw, dict):\n                    raw = persisted.components.get("evy_reconciliation")
+                raw = persisted.components.get("reconciliation")\n                if not isinstance(raw, dict):\n                    raw = persisted.components.get(legacy_component_key("reconciliation"))
                 if isinstance(raw, dict):
                     for key in manual:
                         if key not in raw:
