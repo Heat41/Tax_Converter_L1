@@ -375,8 +375,8 @@ class WorksheetWorkbookImporter:
             "status_ptkp": status_ptkp,
             "umkm_bruto_bulanan": umkm_bruto,
             "umkm_pph_setor_bulanan": umkm_pph_setor,
-            "evy_other_income": other,
-            "evy_final_other_income_rows": final_rows,
+            "other_income": other,
+            "final_other_income_rows": final_rows,
         }
 
     def _find_main_income_label(self, df, row: int) -> bool:
@@ -484,4 +484,4 @@ class WorksheetWorkbookImporter:
                                 break
                     state[key] = value
 
-        result.pph_components["evy_reconciliation"] = state
+        result.pph_components["reconciliation"] = state
