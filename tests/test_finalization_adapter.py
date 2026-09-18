@@ -1,7 +1,7 @@
 import unittest
 from types import SimpleNamespace
 
-from core.evy_reconciliation import EvyReconciliationResult
+from core.reconciliation import ReconciliationResult
 from core.finalization_adapter import FinalizationAdapter
 from core.mapping.worksheet_harta_mapper import WorksheetHartaRow
 from core.worksheet_pph_state import WorksheetBupotRow
@@ -23,7 +23,7 @@ def _harta(value, name="Current"):
 
 
 def _analysis():
-    return EvyReconciliationResult(
+    return ReconciliationResult(
         total_harta_sebelumnya=10_000_000.0,
         total_harta_berjalan=15_000_000.0,
         total_utang_sebelumnya=0.0,
