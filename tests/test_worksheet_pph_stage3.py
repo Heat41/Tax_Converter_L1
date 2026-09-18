@@ -33,7 +33,7 @@ class TestWorksheetPPhStage3(unittest.TestCase):
                     kode_ct="0102",
                     nama_harta="Tabungan",
                     nomor_akun_keterangan="111",
-                    atas_nama="EVY BACHTIAR",
+                    atas_nama="WAJIB PAJAK TEST",
                     nama_bank="BRI",
                     tahun_perolehan=2025,
                     nilai_tahun_sebelumnya=0,
@@ -42,7 +42,7 @@ class TestWorksheetPPhStage3(unittest.TestCase):
             ],
             current_year=2025,
             npwp="6101015612710001",
-            nama_wp="EVY BACHTIAR",
+            nama_wp="WAJIB PAJAK TEST",
         )
         self.page.load_harta_preview(self.result)
 
