@@ -14,7 +14,7 @@ def _result(path: Path):
     return WorksheetWorkbookImportResult(
         source_path=path,
         npwp="6101015612710001",
-        nama_wp="EVY BACHTIAR",
+        nama_wp="WAJIB PAJAK TEST",
         tahun_pajak=2025,
         bupot_rows=[
             WorksheetBupotRow(
