@@ -32,6 +32,29 @@ class TestThreeSheetWorksheetFlow(unittest.TestCase):
         finally:
             page.deleteLater()
 
+
+    def test_sheet_status_includes_year_and_updates_from_manual_selection(self):
+        page = InputDataPage()
+        try:
+            page.worksheet_path = __import__("pathlib").Path("dummy.xlsx")
+            page.year_sheet_combo.addItems(["2024", "2025"])
+            page.simulasi_sheet_combo.addItems(["SIMULASI I"])
+            page.revisi_sheet_combo.addItems(["", "REVISI"])
+
+            page.year_sheet_combo.setCurrentText("2025")
+            page.simulasi_sheet_combo.setCurrentText("SIMULASI I")
+            page.revisi_sheet_combo.setCurrentText("")
+
+            page._refresh_sheet_selector_status()
+
+            text = page.sheet_selector_status.text()
+            self.assertIn("Sheet Tahun: ✓ 2025", text)
+            self.assertIn("SIMULASI I: ✓ ditemukan", text)
+            self.assertIn("REVISI: tidak ditemukan / opsional", text)
+            self.assertTrue(page.import_worksheet_button.isEnabled())
+        finally:
+            page.deleteLater()
+
     def test_pph_tab_title_follows_imported_year(self):
         page = WorksheetPage()
         try:
