@@ -62,7 +62,7 @@ def calculate_umkm_monthly(
     bruto_bulanan: Sequence[float] | None,
     pph_setor_bulanan: Sequence[float] | None = None,
 ) -> UMKMAnnualResult:
-    """Hitung PPh Final UMKM mengikuti formula sheet 2025 milik Evy.
+    """Hitung PPh Final UMKM mengikuti formula sheet tahun Kertas Kerja.
 
     Formula Excel per masa:
     ROUND(MAX(0, bruto_kumulatif - 500.000.000) * 0,5%
