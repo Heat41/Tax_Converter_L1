@@ -4,7 +4,7 @@ from dataclasses import dataclass
 from typing import Dict
 
 
-# Mengikuti tabel biaya hidup pada sheet 2025 kertas kerja EVY BACHTIAR.
+# Mengikuti tabel biaya hidup pada sheet tahun Kertas Kerja.
 # Dasar biaya hidup = Rp 1.600.000 / orang / bulan.
 LIVING_COST_PEOPLE_BY_PTKP: Dict[str, int] = {
     "TK/0": 1,
@@ -60,7 +60,7 @@ def calculate_evy_reconciliation(
     total_utang_sebelumnya: float = 0.0,
     total_utang_berjalan: float = 0.0,
     status_ptkp: str = "TK/0",
-    # Pajak-pajak mengikuti J58 pada SIMULASI I Evy.
+    # Pajak-pajak mengikuti blok pajak pada SIMULASI I.
     pph_umkm_setor: float = 0.0,
     pph21_terutang: float = 0.0,
     sewa_pph: float = 0.0,
@@ -96,7 +96,7 @@ def calculate_evy_reconciliation(
     biaya_hidup = living_cost_for_ptkp(status_ptkp)
 
     # SIMULASI I!J58 = '2025'!G50 + '2025'!F78 + SUM('2025'!G54:G60)
-    # Kertas kerja Evy menjumlahkan subtotal PPh Final Lainnya dan baris detailnya;
+    # Kertas Kerja menjumlahkan subtotal PPh Final Lainnya dan baris detailnya;
     # engine mempertahankan perilaku tersebut agar hasil rekonsiliasi identik.
     pajak_pajak = (
         float(pph_umkm_setor)
@@ -126,7 +126,7 @@ def calculate_evy_reconciliation(
     jumlah_bruto_final = (
         float(sewa_dpp) + umkm + float(honor_dpp) + float(final_other_dpp)
     )
-    # SIMULASI I!J18 pada data Evy = Prive + Hibah/Warisan.
+    # Pos rekonsiliasi SIMULASI I = Prive + Hibah/Warisan.
     jumlah_bukan_objek = float(prive_dpp) + float(hibah_warisan_dpp)
 
     # SIMULASI I!J68 = SUM(J65:J66)*J67 + SUM(J12:J14,J18) + J11 - J8
