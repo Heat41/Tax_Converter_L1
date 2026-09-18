@@ -46,7 +46,7 @@ def _document(*, bupot_count: int, harta_count: int) -> Legacy1770Document:
     )
 
 
-def test_multipage_plan_for_evy_sized_bupot_set():
+def test_multipage_plan_for_reference_sized_bupot_set():
     # 24 Bupot: Lampiran I Bagian C = 4 halaman (6 per halaman),
     # Lampiran II = 2 halaman (15 per halaman), Harta 10 = 1 halaman.
     plan = Legacy1770MultipageService().build_plan(
