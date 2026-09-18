@@ -17,10 +17,10 @@ from PySide6.QtWidgets import (
     QVBoxLayout,
 )
 
-from core.evy_other_income import (
+from core.other_income import (
     FinalOtherIncomeRow,
     calculate_final_other_income,
-    default_evy_final_other_income_rows,
+    default_final_other_income_rows,
 )
 from ui.pages.worksheet_pph_stage5 import WorksheetPage as BaseWorksheetPage
 from ui.performance import optimize_table_interaction, suspended_updates
@@ -44,7 +44,7 @@ class WorksheetPage(BaseWorksheetPage):
         self._rendering_other_income = False
         self._other_income_state = self._default_other_income_state()
         self._saved_other_income_state = deepcopy(self._other_income_state)
-        self._final_other_income_rows = default_evy_final_other_income_rows()
+        self._final_other_income_rows = default_final_other_income_rows()
         self._saved_final_other_income_rows = list(self._final_other_income_rows)
         self._last_final_other_income = None
         super().__init__(parent)
@@ -446,7 +446,7 @@ class WorksheetPage(BaseWorksheetPage):
             return
 
         state = self._default_other_income_state()
-        final_rows = default_evy_final_other_income_rows()
+        final_rows = default_final_other_income_rows()
         npwp, year = self._current_pph_identity()
         if npwp and year:
             try:
@@ -454,7 +454,7 @@ class WorksheetPage(BaseWorksheetPage):
             except Exception:
                 persisted = None
             if persisted is not None:
-                raw_state = persisted.components.get("evy_other_income")
+                raw_state = persisted.components.get("other_income")\n                if not isinstance(raw_state, dict):\n                    raw_state = persisted.components.get("evy_other_income")
                 if isinstance(raw_state, dict):
                     for key in state:
                         if key in raw_state:
@@ -467,7 +467,7 @@ class WorksheetPage(BaseWorksheetPage):
                                     state[key] = max(0.0, float(raw_state[key] or 0))
                                 except (TypeError, ValueError):
                                     pass
-                raw_final = persisted.components.get("evy_final_other_income_rows")
+                raw_final = persisted.components.get("final_other_income_rows")\n                if not isinstance(raw_final, list):\n                    raw_final = persisted.components.get("evy_final_other_income_rows")
                 if isinstance(raw_final, list):
                     parsed = []
                     for item in raw_final:
@@ -497,7 +497,7 @@ class WorksheetPage(BaseWorksheetPage):
         super()._clear_bupot_working_state()
         self._other_income_state = self._default_other_income_state()
         self._saved_other_income_state = deepcopy(self._other_income_state)
-        self._final_other_income_rows = default_evy_final_other_income_rows()
+        self._final_other_income_rows = default_final_other_income_rows()
         self._saved_final_other_income_rows = list(self._final_other_income_rows)
         if hasattr(self, "other_income_table"):
             self._render_other_income()
@@ -546,8 +546,8 @@ class WorksheetPage(BaseWorksheetPage):
         components["umkm_pph_setor_bulanan"] = [
             float(value) for value in self._umkm_pph_setor
         ]
-        components["evy_other_income"] = deepcopy(self._other_income_state)
-        components["evy_final_other_income_rows"] = [
+        components["other_income"] = deepcopy(self._other_income_state)
+        components["final_other_income_rows"] = [
             {
                 "keterangan": row.keterangan,
                 "dpp": float(row.dpp),
