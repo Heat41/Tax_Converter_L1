@@ -82,7 +82,7 @@ def _package():
     return package
 
 
-def test_stage8d4c_exports_only_populated_category_files(tmp_path):
+def test_stage8d4c_exports_all_six_category_files(tmp_path):
     templates = tmp_path / "templates"
     output = tmp_path / "output"
     _create_all_templates(templates)
@@ -93,9 +93,10 @@ def test_stage8d4c_exports_only_populated_category_files(tmp_path):
     )
 
     assert result.ok
-    assert set(result.files) == {"KAS"}
-    assert result.row_counts == {"KAS": 1}
-    assert result.files["KAS"].exists()
+    assert set(result.files) == set(CATEGORIES)
+    assert result.row_counts["KAS"] == 1
+    assert all(result.row_counts[category] == 0 for category in CATEGORIES if category != "KAS")
+    assert all(result.files[category].exists() for category in CATEGORIES)
 
 
 def test_stage8d4c_preserves_official_sheet_and_headers(tmp_path):
@@ -206,7 +207,7 @@ def test_stage8d4c_preserves_template_layout(tmp_path):
     wb.close()
 
 
-def test_stage8d4c_requires_template_only_for_populated_categories(tmp_path):
+def test_stage8d4c_requires_all_six_official_templates(tmp_path):
     templates = tmp_path / "templates"
     output = tmp_path / "output"
     templates.mkdir(parents=True, exist_ok=True)
@@ -217,15 +218,17 @@ def test_stage8d4c_requires_template_only_for_populated_categories(tmp_path):
         output,
     )
 
-    assert result.ok
-    assert set(result.files) == {"KAS"}
+    assert not result.ok
+    assert any(
+        issue.code == "RCX4C_002" and issue.category != "KAS"
+        for issue in result.errors
+    )
 
 
 def test_stage8d4h_missing_category_specific_values_stay_blank(tmp_path):
     templates = tmp_path / "templates"
     output = tmp_path / "output"
-    templates.mkdir(parents=True, exist_ok=True)
-    _create_template(templates, "INVESTASI")
+    _create_all_templates(templates)
 
     package = ReverseCoretaxPackage(
         npwp="6101015612710001",
@@ -275,6 +278,9 @@ def test_stage8d4c_prefers_valid_template_when_similar_invalid_file_exists(tmp_p
     templates = tmp_path / "templates"
     output = tmp_path / "output"
     templates.mkdir(parents=True, exist_ok=True)
+    for category in CATEGORIES:
+        if category != "KAS":
+            _create_template(templates, category)
 
     schema = OFFICIAL_CORETAX_SCHEMAS["KAS"]
 
