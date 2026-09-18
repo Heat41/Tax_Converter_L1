@@ -8,7 +8,7 @@ from core.worksheet_pph_state import WorksheetBupotRow
 
 
 class WorksheetWorkbookImporter(BaseWorksheetWorkbookImporter):
-    """Perbaikan parser Stage 8B.1 untuk workbook produksi EVY-style.
+    """Perbaikan parser Stage 8B.1 untuk workbook produksi dengan header berulang.
 
     Sheet ``2025`` dapat memiliki dua blok tabel pada baris header yang sama.
     Nama header seperti JENIS/NO BUPOT dapat muncul lagi di sisi kanan. Parser
