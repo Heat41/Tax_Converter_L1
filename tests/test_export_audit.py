@@ -12,7 +12,7 @@ def test_export_audit_records_and_lists_wp_history(tmp_path):
     record_id = service.record(
         ExportAuditRecord(
             npwp="6101015612710001",
-            nama_wp="EVY BACHTIAR",
+            nama_wp="WAJIB PAJAK TEST",
             tahun_pajak=2025,
             revision=5,
             export_type="PAKET_CORETAX",
