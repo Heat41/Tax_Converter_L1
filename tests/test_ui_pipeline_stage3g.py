@@ -105,18 +105,18 @@ class TestHartaPreviewPipelineStage3G(unittest.TestCase):
 
     def test_owner_name_fallback_treats_title_variants_as_same_person(self):
         rows = [
-            self._worksheet_row("DR EVY BACHTIAR SPOG"),
-            self._worksheet_row("EVY BACHTIAR"),
-            self._worksheet_row("Dr. EVY BACHTIAR Sp.OG"),
+            self._worksheet_row("DR WAJIB PAJAK TEST SPOG"),
+            self._worksheet_row("WAJIB PAJAK TEST"),
+            self._worksheet_row("Dr. Wajib Pajak Test Sp.OG"),
         ]
 
         name = self.pipeline._infer_unique_owner_name(rows)
 
-        self.assertEqual(name, "EVY BACHTIAR")
+        self.assertEqual(name, "WAJIB PAJAK TEST")
 
     def test_owner_name_fallback_rejects_genuinely_different_names(self):
         rows = [
-            self._worksheet_row("EVY BACHTIAR"),
+            self._worksheet_row("WAJIB PAJAK TEST"),
             self._worksheet_row("LISA VINATALIA"),
         ]
 
