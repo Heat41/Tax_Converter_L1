@@ -6,7 +6,7 @@ from PySide6.QtPdf import QPdfDocument
 from PySide6.QtWidgets import QApplication
 
 from config.database import init_database
-from core.evy_reconciliation import EvyReconciliationResult
+from core.reconciliation import ReconciliationResult
 from core.finalization import FinalizationInput, FinalizationService
 from core.legacy_1770 import Legacy1770DocumentService
 from core.legacy_pdf_exporter import Legacy1770PdfExporter
@@ -25,7 +25,7 @@ def db_path(tmp_path):
 
 
 def _analysis():
-    return EvyReconciliationResult(
+    return ReconciliationResult(
         total_harta_sebelumnya=10_000_000.0,
         total_harta_berjalan=15_000_000.0,
         total_utang_sebelumnya=0.0,
