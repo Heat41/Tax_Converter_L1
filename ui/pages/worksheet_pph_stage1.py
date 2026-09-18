@@ -1,5 +1,5 @@
 from PySide6.QtCore import Qt
-from PySide6.QtWidgets import QLabel, QTableWidgetItem
+from PySide6.QtWidgets import QFrame, QGridLayout, QLabel, QTableWidgetItem
 
 from ui.pages.worksheet_notifications import WorksheetPage as BaseWorksheetPage
 from ui.performance import optimize_table_interaction
@@ -34,13 +34,13 @@ class WorksheetPage(BaseWorksheetPage):
         self._install_pph_stage1()
 
     def _install_pph_stage1(self):
+        # Dipertahankan sebagai compatibility hook untuk inheritance lama,
+        # tetapi total Bupot tidak lagi ditampilkan sebagai notifikasi di atas.
         self.pph_status = QLabel()
         self.pph_status.setObjectName("mutedLabel")
-        self.pph_status.setWordWrap(True)
+        self.pph_status.setVisible(False)
 
-        info_card = self.pph_tab.layout().itemAt(0).widget()
-        if info_card is not None and info_card.layout() is not None:
-            info_card.layout().addWidget(self.pph_status)
+        self._install_bupot_summary_fields()
 
         self.bupot_table.itemChanged.connect(self._on_bupot_item_changed)
         self.bupot_table.horizontalHeaderItem(
@@ -59,6 +59,65 @@ class WorksheetPage(BaseWorksheetPage):
         )
         self._refresh_pph_status()
         self._refresh_bupot_actions()
+
+    def _install_bupot_summary_fields(self):
+        self.bupot_summary_values = {}
+
+        summary = QFrame(objectName="subtleCard")
+        grid = QGridLayout(summary)
+        grid.setContentsMargins(14, 10, 14, 10)
+        grid.setHorizontalSpacing(24)
+        grid.setVerticalSpacing(4)
+
+        fields = (
+            ("Jumlah Bupot", "jumlah_bupot"),
+            ("Total Bruto", "total_bruto"),
+            ("Total Pengurang", "total_pengurang"),
+            ("Total Netto", "total_netto"),
+            ("Total PPh", "total_pph"),
+        )
+
+        for column, (caption, key) in enumerate(fields):
+            title = QLabel(caption)
+            title.setObjectName("mutedLabel")
+            value = QLabel("0" if key == "jumlah_bupot" else "Rp 0")
+            value.setObjectName("sectionTitle")
+            value.setTextInteractionFlags(Qt.TextSelectableByMouse)
+            grid.addWidget(title, 0, column)
+            grid.addWidget(value, 1, column)
+            self.bupot_summary_values[key] = value
+
+        bupot_card = self.pph_tab.layout().itemAt(1).widget()
+        if bupot_card is not None and bupot_card.layout() is not None:
+            bupot_card.layout().addWidget(summary)
+
+        self.bupot_summary_card = summary
+
+    def _set_bupot_summary_values(
+        self,
+        *,
+        rows: int,
+        total_bruto: float,
+        total_pengurang: float,
+        total_netto: float,
+        total_pph: float,
+    ):
+        if not hasattr(self, "bupot_summary_values"):
+            return
+
+        self.bupot_summary_values["jumlah_bupot"].setText(str(int(rows)))
+        self.bupot_summary_values["total_bruto"].setText(
+            f"Rp {self._format_bupot_money(total_bruto)}"
+        )
+        self.bupot_summary_values["total_pengurang"].setText(
+            f"Rp {self._format_bupot_money(total_pengurang)}"
+        )
+        self.bupot_summary_values["total_netto"].setText(
+            f"Rp {self._format_bupot_money(total_netto)}"
+        )
+        self.bupot_summary_values["total_pph"].setText(
+            f"Rp {self._format_bupot_money(total_pph)}"
+        )
 
     def _add_bupot_row(self):
         self._rendering_bupot = True
@@ -163,11 +222,12 @@ class WorksheetPage(BaseWorksheetPage):
         total_pengurang = sum(self._money_value(row, 5) for row in range(rows))
         total_netto = sum(self._money_value(row, 6) for row in range(rows))
         total_pph = sum(self._money_value(row, 7) for row in range(rows))
-        self.pph_status.setText(
-            f"{rows} baris Bupot • Total Bruto Rp {self._format_bupot_money(total_bruto)} • "
-            f"Total Pengurang Rp {self._format_bupot_money(total_pengurang)} • "
-            f"Total Netto Rp {self._format_bupot_money(total_netto)} • "
-            f"Total PPh Dipotong Rp {self._format_bupot_money(total_pph)}"
+        self._set_bupot_summary_values(
+            rows=rows,
+            total_bruto=total_bruto,
+            total_pengurang=total_pengurang,
+            total_netto=total_netto,
+            total_pph=total_pph,
         )
 
     def _refresh_bupot_actions(self):
