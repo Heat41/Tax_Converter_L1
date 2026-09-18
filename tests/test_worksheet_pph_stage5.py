@@ -34,7 +34,7 @@ class TestWorksheetPPhStage5(unittest.TestCase):
                     kode_ct="0102",
                     nama_harta="Tabungan",
                     nomor_akun_keterangan="111",
-                    atas_nama="EVY BACHTIAR",
+                    atas_nama="WAJIB PAJAK TEST",
                     nama_bank="BRI",
                     tahun_perolehan=2025,
                     nilai_tahun_sebelumnya=0,
@@ -43,7 +43,7 @@ class TestWorksheetPPhStage5(unittest.TestCase):
             ],
             current_year=2025,
             npwp="6101015612710001",
-            nama_wp="EVY BACHTIAR",
+            nama_wp="WAJIB PAJAK TEST",
         )
         self.page.load_harta_preview(self.result)
 
@@ -51,7 +51,7 @@ class TestWorksheetPPhStage5(unittest.TestCase):
         self.page.deleteLater()
         shutil.rmtree(self.temp_dir, ignore_errors=True)
 
-    def test_umkm_table_matches_evy_structure(self):
+    def test_umkm_table_matches_reference_structure(self):
         self.assertEqual(self.page.umkm_table.rowCount(), 13)
         self.assertEqual(self.page.umkm_table.item(0, 1).text(), "Januari")
         self.assertEqual(self.page.umkm_table.item(11, 1).text(), "Desember")
