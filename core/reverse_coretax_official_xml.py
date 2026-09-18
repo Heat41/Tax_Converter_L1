@@ -264,34 +264,11 @@ class OfficialCoretaxXmlExporter:
             )
             return result
 
-        active_categories = tuple(
-            category
-            for category in CATEGORY_ORDER
-            if package.rows_by_category.get(category)
-        )
-
-        for category in active_categories:
-            schema = get_official_schema(category)
-            if not schema.has_xml_reference:
-                result.unsupported_categories.append(category)
-                result.issues.append(
-                    OfficialXmlExportIssue(
-                        "RCX4D_101",
-                        "WARNING",
-                        (
-                            f"XML {category} tidak dibuat karena referensi XML "
-                            "resmi belum tersedia pada Stage 8D.4A."
-                        ),
-                        category,
-                    )
-                )
+        export_categories = tuple(CATEGORY_ORDER)
 
         target_dir.mkdir(parents=True, exist_ok=True)
 
-        for category in active_categories:
-            schema = get_official_schema(category)
-            if not schema.has_xml_reference:
-                continue
+        for category in export_categories:
             rows = package.rows_by_category.get(category, [])
             tree = self._build_tree(package, category, rows)
             target = target_dir / self._filename(category)
