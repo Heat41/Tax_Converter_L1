@@ -27,7 +27,7 @@ from ui.performance import optimize_table_interaction, suspended_updates
 
 
 class WorksheetPage(BaseWorksheetPage):
-    """Stage 6 PPh: Penghasilan Lainnya dan Pengurang Neto acuan EVY BACHTIAR."""
+    """Stage 6 PPh: Penghasilan Lainnya dan Pengurang Neto Kertas Kerja."""
 
     GENERAL_ROWS = (
         ("domestic_other", "Penghasilan Dalam Negeri Lainnya"),
@@ -82,7 +82,7 @@ class WorksheetPage(BaseWorksheetPage):
         title = QLabel("Penghasilan Lainnya & Pengurang Penghasilan Neto")
         title.setObjectName("sectionTitle")
         description = QLabel(
-            "Mengikuti kertas kerja EVY BACHTIAR. Penghasilan Dalam Negeri Lainnya "
+            "Mengikuti struktur Kertas Kerja. Penghasilan Dalam Negeri Lainnya "
             "masuk ke penghasilan neto progresif, sedangkan pos lain dicatat terpisah. "
             "Zakat menjadi pengurang penghasilan neto."
         )
