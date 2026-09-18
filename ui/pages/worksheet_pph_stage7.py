@@ -455,7 +455,9 @@ class WorksheetPage(BaseWorksheetPage):
             except Exception:
                 persisted = None
             if persisted is not None:
-                raw = persisted.components.get("reconciliation")\n                if not isinstance(raw, dict):\n                    raw = persisted.components.get(legacy_component_key("reconciliation"))
+                raw = persisted.components.get("reconciliation")
+                if not isinstance(raw, dict):
+                    raw = persisted.components.get(legacy_component_key("reconciliation"))
                 if isinstance(raw, dict):
                     for key in manual:
                         if key not in raw:
