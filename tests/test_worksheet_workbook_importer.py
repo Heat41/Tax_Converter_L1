@@ -209,3 +209,42 @@ def test_pph_components_follow_active_year_summary_labels():
     assert other["pekerjaan_bebas_dpp"] == 4_500_000
     assert other["prive_dpp"] == 6_500_000
     assert other["hibah_warisan_dpp"] == 8_500_000
+
+
+def test_pph_summary_values_are_parsed_from_worksheet_bottom_block():
+    rows = [[None] * 10 for _ in range(30)]
+    rows[5][8] = "2024"
+    rows[5][9] = "2025"
+
+    rows[20][1] = "PTKP"
+    rows[20][5] = "K/2"
+    rows[21][1] = "Penghasilan Neto Gabungan"
+    rows[21][5] = 337_160_000
+    rows[22][1] = "Penghasilan Kena Pajak"
+    rows[22][5] = 269_660_000
+    rows[23][1] = "PPh21 Terutang"
+    rows[23][5] = 36_415_000
+    rows[24][1] = "PPh21 sudah dipotong/ dipungut"
+    rows[24][5] = 16_880_171
+    rows[25][1] = "Angsuran PPh Pasal 25"
+    rows[25][5] = 5_600_888
+
+    result = type(
+        "Result",
+        (),
+        {"tahun_pajak": 2025, "pph_components": {}},
+    )()
+
+    WorksheetWorkbookImporter()._parse_pph_components(
+        pd.DataFrame(rows),
+        result,
+    )
+
+    components = result.pph_components
+    assert components["status_ptkp"] == "K/2"
+    assert components["penghasilan_neto_gabungan_imported"] == 337_160_000
+    assert components["pkp_imported"] == 269_660_000
+    assert components["pph_terutang_imported"] == 36_415_000
+    assert components["pph_terutang"] == 36_415_000
+    assert components["kredit_pajak"] == 16_880_171
+    assert components["pph25"] == 5_600_888
