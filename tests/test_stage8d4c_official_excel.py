@@ -50,7 +50,7 @@ def _create_all_templates(directory: Path):
 def _package():
     package = ReverseCoretaxPackage(
         npwp="6101015612710001",
-        nama_wp="EVY BACHTIAR",
+        nama_wp="WAJIB PAJAK TEST",
         tahun_pajak=2025,
         revision=1,
     )
@@ -64,12 +64,12 @@ def _package():
             tahun_perolehan=2025,
             nilai=391742658,
             nomor_akun_keterangan="116801005138508",
-            atas_nama="DR EVY BACHTIAR SPOG",
+            atas_nama="DR WAJIB PAJAK TEST SPOG",
             nama_bank="BRI",
             official_metadata={
                 "code": "0102",
                 "account_number": "116801005138508",
-                "account_on_behalf_of": "DR EVY BACHTIAR SPOG",
+                "account_on_behalf_of": "DR WAJIB PAJAK TEST SPOG",
                 "bank_name": "BRI",
                 "country": "Indonesia",
                 "year": 2025,
@@ -161,7 +161,7 @@ def test_stage8d4c_cash_row_matches_official_schema(tmp_path):
     assert values == (
         "0102",
         "116801005138508",
-        "DR EVY BACHTIAR SPOG",
+        "DR WAJIB PAJAK TEST SPOG",
         "BRI",
         "Indonesia",
         2025,
@@ -229,7 +229,7 @@ def test_stage8d4h_missing_category_specific_values_stay_blank(tmp_path):
 
     package = ReverseCoretaxPackage(
         npwp="6101015612710001",
-        nama_wp="EVY BACHTIAR",
+        nama_wp="WAJIB PAJAK TEST",
         tahun_pajak=2025,
         revision=1,
     )
@@ -242,7 +242,7 @@ def test_stage8d4h_missing_category_specific_values_stay_blank(tmp_path):
             tahun_perolehan=2025,
             nilai=250000000,
             nomor_akun_keterangan="ACC-01",
-            atas_nama="EVY BACHTIAR",
+            atas_nama="WAJIB PAJAK TEST",
             nama_bank="BANK CONTOH",
             official_metadata={
                 "country": "Indonesia",
