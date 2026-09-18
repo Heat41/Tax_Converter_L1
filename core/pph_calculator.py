@@ -104,7 +104,7 @@ def calculate_annual_pph(
     status = normalize_ptkp_status(status_ptkp)
     ptkp = ptkp_value(status)
 
-    # Acuan EVY sheet 2025:
+    # Acuan struktur formula sheet tahun Kertas Kerja:
     # F73 = ROUNDDOWN(H34 + F53, -3) - F64
     # H34 = Total NETTO Bupot, F53 = Penghasilan Dalam Negeri Lainnya,
     # F64 = Zakat/Pengurang Penghasilan Neto.
@@ -116,7 +116,7 @@ def calculate_annual_pph(
     pph_terutang = progressive_pph(pkp)
     kurang_lebih = pph_terutang - float(kredit_pajak) - float(pph25)
 
-    # Acuan EVY membulatkan nilai akhir dengan ROUND(...,-2).
+    # Kertas Kerja membulatkan nilai akhir dengan ROUND(...,-2).
     kurang_lebih_rounded = excel_round(kurang_lebih, -2)
 
     return AnnualPPhResult(
