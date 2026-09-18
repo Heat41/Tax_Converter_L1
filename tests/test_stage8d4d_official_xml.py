@@ -25,7 +25,7 @@ def _row(category, code, metadata):
 def _package():
     package = ReverseCoretaxPackage(
         npwp="6101015612710001",
-        nama_wp="EVY BACHTIAR",
+        nama_wp="WAJIB PAJAK TEST",
         tahun_pajak=2025,
         revision=1,
     )
@@ -36,7 +36,7 @@ def _package():
             "0102",
             {
                 "account_number": "116801005138508",
-                "account_on_behalf_of": "DR EVY BACHTIAR SPOG",
+                "account_on_behalf_of": "DR WAJIB PAJAK TEST SPOG",
                 "bank_name": "BRI",
                 "country": "Indonesia",
                 "year": 2025,
@@ -52,7 +52,7 @@ def _package():
             {
                 "country": "Indonesia",
                 "institution_tin": "6101015612710001",
-                "institution_name": "EVY BACHTIAR",
+                "institution_name": "WAJIB PAJAK TEST",
                 "account_number": "1971197117",
                 "cost_of_acquisition": 1000000000,
                 "year": 2025,
@@ -71,7 +71,7 @@ def _package():
                 "police_registration_number": "KB 1476 PI",
                 "ownership_type": "TAXPAYER",
                 "ownership_tin": "6101015612710001",
-                "ownership_name": "EVY BACHTIAR",
+                "ownership_name": "WAJIB PAJAK TEST",
                 "year": 2025,
                 "cost_of_acquisition": 343750000,
                 "fair_market_value": 325000000,
@@ -187,7 +187,7 @@ def test_stage8d4d_non_movable_xml_uses_preserved_metadata(tmp_path):
 def test_stage8d4d_does_not_generate_empty_supported_categories(tmp_path):
     package = ReverseCoretaxPackage(
         npwp="6101015612710001",
-        nama_wp="EVY BACHTIAR",
+        nama_wp="WAJIB PAJAK TEST",
         tahun_pajak=2025,
     )
     package.rows_by_category["KAS"].append(
@@ -196,7 +196,7 @@ def test_stage8d4d_does_not_generate_empty_supported_categories(tmp_path):
             "0101",
             {
                 "account_number": "001",
-                "account_on_behalf_of": "EVY",
+                "account_on_behalf_of": "TEST WP",
                 "bank_name": "BANK",
                 "country": "Indonesia",
                 "year": 2025,
