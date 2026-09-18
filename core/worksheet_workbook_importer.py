@@ -583,17 +583,39 @@ class WorksheetWorkbookImporter:
             "harta_baru_dari_kredit": 0.0,
             "penambahan_penghasilan_bruto_umkm": 0.0,
             "margin_usaha": 0.0,
+            "penghasilan_netto_analisis": 0.0,
             "harta_sebelumnya_override": 0.0,
         }
+
+        current_year = int(getattr(result, "tahun_pajak", 0) or 0)
+        previous_year = current_year - 1 if current_year else 0
+        previous_col = None
+        current_col = None
+
+        # Cari kolom tahun pada SIMULASI secara global. Struktur Harta, Utang,
+        # dan Analisis menggunakan kolom tahun yang sama pada workbook produksi.
+        for scan_row in range(min(len(df), 140)):
+            labels = [
+                self._label(df.iat[scan_row, col])
+                for col in range(df.shape[1])
+            ]
+            if current_year and str(current_year) in labels:
+                candidate_current = labels.index(str(current_year))
+                candidate_previous = (
+                    labels.index(str(previous_year))
+                    if previous_year and str(previous_year) in labels
+                    else None
+                )
+                if candidate_previous is not None:
+                    previous_col = candidate_previous
+                    current_col = candidate_current
+                    break
+                if current_col is None:
+                    current_col = candidate_current
 
         utang_row = self._find_label_row(df, "UTANG", columns=(0, 1, 2))
         if utang_row is not None:
             total_row = None
-            previous_col = None
-            current_col = None
-            current_year = int(getattr(result, "tahun_pajak", 0) or 0)
-            previous_year = current_year - 1 if current_year else 0
-
             # Header UTANG biasanya memuat tahun sebelumnya dan tahun berjalan.
             # Cari kolomnya secara dinamis agar tidak bergantung pada posisi tetap.
             for scan_row in range(
@@ -639,6 +661,37 @@ class WorksheetWorkbookImporter:
                     state["utang_berjalan"] = self._number(
                         df.iat[total_row, current_col]
                     )
+
+        # Nilai ini berbeda dari Penghasilan Neto Gabungan pada blok PPh.
+        # Blok ANALISIS memakai nilai presisi (sebelum pembulatan pajak) untuk
+        # mencocokkan Total Pengeluaran, mis. 337.160.131 vs 337.160.000.
+        for row in range(len(df)):
+            row_labels = [
+                self._label(df.iat[row, col])
+                for col in range(min(df.shape[1], 6))
+            ]
+            if any(
+                label.startswith("penghasilan netto")
+                and "gabungan" not in label
+                for label in row_labels
+            ):
+                value = 0.0
+                candidate_columns = []
+                if current_col is not None:
+                    candidate_columns.append(current_col)
+                candidate_columns.extend((9, 10, 8, 7, 6))
+                seen_columns = set()
+                for col in candidate_columns:
+                    if col in seen_columns or col >= df.shape[1]:
+                        continue
+                    seen_columns.add(col)
+                    candidate = df.iat[row, col]
+                    if not pd.isna(candidate) and candidate != "":
+                        value = self._number(candidate)
+                        break
+                if value:
+                    state["penghasilan_netto_analisis"] = value
+                    break
 
         label_map = {
             "pengeluaran lain-lain": "pengeluaran_lain_lain",
