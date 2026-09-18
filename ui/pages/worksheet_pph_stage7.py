@@ -251,6 +251,14 @@ class WorksheetPage(BaseWorksheetPage):
         umkm_bruto = sum(float(value) for value in self._umkm_bruto)
         umkm_setor = sum(float(value) for value in self._umkm_pph_setor)
 
+        imported_net_income = float(
+            self._pph_component_values.get(
+                "penghasilan_neto_gabungan_imported",
+                0.0,
+            )
+            or 0.0
+        )
+
         result = calculate_reconciliation(
             total_harta_sebelumnya=harta_prev,
             total_harta_berjalan=harta_now,
@@ -282,6 +290,9 @@ class WorksheetPage(BaseWorksheetPage):
             sewa_dpp=self._other_income_state.get("sewa_dpp", 0.0),
             honor_dpp=self._other_income_state.get("honor_dpp", 0.0),
             final_other_dpp=final_result.total_dpp,
+            penghasilan_netto_override=(
+                imported_net_income if imported_net_income > 0 else None
+            ),
         )
         self._last_reconciliation = result
         return result
