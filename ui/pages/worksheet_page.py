@@ -470,7 +470,7 @@ class WorksheetPage(QWidget):
         heading = QLabel("Worksheet Penghasilan & PPh 2025")
         heading.setObjectName("sectionTitle")
         description = QLabel(
-            "Bagian ini disiapkan untuk input manual Bupot dan komponen penghasilan. "
+            "Bupot berasal dari Rekap Bupot/PDF Coretax atau dapat dilengkapi manual. "
             "Data Harta L-1 tetap diproses terpisah melalui SIMULASI I."
         )
         description.setObjectName("pageSubTitle")
@@ -486,7 +486,7 @@ class WorksheetPage(QWidget):
         bupot_layout.setSpacing(10)
 
         header = QHBoxLayout()
-        bupot_title = QLabel("Bukti Potong — Input Manual")
+        bupot_title = QLabel("Bukti Potong")
         bupot_title.setObjectName("sectionTitle")
         self.add_bupot_button = QPushButton("+ Tambah Baris")
         self.add_bupot_button.setObjectName("secondaryButton")
