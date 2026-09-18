@@ -51,11 +51,10 @@ class OfficialXmlExportResult:
 
 
 class OfficialCoretaxXmlExporter:
-    """Stage 8D.4D - exporter XML berdasarkan referensi XML Coretax yang dikunci.
+    """Stage 8D.4D - exporter enam XML resmi Coretax L-1.
 
-    Hanya kategori yang memiliki xml_root, xml_list, dan xml_fields pada
-    coretax_official_schema yang diekspor. Kategori tanpa referensi XML tidak
-    pernah ditebak.
+    Keenam kategori memiliki kontrak XML resmi. File tetap dibuat walaupun
+    kategori tidak memiliki baris, sehingga paket final selalu 6 XML.
     """
 
     @staticmethod
@@ -94,6 +93,22 @@ class OfficialCoretaxXmlExporter:
                 "Country": cls._meta(row, "country"),
                 "Year": cls._meta(row, "year", row.tahun_perolehan),
                 "Balance": cls._meta(row, "balance", row.nilai),
+            }
+
+        if category == "PIUTANG":
+            return {
+                "Code": row.kode_harta,
+                "Country": cls._meta(row, "country"),
+                "TinNikRecipient": cls._meta(row, "identity_number"),
+                "RecipientOfReceivable": cls._meta(
+                    row, "receivable_name", row.atas_nama
+                ),
+                "ReceivableValue": cls._meta(row, "receivable_value"),
+                "Year": cls._meta(row, "year", row.tahun_perolehan),
+                "CurrentBalance": cls._meta(
+                    row, "receivable_balance", row.nilai
+                ),
+                "Remarks": cls._meta(row, "remarks"),
             }
 
         if category == "INVESTASI":
@@ -165,6 +180,23 @@ class OfficialCoretaxXmlExporter:
                 "FairMarketValue": cls._meta(
                     row, "fair_market_value", row.nilai
                 ),
+            }
+
+        if category == "LAINNYA":
+            return {
+                "Code": row.kode_harta,
+                "Year": cls._meta(row, "year", row.tahun_perolehan),
+                "ProofOfOwnership": cls._meta(
+                    row, "account_number", row.nomor_akun_keterangan
+                ),
+                "AdditionalInformation": cls._meta(
+                    row, "additional_information", row.nama_harta
+                ),
+                "CostOfAcquisition": cls._meta(row, "cost_of_acquisition"),
+                "FairMarketValue": cls._meta(
+                    row, "current_value", row.nilai
+                ),
+                "Remarks": cls._meta(row, "remarks"),
             }
 
         raise ValueError(
@@ -278,8 +310,8 @@ class OfficialCoretaxXmlExporter:
                     "RCX4D_INFO",
                     "INFO",
                     (
-                        f"{len(result.files)} file XML dibuat hanya untuk kategori "
-                        "berisi data yang memiliki referensi XML terkunci."
+                        f"{len(result.files)} file XML resmi Coretax dibuat untuk "
+                        "seluruh 6 kategori L-1."
                     ),
                 )
             )
