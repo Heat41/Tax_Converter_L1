@@ -63,11 +63,10 @@ class OfficialCoretaxPackageExporter:
     Output:
       <output>/
         excel/   -> enam Excel resmi L-1; kategori kosong tetap dibuat
-        xml/     -> XML untuk kategori yang sudah memiliki kontrak XML resmi
+        xml/     -> enam XML resmi L-1
         manifest.json
 
-    Manifest mencatat coverage XML agar paket tidak mengklaim 6/6 sebelum
-    kontrak resmi PIUTANG dan LAINNYA tersedia.
+    Keenam kategori sekarang memiliki kontrak Excel dan XML resmi.
     """
 
     MANIFEST_VERSION = 1
