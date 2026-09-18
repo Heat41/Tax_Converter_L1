@@ -39,6 +39,34 @@ class TestWorksheetPPhStage4(unittest.TestCase):
         self.assertEqual(self.page.pph_auto_values["kurang_lebih_bayar"].text(), "31")
         self.assertEqual(self.page.pph_rounded_value.text(), "0")
 
+
+    def test_imported_net_income_populates_pkp_and_pph_terutang(self):
+        self.page._status_ptkp = "K/2"
+        self.page._set_ptkp_combo("K/2")
+        self.page._pph_component_values[
+            "penghasilan_neto_gabungan_imported"
+        ] = 337_160_000.0
+        self.page._pph_component_values["kredit_pajak"] = 16_880_171.0
+        self.page._pph_component_values["pph25"] = 5_600_888.0
+
+        self.page._add_bupot_row()
+        self.page.bupot_table.item(0, 4).setText("6.700.000")
+        self.page.bupot_table.item(0, 5).setText("0")
+        self.page._recalculate_pph_summary()
+
+        self.assertEqual(
+            self.page.pph_auto_values["penghasilan_neto_gabungan"].text(),
+            "337.160.000",
+        )
+        self.assertEqual(
+            self.page.pph_auto_values["pkp_simulasi"].text(),
+            "269.660.000",
+        )
+        self.assertEqual(
+            self.page.pph_auto_values["pph_terutang"].text(),
+            "36.415.000",
+        )
+
     def test_change_ptkp_status_updates_value(self):
         index = self.page.ptkp_status_combo.findData("K/1")
         self.page.ptkp_status_combo.setCurrentIndex(index)
