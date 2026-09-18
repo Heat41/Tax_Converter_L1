@@ -51,7 +51,11 @@ class OfficialExcelExportResult:
 
 
 class OfficialCoretaxExcelExporter:
-    """Stage 8D.4C/8D.4H - export Excel hanya untuk kategori yang memiliki data."""
+    """Stage 8D.4C/8D.4H - export enam Excel resmi Coretax.
+
+    Keenam kategori selalu dibuat dari template resmi. Kategori tanpa data tetap
+    menghasilkan template dengan metadata WP/tahun dan area DATA kosong.
+    """
 
     def __init__(self, template_dir: str | Path):
         self.template_dir = Path(template_dir)
@@ -468,35 +472,21 @@ class OfficialCoretaxExcelExporter:
             )
             return result
 
-        active_categories = tuple(
-            category
-            for category in CATEGORY_ORDER
-            if package.rows_by_category.get(category)
-        )
+        export_categories = tuple(CATEGORY_ORDER)
 
-        if not active_categories:
-            result.issues.append(
-                OfficialExcelExportIssue(
-                    "RCX4H_001",
-                    "ERROR",
-                    "Tidak ada kategori Harta berisi data untuk diekspor.",
-                )
-            )
-            return result
-
-        templates = self._resolve_templates(result, active_categories)
+        templates = self._resolve_templates(result, export_categories)
         if result.errors:
             return result
 
         if not all(
             self._validate_template(templates[category], category, result)
-            for category in active_categories
+            for category in export_categories
         ):
             return result
 
         target_dir.mkdir(parents=True, exist_ok=True)
 
-        for category in active_categories:
+        for category in export_categories:
             rows = package.rows_by_category.get(category, [])
             target = self._export_category(
                 package,
@@ -515,8 +505,8 @@ class OfficialCoretaxExcelExporter:
                     "RCX4C_INFO",
                     "INFO",
                     (
-                        f"{len(result.files)} file Excel Coretax dibuat sesuai "
-                        "kategori Harta yang tersedia pada snapshot FINAL."
+                        f"{len(result.files)} file Excel Coretax dibuat untuk seluruh "
+                        "6 kategori L-1; kategori tanpa data tetap dibuat kosong."
                     ),
                 )
             )
