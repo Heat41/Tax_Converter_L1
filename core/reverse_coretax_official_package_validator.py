@@ -404,21 +404,15 @@ class OfficialCoretaxPackageValidator:
                 f"Kategori XML tidak dikenal: {unknown_xml}",
             )
 
-        populated_excel_categories = tuple(
-            category
-            for category in excel_categories
-            if category in allowed
-            and int((excel_files.get(category) or {}).get("rows") or 0) > 0
-        )
         expected_xml = tuple(
             category
-            for category in populated_excel_categories
-            if get_official_schema(category).has_xml_reference
+            for category in excel_categories
+            if category in allowed and get_official_schema(category).has_xml_reference
         )
         expected_unsupported = tuple(
             category
-            for category in populated_excel_categories
-            if not get_official_schema(category).has_xml_reference
+            for category in excel_categories
+            if category in allowed and not get_official_schema(category).has_xml_reference
         )
         unsupported = tuple(xml.get("unsupported_active_categories") or ())
 
@@ -427,7 +421,7 @@ class OfficialCoretaxPackageValidator:
                 result,
                 "RCX4H_013",
                 (
-                    "Kategori XML harus mengikuti kategori Excel berdata yang memiliki "
+                    "Kategori XML harus mengikuti seluruh kategori Excel yang memiliki "
                     f"referensi XML. expected={list(expected_xml)}, actual={list(xml_categories)}"
                 ),
             )
@@ -437,7 +431,7 @@ class OfficialCoretaxPackageValidator:
                 result,
                 "RCX4H_014",
                 (
-                    "Kategori XML unsupported harus berasal dari kategori Excel berdata "
+                    "Kategori XML unsupported harus berasal dari kategori Excel "
                     f"tanpa schema XML. expected={list(expected_unsupported)}, "
                     f"actual={list(unsupported)}"
                 ),
