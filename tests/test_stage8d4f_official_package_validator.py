@@ -180,7 +180,7 @@ def test_stage8d4f_accepts_sparse_category_package(tmp_path):
         (output / "manifest.json").read_text(encoding="utf-8")
     )
 
-    assert set(manifest["excel"]["files"]) == {"KAS"}
+    assert set(manifest["excel"]["files"]) == set(CATEGORIES)
     assert set(manifest["xml"]["files"]) == {"KAS"}
 
     result = OfficialCoretaxPackageValidator().validate(output)
