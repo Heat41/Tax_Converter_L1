@@ -151,7 +151,13 @@ def test_stage8d4e_manifest_records_supported_and_unsupported_outputs(tmp_path):
     assert set(manifest["excel"]["files"]) == set(CATEGORIES)
     assert manifest["xml"]["file_count"] == 1
     assert set(manifest["xml"]["files"]) == {"KAS"}
-    assert manifest["xml"]["unsupported_categories"] == []
+    assert manifest["xml"]["supported_categories"] == [
+        "KAS", "INVESTASI", "BERGERAK", "HTB"
+    ]
+    assert manifest["xml"]["missing_schema_categories"] == [
+        "PIUTANG", "LAINNYA"
+    ]
+    assert manifest["xml"]["unsupported_active_categories"] == []
 
 
 def test_stage8d4e_manifest_contains_file_hashes(tmp_path):
