@@ -75,6 +75,30 @@ class TestWorksheetPPhStage7Fix(unittest.TestCase):
         self.assertIn("NPWP PENERIMA", headers)
         self.assertIn("NPWP PEMOTONG", headers)
 
+
+    def test_rekap_bupot_totals_update_persistent_summary_fields(self):
+        self._fill_reference_bupot_total()
+
+        self.assertEqual(
+            self.page.bupot_summary_values["jumlah_bupot"].text(), "1"
+        )
+        self.assertEqual(
+            self.page.bupot_summary_values["total_bruto"].text(),
+            "Rp 1.037.999.641",
+        )
+        self.assertEqual(
+            self.page.bupot_summary_values["total_pengurang"].text(),
+            "Rp 249.079.224",
+        )
+        self.assertEqual(
+            self.page.bupot_summary_values["total_netto"].text(),
+            "Rp 788.920.417",
+        )
+        self.assertEqual(
+            self.page.bupot_summary_values["total_pph"].text(),
+            "Rp 105.486.376",
+        )
+
     def test_linked_other_income_and_zakat_are_visible_in_summary(self):
         self._fill_reference_bupot_total()
         self.page._other_income_state["domestic_other_enabled"] = True
