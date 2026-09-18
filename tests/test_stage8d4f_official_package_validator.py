@@ -181,7 +181,7 @@ def test_stage8d4f_accepts_sparse_category_package(tmp_path):
     )
 
     assert set(manifest["excel"]["files"]) == set(CATEGORIES)
-    assert set(manifest["xml"]["files"]) == {"KAS"}
+    assert set(manifest["xml"]["files"]) == set(CATEGORIES)
 
     result = OfficialCoretaxPackageValidator().validate(output)
 
