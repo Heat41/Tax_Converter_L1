@@ -8,15 +8,15 @@ PROJECT_ROOT = Path(__file__).resolve().parents[1]
 if str(PROJECT_ROOT) not in sys.path:
     sys.path.insert(0, str(PROJECT_ROOT))
 
-from core.evy_reconciliation import EvyReconciliationResult
+from core.reconciliation import ReconciliationResult
 from core.finalization import FinalizationInput
 from core.legacy_1770_hybrid_xlsx import Legacy1770HybridXlsxService
 from core.mapping.worksheet_harta_mapper import WorksheetHartaRow
 from core.worksheet_pph_state import WorksheetBupotRow
 
 
-def _analysis() -> EvyReconciliationResult:
-    return EvyReconciliationResult(
+def _analysis() -> ReconciliationResult:
+    return ReconciliationResult(
         total_harta_sebelumnya=1_245_000_000.0,
         total_harta_berjalan=1_385_268_584.0,
         total_utang_sebelumnya=0.0,
