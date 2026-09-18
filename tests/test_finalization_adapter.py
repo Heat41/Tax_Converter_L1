@@ -65,7 +65,12 @@ class _FakeWorksheet:
                 pengurang=5_000_000.0,
             )
         ]
-        self._pph_saved_components = {"pph_terutang": 1_000_000.0}
+        self._pph_saved_components = {
+            "pph_terutang": 1_000_000.0,
+            "penghasilan_neto_gabungan_imported": 337_160_000.0,
+            "pkp_imported": 269_660_000.0,
+            "pph_terutang_imported": 36_415_000.0,
+        }
         self._saved_status_ptkp = "TK/0"
         self._saved_umkm_bruto = [0.0] * 12
         self._saved_umkm_pph_setor = [0.0] * 12
@@ -99,6 +104,19 @@ class TestFinalizationAdapter(unittest.TestCase):
         self.assertEqual(data.harta_current_rows[0].nilai_tahun_berjalan, 15_000_000.0)
         self.assertEqual(data.status_ptkp, "TK/0")
         self.assertEqual(data.zakat, 5_000_000.0)
+
+
+    def test_adapter_keeps_kertas_kerja_pph_baseline(self):
+        data = FinalizationAdapter.from_worksheet(_FakeWorksheet())
+        self.assertEqual(
+            data.pph_components["penghasilan_neto_gabungan_imported"],
+            337_160_000.0,
+        )
+        self.assertEqual(data.pph_components["pkp_imported"], 269_660_000.0)
+        self.assertEqual(
+            data.pph_components["pph_terutang_imported"],
+            36_415_000.0,
+        )
 
     def test_adapter_forwards_dirty_flags(self):
         source = _FakeWorksheet()
