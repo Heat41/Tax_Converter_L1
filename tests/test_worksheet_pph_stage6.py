@@ -33,7 +33,7 @@ class TestWorksheetPPhStage6(unittest.TestCase):
                     kode_ct="0102",
                     nama_harta="Tabungan",
                     nomor_akun_keterangan="111",
-                    atas_nama="EVY BACHTIAR",
+                    atas_nama="WAJIB PAJAK TEST",
                     nama_bank="BRI",
                     tahun_perolehan=2025,
                     nilai_tahun_sebelumnya=0,
@@ -42,7 +42,7 @@ class TestWorksheetPPhStage6(unittest.TestCase):
             ],
             current_year=2025,
             npwp="6101015612710001",
-            nama_wp="EVY BACHTIAR",
+            nama_wp="WAJIB PAJAK TEST",
         )
         self.page.load_harta_preview(self.result)
 
@@ -50,11 +50,11 @@ class TestWorksheetPPhStage6(unittest.TestCase):
         self.page.deleteLater()
         shutil.rmtree(self.temp_dir, ignore_errors=True)
 
-    def _fill_evy_total_bupot(self):
+    def _fill_reference_total_bupot(self):
         self.page._add_bupot_row()
         self.page.bupot_table.item(0, 1).setText("BP21")
         self.page.bupot_table.item(0, 2).setText("0001401850702000")
-        self.page.bupot_table.item(0, 3).setText("EVY-REFERENCE")
+        self.page.bupot_table.item(0, 3).setText("REFERENCE-BUPOT")
         self.page.bupot_table.item(0, 4).setText("1.037.999.641")
         self.page.bupot_table.item(0, 5).setText("249.079.224")
 
@@ -62,7 +62,7 @@ class TestWorksheetPPhStage6(unittest.TestCase):
         self.page.zakat_edit.setText(value)
         self.page._on_zakat_finished()
 
-    def _set_evy_final_details(self):
+    def _set_reference_final_details(self):
         values = (
             ("Deposito BRI", "90.000.000"),
             ("Deposito BSI", "22.500.000"),
@@ -72,8 +72,8 @@ class TestWorksheetPPhStage6(unittest.TestCase):
             self.page.final_income_table.item(row, 0).setText(name)
             self.page.final_income_table.item(row, 1).setText(dpp)
 
-    def test_evy_zakat_flows_into_progressive_summary(self):
-        self._fill_evy_total_bupot()
+    def test_reference_zakat_flows_into_progressive_summary(self):
+        self._fill_reference_total_bupot()
         self._set_zakat()
 
         self.assertEqual(
@@ -93,10 +93,10 @@ class TestWorksheetPPhStage6(unittest.TestCase):
             "150.976.000",
         )
 
-    def test_evy_final_income_and_zakat_persist(self):
-        self._fill_evy_total_bupot()
+    def test_reference_final_income_and_zakat_persist(self):
+        self._fill_reference_total_bupot()
         self._set_zakat()
-        self._set_evy_final_details()
+        self._set_reference_final_details()
 
         self.assertEqual(
             self.page.final_income_status.text(),
