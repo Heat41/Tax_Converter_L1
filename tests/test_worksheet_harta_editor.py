@@ -23,7 +23,7 @@ class TestWorksheetHartaEditor(unittest.TestCase):
             kode_ct="0102",
             nama_harta="Tabungan (Bank/Lembaga Keuangan)",
             nomor_akun_keterangan="116801005138508",
-            atas_nama="EVY BACHTIAR",
+            atas_nama="WAJIB PAJAK TEST",
             nama_bank="BRI",
             tahun_perolehan=2025,
             nilai_tahun_sebelumnya=0,
@@ -80,7 +80,7 @@ class TestWorksheetHartaEditor(unittest.TestCase):
 
     def test_save_keeps_highlight_but_clears_unsaved_state(self):
         self.page._show_harta_mode("current")
-        self.page.harta_table.item(0, 5).setText("EVY BACHTIAR, DR")
+        self.page.harta_table.item(0, 5).setText("WAJIB PAJAK TEST, DR")
 
         self.assertTrue(self.page.save_harta_button.isEnabled())
         self.page.save_harta_changes()
