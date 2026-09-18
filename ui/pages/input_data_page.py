@@ -131,8 +131,22 @@ class InputDataPage(QWidget):
         self.import_worksheet_button.clicked.connect(self.import_worksheet)
         action_row.addWidget(self.import_worksheet_button)
 
-        self.simulasi_status = QLabel("SIMULASI I: belum diperiksa • REVISI: belum diperiksa")
-        self.simulasi_status.setObjectName("mutedLabel")
+        self.sheet_selector_status = QLabel(
+            "Sheet Tahun: belum diperiksa • SIMULASI I: belum diperiksa • REVISI: belum diperiksa"
+        )
+        self.sheet_selector_status.setObjectName("mutedLabel")
+        # Alias kompatibilitas untuk kode/test lama.
+        self.simulasi_status = self.sheet_selector_status
+
+        self.year_sheet_combo.currentTextChanged.connect(
+            self._refresh_sheet_selector_status
+        )
+        self.simulasi_sheet_combo.currentTextChanged.connect(
+            self._refresh_sheet_selector_status
+        )
+        self.revisi_sheet_combo.currentTextChanged.connect(
+            self._refresh_sheet_selector_status
+        )
         self.worksheet_status = QLabel("Belum diimport")
         self.worksheet_status.setObjectName("mutedLabel")
         self.worksheet_status.setWordWrap(True)
@@ -145,7 +159,7 @@ class InputDataPage(QWidget):
         box.addLayout(simulasi_row)
         box.addLayout(revisi_row)
         box.addLayout(action_row)
-        box.addWidget(self.simulasi_status)
+        box.addWidget(self.sheet_selector_status)
         box.addWidget(self.worksheet_status)
         return card
 
@@ -277,14 +291,7 @@ class InputDataPage(QWidget):
         self.year_sheet_combo.setEnabled(enabled)
         self.simulasi_sheet_combo.setEnabled(enabled)
         self.revisi_sheet_combo.setEnabled(enabled)
-        self.import_worksheet_button.setEnabled(bool(year_sheet and simulasi_sheet))
-
-        has_simulasi = bool(simulasi_sheet)
-        has_revisi = bool(revisi_sheet)
-        self.simulasi_status.setText(
-            f"SIMULASI I: {'✓ ditemukan' if has_simulasi else 'tidak ditemukan'} • "
-            f"REVISI: {'✓ ditemukan' if has_revisi else 'tidak ditemukan / opsional'}"
-        )
+        self._refresh_sheet_selector_status()
         self.worksheet_status.setText("Pilih tiga sheet lalu klik Import Kertas Kerja.")
 
     def import_worksheet(self):
