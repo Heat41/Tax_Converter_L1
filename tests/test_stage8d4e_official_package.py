@@ -87,7 +87,7 @@ def test_stage8d4e_builds_excel_xml_and_manifest(tmp_path):
 
     assert result.ok
     assert result.excel_result is not None
-    assert set(result.excel_result.files) == {"KAS"}
+    assert set(result.excel_result.files) == set(CATEGORIES)
     assert result.xml_result is not None
     assert set(result.xml_result.files) == {"KAS"}
     assert result.manifest_path == output / "manifest.json"
@@ -147,8 +147,8 @@ def test_stage8d4e_manifest_records_supported_and_unsupported_outputs(tmp_path):
 
     manifest = json.loads(result.manifest_path.read_text(encoding="utf-8"))
 
-    assert manifest["excel"]["file_count"] == 1
-    assert set(manifest["excel"]["files"]) == {"KAS"}
+    assert manifest["excel"]["file_count"] == 6
+    assert set(manifest["excel"]["files"]) == set(CATEGORIES)
     assert manifest["xml"]["file_count"] == 1
     assert set(manifest["xml"]["files"]) == {"KAS"}
     assert manifest["xml"]["unsupported_categories"] == []
@@ -175,7 +175,7 @@ def test_stage8d4e_manifest_contains_file_hashes(tmp_path):
             assert item["filename"]
 
 
-def test_stage8d4e_only_needs_templates_for_categories_with_data(tmp_path):
+def test_stage8d4e_requires_all_six_excel_templates(tmp_path):
     templates = tmp_path / "templates"
     output = tmp_path / "package"
     templates.mkdir(parents=True, exist_ok=True)
@@ -200,6 +200,6 @@ def test_stage8d4e_only_needs_templates_for_categories_with_data(tmp_path):
         output,
     )
 
-    assert result.ok
-    assert set(result.excel_result.files) == {"KAS"}
-    assert set(result.xml_result.files) == {"KAS"}
+    assert not result.ok
+    assert result.excel_result is not None
+    assert any(issue.code == "RCX4C_002" for issue in result.issues)
