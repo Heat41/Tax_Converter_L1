@@ -37,5 +37,23 @@ class TestAnnualPPhCalculator(unittest.TestCase):
         self.assertEqual(result.kurang_lebih_bayar_pembulatan, 0.0)
 
 
+    def test_imported_net_income_baseline_matches_viktor_worksheet(self):
+        result = calculate_annual_pph(
+            total_netto_bupot=6_700_000,
+            penghasilan_neto_lainnya=0,
+            pengurang_penghasilan_neto=0,
+            status_ptkp="K/2",
+            kredit_pajak=16_880_171,
+            pph25=5_600_888,
+            penghasilan_neto_gabungan_override=337_160_000,
+        )
+
+        self.assertEqual(result.penghasilan_neto_gabungan, 337_160_000)
+        self.assertEqual(result.ptkp, 67_500_000)
+        self.assertEqual(result.pkp, 269_660_000)
+        self.assertEqual(result.pph_terutang, 36_415_000)
+        self.assertEqual(result.kurang_lebih_bayar, 13_933_941)
+
+
 if __name__ == "__main__":
     unittest.main()
