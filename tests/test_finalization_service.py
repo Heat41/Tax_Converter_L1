@@ -12,7 +12,7 @@ from core.finalization import (
 )
 from core.worksheet_pph_state import WorksheetBupotRow
 from core.mapping.worksheet_harta_mapper import WorksheetHartaRow
-from core.evy_reconciliation import EvyReconciliationResult
+from core.reconciliation import ReconciliationResult
 
 @pytest.fixture
 def temp_db(tmp_path):
@@ -45,7 +45,7 @@ def valid_input():
             pengurang=5000000.0,
         )
     ]
-    analisis = EvyReconciliationResult(
+    analisis = ReconciliationResult(
         total_harta_sebelumnya=10000000.0,
         total_harta_berjalan=15000000.0,
         total_utang_sebelumnya=0.0,
@@ -220,7 +220,7 @@ def test_blocking_validations(temp_db, valid_input, modify_input_func, expected_
     assert any(e.code == expected_error_code for e in res.validation_result.errors)
 
 def test_warning_still_can_finalize(temp_db, valid_input):
-    valid_input.analisis_result = EvyReconciliationResult(
+    valid_input.analisis_result = ReconciliationResult(
         total_harta_sebelumnya=10000000.0,
         total_harta_berjalan=15000000.0,
         total_utang_sebelumnya=0.0,
