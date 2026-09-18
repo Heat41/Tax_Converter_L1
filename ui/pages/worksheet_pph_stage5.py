@@ -17,7 +17,7 @@ from ui.performance import optimize_table_interaction, suspended_updates
 
 
 class WorksheetPage(BaseWorksheetPage):
-    """Stage 5 PPh: Peredaran Bruto UMKM mengikuti worksheet EVY BACHTIAR."""
+    """Stage 5 PPh: Peredaran Bruto UMKM mengikuti struktur Kertas Kerja."""
 
     UMKM_BRUTO_COLUMN = 2
     UMKM_PPH_COLUMN = 3
@@ -56,7 +56,7 @@ class WorksheetPage(BaseWorksheetPage):
         title = QLabel("Peredaran Bruto UMKM")
         title.setObjectName("sectionTitle")
         description = QLabel(
-            "Mengikuti kertas kerja EVY BACHTIAR: BRUTO dan PPh Setor diinput per masa, "
+            "Mengikuti struktur Kertas Kerja: BRUTO dan PPh Setor diinput per masa, "
             "sedangkan PPh Final 0,5% dihitung otomatis setelah omzet kumulatif melewati Rp 500 juta."
         )
         description.setObjectName("pageSubTitle")
@@ -93,7 +93,7 @@ class WorksheetPage(BaseWorksheetPage):
         self.umkm_table.itemChanged.connect(self._on_umkm_item_changed)
         card_layout.addWidget(self.umkm_table)
 
-        # Urutan worksheet Evy: Bupot -> UMKM -> Ringkasan/Penghasilan lainnya.
+        # Urutan worksheet: Bupot -> UMKM -> Ringkasan/Penghasilan lainnya.
         layout.insertWidget(2, self.umkm_card)
         self.pph_tab.setMinimumHeight(max(self.pph_tab.minimumHeight(), 1450))
         self._render_umkm_table()
