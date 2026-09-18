@@ -488,7 +488,10 @@ class WorksheetPage(BaseWorksheetPage):
                             )
                         except (TypeError, ValueError):
                             continue
-                    final_rows = parsed
+                    # Jangan menghapus baris awal hanya karena importer belum
+                    # menemukan detail Final Lainnya pada workbook.
+                    if parsed:
+                        final_rows = parsed
 
         self._other_income_state = state
         self._saved_other_income_state = deepcopy(state)
