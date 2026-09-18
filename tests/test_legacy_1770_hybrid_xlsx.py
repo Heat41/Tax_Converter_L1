@@ -4,7 +4,7 @@ from pathlib import Path
 
 from openpyxl import load_workbook
 
-from core.evy_reconciliation import EvyReconciliationResult
+from core.reconciliation import ReconciliationResult
 from core.finalization import FinalizationInput
 from core.legacy_1770_hybrid_xlsx import (
     DATA_BUPOT_SHEET,
@@ -17,7 +17,7 @@ from core.worksheet_pph_state import WorksheetBupotRow
 
 
 def _analysis():
-    return EvyReconciliationResult(
+    return ReconciliationResult(
         total_harta_sebelumnya=10000000.0,
         total_harta_berjalan=15000000.0,
         total_utang_sebelumnya=0.0,
