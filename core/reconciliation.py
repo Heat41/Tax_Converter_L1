@@ -80,6 +80,7 @@ def calculate_reconciliation(
     sewa_dpp: float = 0.0,
     honor_dpp: float = 0.0,
     final_other_dpp: float = 0.0,
+    penghasilan_netto_override: float | None = None,
 ) -> ReconciliationResult:
     harta_prev = float(total_harta_sebelumnya)
     harta_now = float(total_harta_berjalan)
@@ -117,7 +118,7 @@ def calculate_reconciliation(
     )
     jumlah_bukan_objek = float(prive_dpp) + float(hibah_warisan_dpp)
 
-    penghasilan_netto = (
+    calculated_penghasilan_netto = (
         (umkm + tambahan_umkm) * margin
         + float(netto_bupot)
         + float(domestic_other)
@@ -125,6 +126,12 @@ def calculate_reconciliation(
         + jumlah_bukan_objek
         + jumlah_bruto_final
         - umkm
+    )
+
+    penghasilan_netto = (
+        max(0.0, float(penghasilan_netto_override))
+        if penghasilan_netto_override is not None
+        else calculated_penghasilan_netto
     )
 
     selisih = penghasilan_netto - total_pengeluaran
