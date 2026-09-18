@@ -50,7 +50,7 @@ class WorksheetWorkbookImportResult:
 class WorksheetWorkbookImporter:
     """Stage 8B.1: impor kertas kerja kantor ke state Worksheet aplikasi.
 
-    Acuan utama adalah workbook EVY BACHTIAR:
+    Struktur acuan adalah workbook Kertas Kerja produksi:
     - sheet tahun (contoh: ``2025``) untuk Bupot/PPh/penghasilan;
     - ``SIMULASI I`` untuk Harta dan Analisis.
 
