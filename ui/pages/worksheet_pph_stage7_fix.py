@@ -364,8 +364,6 @@ class WorksheetPage(BaseWorksheetPage):
             self.bupot_table.blockSignals(False)
 
     def _refresh_pph_status(self):
-        if not hasattr(self, "pph_status"):
-            return
         rows = self.bupot_table.rowCount()
         total_bruto = sum(
             self._money_value(row, self.REKAP_BRUTO_COLUMN)
@@ -380,11 +378,12 @@ class WorksheetPage(BaseWorksheetPage):
             for row in range(rows)
         )
         total_netto = total_bruto - total_pengurang
-        self.pph_status.setText(
-            f"{rows} baris Bupot • Total Bruto Rp {self._format_bupot_money(total_bruto)} • "
-            f"Total Pengurang Bruto Rp {self._format_bupot_money(total_pengurang)} • "
-            f"Total Netto Rp {self._format_bupot_money(total_netto)} • "
-            f"Total PPh Rp {self._format_bupot_money(total_pph)}"
+        self._set_bupot_summary_values(
+            rows=rows,
+            total_bruto=total_bruto,
+            total_pengurang=total_pengurang,
+            total_netto=total_netto,
+            total_pph=total_pph,
         )
 
     def _rate_value(self, row: int, column: int) -> float:
