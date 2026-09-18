@@ -56,5 +56,20 @@ class TestReconciliation(unittest.TestCase):
         self.assertEqual(result.total_pengeluaran, 100 + 19_200_000 - 25)
 
 
+    def test_worksheet_net_income_override_drives_reconciliation(self):
+        result = calculate_reconciliation(
+            total_harta_sebelumnya=4_000_000_000,
+            total_harta_berjalan=4_410_763_668,
+            total_utang_sebelumnya=2_696_288_961,
+            total_utang_berjalan=3_043_750_663,
+            status_ptkp="K/2",
+            netto_bupot=6_700_000,
+            penghasilan_netto_override=337_160_000,
+        )
+
+        self.assertEqual(result.penghasilan_netto, 337_160_000)
+        self.assertNotEqual(result.penghasilan_netto, 6_700_000)
+
+
 if __name__ == "__main__":
     unittest.main()
