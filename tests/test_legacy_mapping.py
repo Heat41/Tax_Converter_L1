@@ -16,7 +16,7 @@ def temp_db(tmp_path):
 def _insert_final_snapshot(db_path, *, npwp="6101015612710001", year=2025, rows=None):
     payload = {
         "npwp": npwp,
-        "nama_wp": "EVY BACHTIAR",
+        "nama_wp": "WAJIB PAJAK TEST",
         "tahun_pajak": year,
         "harta_current_rows": rows or [],
     }
@@ -30,7 +30,7 @@ def _insert_final_snapshot(db_path, *, npwp="6101015612710001", year=2025, rows=
                 snapshot_hash
             ) VALUES (?, ?, ?, 1, 'FINAL', 1, ?, '[]', 'hash-test')
             """,
-            (npwp, "EVY BACHTIAR", year, json.dumps(payload)),
+            (npwp, "WAJIB PAJAK TEST", year, json.dumps(payload)),
         )
         conn.commit()
     finally:
@@ -44,7 +44,7 @@ def _row(**overrides):
         "kode_ct": "0104",
         "nama_harta": "Deposito",
         "nomor_akun_keterangan": "116801000285407",
-        "atas_nama": "DR EVY BACHTIAR SPOG",
+        "atas_nama": "DR WAJIB PAJAK TEST SPOG",
         "nama_bank": "BRI",
         "tahun_perolehan": 2022,
         "nilai_tahun_sebelumnya": 3000000000.0,
