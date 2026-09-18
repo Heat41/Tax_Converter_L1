@@ -31,7 +31,7 @@ class TestWorksheetAuditIdentity(unittest.TestCase):
         shutil.rmtree(self.temp_dir, ignore_errors=True)
 
     @staticmethod
-    def _row(atas_nama="EVY BACHTIAR"):
+    def _row(atas_nama="WAJIB PAJAK TEST"):
         return WorksheetHartaRow(
             nomor=1,
             kode_eform="012",
@@ -51,39 +51,39 @@ class TestWorksheetAuditIdentity(unittest.TestCase):
             worksheet_rows=[self._row()],
             current_year=2025,
             npwp="1234567890123456",
-            nama_wp="EVY BACHTIAR",
+            nama_wp="WAJIB PAJAK TEST",
         )
         self.page.load_harta_preview(result)
 
-        self.assertEqual(self.page.audit_wp_name_value.text(), "EVY BACHTIAR")
+        self.assertEqual(self.page.audit_wp_name_value.text(), "WAJIB PAJAK TEST")
         self.assertEqual(self.page.audit_npwp_value.text(), "1234567890123456")
         self.assertEqual(self.page.audit_year_value.text(), "2025")
 
     def test_audit_identity_falls_back_to_consistent_owner_name(self):
         result = HartaPipelineResult(
             mapping=HartaMappingResult(),
-            worksheet_rows=[self._row("EVY BACHTIAR")],
+            worksheet_rows=[self._row("WAJIB PAJAK TEST")],
             current_year=2025,
             npwp="1234567890123456",
         )
         self.page.load_harta_preview(result)
 
-        self.assertEqual(self.page.audit_wp_name_value.text(), "EVY BACHTIAR")
+        self.assertEqual(self.page.audit_wp_name_value.text(), "WAJIB PAJAK TEST")
 
     def test_audit_identity_normalizes_owner_title_variants(self):
         result = HartaPipelineResult(
             mapping=HartaMappingResult(),
             worksheet_rows=[
-                self._row("DR EVY BACHTIAR SPOG"),
-                self._row("EVY BACHTIAR"),
-                self._row("Dr. EVY BACHTIAR Sp.OG"),
+                self._row("DR WAJIB PAJAK TEST SPOG"),
+                self._row("WAJIB PAJAK TEST"),
+                self._row("Dr. Wajib Pajak Test Sp.OG"),
             ],
             current_year=2025,
             npwp="6101015612710001",
         )
         self.page.load_harta_preview(result)
 
-        self.assertEqual(self.page.audit_wp_name_value.text(), "EVY BACHTIAR")
+        self.assertEqual(self.page.audit_wp_name_value.text(), "WAJIB PAJAK TEST")
         self.assertEqual(self.page.audit_npwp_value.text(), "6101015612710001")
         self.assertEqual(self.page.audit_year_value.text(), "2025")
 
@@ -91,7 +91,7 @@ class TestWorksheetAuditIdentity(unittest.TestCase):
         result = HartaPipelineResult(
             mapping=HartaMappingResult(),
             worksheet_rows=[
-                self._row("EVY BACHTIAR"),
+                self._row("WAJIB PAJAK TEST"),
                 self._row("LISA VINATALIA"),
             ],
             current_year=2025,
@@ -107,7 +107,7 @@ class TestWorksheetAuditIdentity(unittest.TestCase):
             worksheet_rows=[self._row()],
             current_year=2025,
             npwp="1234567890123456",
-            nama_wp="EVY BACHTIAR",
+            nama_wp="WAJIB PAJAK TEST",
         )
         self.page.load_harta_preview(result)
         self.page.clear_harta_preview()
