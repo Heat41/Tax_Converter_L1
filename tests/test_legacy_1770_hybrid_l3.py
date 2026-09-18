@@ -4,13 +4,13 @@ from pathlib import Path
 
 from openpyxl import Workbook, load_workbook
 
-from core.evy_reconciliation import EvyReconciliationResult
+from core.reconciliation import ReconciliationResult
 from core.finalization import FinalizationInput
 from core.legacy_1770_hybrid_l3 import LegacyLampiranIIIXlsxRenderer
 
 
 def _analysis():
-    return EvyReconciliationResult(
+    return ReconciliationResult(
         total_harta_sebelumnya=0.0,
         total_harta_berjalan=0.0,
         total_utang_sebelumnya=0.0,
