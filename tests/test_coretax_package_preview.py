@@ -16,7 +16,7 @@ app = QApplication.instance() or QApplication(sys.argv)
 def _package():
     package = ReverseCoretaxPackage(
         npwp="6101015612710001",
-        nama_wp="EVY BACHTIAR",
+        nama_wp="WAJIB PAJAK TEST",
         tahun_pajak=2025,
         revision=5,
     )
@@ -29,7 +29,7 @@ def _package():
             tahun_perolehan=2025,
             nilai=1000000,
             nomor_akun_keterangan="ACC-01",
-            atas_nama="EVY BACHTIAR",
+            atas_nama="WAJIB PAJAK TEST",
             nama_bank="BRI",
         )
     )
@@ -42,7 +42,7 @@ def _package():
             tahun_perolehan=2020,
             nilai=500000000,
             nomor_akun_keterangan="Pontianak",
-            atas_nama="EVY BACHTIAR",
+            atas_nama="WAJIB PAJAK TEST",
             nama_bank="",
         )
     )
