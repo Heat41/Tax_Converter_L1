@@ -42,7 +42,7 @@ def _templates(directory: Path):
 def _package():
     package = ReverseCoretaxPackage(
         npwp="6101015612710001",
-        nama_wp="EVY BACHTIAR",
+        nama_wp="WAJIB PAJAK TEST",
         tahun_pajak=2025,
         revision=3,
         snapshot_hash="abc123",
@@ -57,11 +57,11 @@ def _package():
             tahun_perolehan=2025,
             nilai=391742658,
             nomor_akun_keterangan="116801005138508",
-            atas_nama="DR EVY BACHTIAR SPOG",
+            atas_nama="DR WAJIB PAJAK TEST SPOG",
             nama_bank="BRI",
             official_metadata={
                 "account_number": "116801005138508",
-                "account_on_behalf_of": "DR EVY BACHTIAR SPOG",
+                "account_on_behalf_of": "DR WAJIB PAJAK TEST SPOG",
                 "bank_name": "BRI",
                 "country": "Indonesia",
                 "year": 2025,
@@ -126,7 +126,7 @@ def test_stage8d4e_manifest_records_snapshot_identity(tmp_path):
 
     assert manifest["stage"] == "8D.4E"
     assert manifest["npwp"] == "6101015612710001"
-    assert manifest["nama_wp"] == "EVY BACHTIAR"
+    assert manifest["nama_wp"] == "WAJIB PAJAK TEST"
     assert manifest["tahun_pajak"] == 2025
     assert manifest["revision"] == 3
     assert manifest["snapshot_hash"] == "abc123"
