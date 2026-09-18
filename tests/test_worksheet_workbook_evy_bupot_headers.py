@@ -4,7 +4,7 @@ from core.worksheet_workbook_importer import WorksheetWorkbookImportResult
 from core.worksheet_workbook_importer_evy import WorksheetWorkbookImporter
 
 
-def test_evy_duplicate_bupot_headers_choose_left_populated_block(tmp_path):
+def test_duplicate_bupot_headers_choose_left_populated_block(tmp_path):
     rows = [[None] * 18 for _ in range(8)]
     rows[0][1:8] = ["NO", "JENIS", "NPWP PEMBERI KERJA", "NO BUPOT", "BRUTO", "PENGURANG", "NETTO"]
     rows[0][10:17] = ["NO", "JENIS", "NPWP PEMBERI KERJA", "NO BUPOT", "BRUTO", "PENGURANG", "NETTO"]
@@ -13,7 +13,7 @@ def test_evy_duplicate_bupot_headers_choose_left_populated_block(tmp_path):
     rows[3][1] = "TOTAL"
 
     df = pd.DataFrame(rows)
-    result = WorksheetWorkbookImportResult(source_path=tmp_path / "evy.xlsx")
+    result = WorksheetWorkbookImportResult(source_path=tmp_path / "worksheet.xlsx")
 
     WorksheetWorkbookImporter()._parse_bupot(df, result)
 
@@ -24,7 +24,7 @@ def test_evy_duplicate_bupot_headers_choose_left_populated_block(tmp_path):
     assert result.bupot_rows[1].bruto == 551202899
 
 
-def test_evy_left_block_totals_match_known_sample(tmp_path):
+def test_left_block_totals_match_known_sample(tmp_path):
     rows = [[None] * 18 for _ in range(30)]
     headers = ["NO", "JENIS", "NPWP PEMBERI KERJA", "NO BUPOT", "BRUTO", "PENGURANG", "NETTO"]
     rows[0][1:8] = headers
@@ -40,7 +40,7 @@ def test_evy_left_block_totals_match_known_sample(tmp_path):
         rows[idx][1:7] = [idx, jenis, npwp, no_bupot, bruto, pengurang]
     rows[len(samples) + 1][1] = "TOTAL"
 
-    result = WorksheetWorkbookImportResult(source_path=tmp_path / "evy.xlsx")
+    result = WorksheetWorkbookImportResult(source_path=tmp_path / "worksheet.xlsx")
     WorksheetWorkbookImporter()._parse_bupot(pd.DataFrame(rows), result)
 
     assert len(result.bupot_rows) == 3
