@@ -9,7 +9,7 @@ from PySide6.QtCore import Qt
 from PySide6.QtWidgets import QApplication
 
 from config.database import init_database
-from core.evy_reconciliation import EvyReconciliationResult
+from core.reconciliation import ReconciliationResult
 from core.mapping.worksheet_harta_mapper import WorksheetHartaRow
 from core.worksheet_pph_state import WorksheetBupotRow
 from ui.pages.finalization_page import FinalizationPage
@@ -19,7 +19,7 @@ app = QApplication.instance() or QApplication(sys.argv)
 
 
 def _analysis(selisih=0.0):
-    return EvyReconciliationResult(
+    return ReconciliationResult(
         total_harta_sebelumnya=10_000_000.0,
         total_harta_berjalan=15_000_000.0,
         total_utang_sebelumnya=0.0,
