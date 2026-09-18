@@ -6,14 +6,14 @@ from core.evy_reconciliation import (
 )
 
 
-class TestEvyReconciliation(unittest.TestCase):
-    def test_living_cost_matches_evy_ptkp_table(self):
+class TestReconciliation(unittest.TestCase):
+    def test_living_cost_matches_ptkp_table(self):
         self.assertEqual(living_cost_for_ptkp("TK/0"), 19_200_000)
         self.assertEqual(living_cost_for_ptkp("K/0"), 38_400_000)
         self.assertEqual(living_cost_for_ptkp("K/3"), 96_000_000)
         self.assertEqual(living_cost_for_ptkp("K/I/3"), 76_800_000)
 
-    def test_golden_evy_reconciliation_is_zero(self):
+    def test_golden_reconciliation_is_zero(self):
         result = calculate_evy_reconciliation(
             total_harta_sebelumnya=15_009_974_357,
             total_harta_berjalan=16_268_223_888,
