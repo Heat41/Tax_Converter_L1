@@ -136,9 +136,9 @@ def test_parse_evy_style_workbook_and_persist():
         assert result.pph_components["kredit_pajak"] == 105_486_376
         assert result.pph_components["umkm_bruto_bulanan"][0] == 100_000_000
         assert result.pph_components["umkm_pph_setor_bulanan"][0] == 250_000
-        assert result.pph_components["evy_other_income"]["honor_dpp"] == 75_160_827
-        assert len(result.pph_components["evy_final_other_income_rows"]) == 2
-        assert result.pph_components["evy_reconciliation"]["utang_berjalan"] == 200_000
+        assert result.pph_components["other_income"]["honor_dpp"] == 75_160_827
+        assert len(result.pph_components["final_other_income_rows"]) == 2
+        assert result.pph_components["reconciliation"]["utang_berjalan"] == 200_000
 
         importer.persist(result)
         saved_pph = WorksheetPPhStateStore(db_path).load(result.npwp, 2025)
@@ -169,3 +169,43 @@ def test_missing_simulasi_is_warning_not_identity_error():
         assert result.is_valid
         assert not result.harta_rows
         assert any(issue.code == "WKI_101" for issue in result.warnings)
+
+
+def test_pph_components_follow_active_year_summary_labels():
+    rows = [[None] * 10 for _ in range(30)]
+    rows[5][8] = "2024"
+    rows[5][9] = "2025"
+
+    rows[10][0] = "Jumlah Penghasilan Dalam Negeri Lainnya"
+    rows[10][8] = 1_000_000
+    rows[10][9] = 2_500_000
+
+    rows[11][0] = "Jumlah Penghasilan Dari Pekerjaan Bebas"
+    rows[11][8] = 3_000_000
+    rows[11][9] = 4_500_000
+
+    rows[12][0] = "Prive"
+    rows[12][8] = 5_000_000
+    rows[12][9] = 6_500_000
+
+    rows[13][0] = "Hibah / Warisan"
+    rows[13][8] = 7_000_000
+    rows[13][9] = 8_500_000
+
+    result = type(
+        "Result",
+        (),
+        {"tahun_pajak": 2025, "pph_components": {}},
+    )()
+
+    WorksheetWorkbookImporter()._parse_pph_components(
+        pd.DataFrame(rows),
+        result,
+    )
+
+    other = result.pph_components["other_income"]
+    assert other["domestic_other_enabled"] is True
+    assert other["domestic_other_dpp"] == 2_500_000
+    assert other["pekerjaan_bebas_dpp"] == 4_500_000
+    assert other["prive_dpp"] == 6_500_000
+    assert other["hibah_warisan_dpp"] == 8_500_000
