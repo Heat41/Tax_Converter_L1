@@ -26,6 +26,9 @@ class WorksheetPage(BaseWorksheetPage):
         "pph_terutang",
         "kredit_pajak",
         "pph25",
+        "penghasilan_neto_gabungan_imported",
+        "pkp_imported",
+        "pph_terutang_imported",
     )
 
     def __init__(self, parent=None):
