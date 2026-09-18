@@ -8,7 +8,7 @@ from core.legacy_1770_induk_finetuned import Legacy1770IndukService as FineTuned
 def _document():
     return Legacy1770Document(
         npwp="6101015612710001",
-        nama_wp="EVY BACHTIAR",
+        nama_wp="WAJIB PAJAK TEST",
         tahun_pajak=2025,
         total_netto_bupot=788_920_417,
         penghasilan_neto_lainnya=0,
@@ -29,7 +29,7 @@ def test_induk_mapping_follows_actual_legacy_field_positions():
 
     assert result.can_fill
     assert result.fields["NPWP"] == "6101015612710001"
-    assert result.fields["Nama Wajib Pajak"] == "EVY BACHTIAR"
+    assert result.fields["Nama Wajib Pajak"] == "WAJIB PAJAK TEST"
     assert result.fields["Tahun Pajak"] == "2025"
 
     # Angka 2 = JumlahBagianCinduk; angka 5 = PNInduk.
