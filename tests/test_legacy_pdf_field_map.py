@@ -64,7 +64,7 @@ class TestLegacyPdfFieldMap(unittest.TestCase):
     def test_induk_requires_identity(self):
         result = self.validator.validate_single_section(
             "induk",
-            {"npwp": "", "nama_wp": "EVY", "tahun_pajak": 2025},
+            {"npwp": "", "nama_wp": "TEST WP", "tahun_pajak": 2025},
         )
         self.assertEqual(result.state, SectionState.INCOMPLETE)
 
