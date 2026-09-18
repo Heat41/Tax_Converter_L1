@@ -254,6 +254,21 @@ class InputDataPage(QWidget):
         if index >= 0:
             combo.setCurrentIndex(index)
 
+    def _refresh_sheet_selector_status(self):
+        year_sheet = self.year_sheet_combo.currentText().strip()
+        simulasi_sheet = self.simulasi_sheet_combo.currentText().strip()
+        revisi_sheet = self.revisi_sheet_combo.currentText().strip()
+
+        self.sheet_selector_status.setText(
+            f"Sheet Tahun: {'✓ ' + year_sheet if year_sheet else 'tidak dipilih'} • "
+            f"SIMULASI I: {'✓ ditemukan' if simulasi_sheet else 'tidak ditemukan'} • "
+            f"REVISI: {'✓ ditemukan' if revisi_sheet else 'tidak ditemukan / opsional'}"
+        )
+
+        self.import_worksheet_button.setEnabled(
+            bool(self.worksheet_path and year_sheet and simulasi_sheet)
+        )
+
     def choose_worksheet(self):
         path, _ = QFileDialog.getOpenFileName(
             self,
