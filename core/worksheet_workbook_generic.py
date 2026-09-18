@@ -16,7 +16,7 @@ from core.worksheet_workbook_importer import (
 class GenericWorksheetWorkbookImporter(WorksheetWorkbookImporter):
     """Importer worksheet generik untuk variasi file WP dengan struktur sejenis.
 
-    EVY tetap menjadi golden reference, tetapi parser tidak bergantung pada nama
+    Workbook referensi tetap menjadi golden reference, tetapi parser tidak bergantung pada nama
     WP, nama file, atau posisi kolom tetap. Header dikenali melalui alias dan
     pemilihan blok tabel didasarkan pada kelengkapan struktur + keberadaan data.
     """
