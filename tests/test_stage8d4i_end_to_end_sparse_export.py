@@ -5,7 +5,7 @@ from openpyxl import Workbook, load_workbook
 
 from config.database import init_database
 from core.coretax_official_schema import OFFICIAL_CORETAX_SCHEMAS
-from core.evy_reconciliation import EvyReconciliationResult
+from core.reconciliation import ReconciliationResult
 from core.finalization import FinalizationInput, FinalizationService
 from core.mapping.worksheet_harta_mapper import WorksheetHartaRow
 from core.reverse_coretax_official_package import OfficialCoretaxPackageExporter
@@ -18,7 +18,7 @@ ACTIVE_CATEGORIES = ("KAS", "HTB", "LAINNYA")
 
 
 def _analysis():
-    return EvyReconciliationResult(
+    return ReconciliationResult(
         total_harta_sebelumnya=0.0,
         total_harta_berjalan=579_742_658.0,
         total_utang_sebelumnya=0.0,
@@ -49,7 +49,7 @@ def _rows():
             kode_ct="0102",
             nama_harta="Tabungan",
             nomor_akun_keterangan="116801005138508",
-            atas_nama="DR EVY BACHTIAR SPOG",
+            atas_nama="DR WAJIB PAJAK TEST SPOG",
             nama_bank="BRI",
             tahun_perolehan=2025,
             nilai_tahun_sebelumnya=0.0,
@@ -58,7 +58,7 @@ def _rows():
                 "category": "KAS",
                 "code": "0102",
                 "account_number": "116801005138508",
-                "account_on_behalf_of": "DR EVY BACHTIAR SPOG",
+                "account_on_behalf_of": "DR WAJIB PAJAK TEST SPOG",
                 "bank_name": "BRI",
                 "country": "Indonesia",
                 "year": 2025,
@@ -119,7 +119,7 @@ def _rows():
 def _finalization_input():
     return FinalizationInput(
         npwp="6101015612710001",
-        nama_wp="EVY BACHTIAR",
+        nama_wp="WAJIB PAJAK TEST",
         tahun_pajak=2025,
         harta_current_rows=_rows(),
         harta_original_hash="e2e-source-hash",
