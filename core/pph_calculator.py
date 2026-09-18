@@ -100,6 +100,7 @@ def calculate_annual_pph(
     status_ptkp: str = "TK/0",
     kredit_pajak: float = 0.0,
     pph25: float = 0.0,
+    penghasilan_neto_gabungan_override: float | None = None,
 ) -> AnnualPPhResult:
     status = normalize_ptkp_status(status_ptkp)
     ptkp = ptkp_value(status)
@@ -108,10 +109,24 @@ def calculate_annual_pph(
     # F73 = ROUNDDOWN(H34 + F53, -3) - F64
     # H34 = Total NETTO Bupot, F53 = Penghasilan Dalam Negeri Lainnya,
     # F64 = Zakat/Pengurang Penghasilan Neto.
-    neto_sebelum_pengurang = round_down_thousand(
-        float(total_netto_bupot) + float(penghasilan_neto_lainnya)
-    )
-    neto_gabungan = neto_sebelum_pengurang - float(pengurang_penghasilan_neto)
+    if penghasilan_neto_gabungan_override is None:
+        neto_sebelum_pengurang = round_down_thousand(
+            float(total_netto_bupot) + float(penghasilan_neto_lainnya)
+        )
+        neto_gabungan = (
+            neto_sebelum_pengurang - float(pengurang_penghasilan_neto)
+        )
+    else:
+        # Sheet Tahun adalah sumber utama Penghasilan/PPh. Bila workbook
+        # menyediakan Penghasilan Neto Gabungan, gunakan angka itu sebagai
+        # baseline perhitungan PKP/PPh agar tidak ditimpa oleh subtotal Bupot
+        # yang mungkin berasal dari sumber terpisah.
+        neto_gabungan = max(
+            0.0, float(penghasilan_neto_gabungan_override)
+        )
+        neto_sebelum_pengurang = (
+            neto_gabungan + float(pengurang_penghasilan_neto)
+        )
     pkp = max(0.0, neto_gabungan - ptkp)
     pph_terutang = progressive_pph(pkp)
     kurang_lebih = pph_terutang - float(kredit_pajak) - float(pph25)
