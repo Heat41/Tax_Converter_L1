@@ -266,6 +266,14 @@ class SelectableWorksheetWorkbookImporter(GenericWorksheetWorkbookImporter):
                 if empty_streak >= 8 and result.harta_rows:
                     break
                 continue
+
+            # Nilai tahun saja tidak cukup untuk membuktikan bahwa baris ini
+            # adalah Harta. Bagian Penghasilan di atas tabel SIMULASI dapat
+            # memiliki angka pada kolom tahun yang sama. Wajib ada identitas
+            # aset pada KODE CT atau NAMA HARTA.
+            if not code_ct and not name:
+                continue
+
             empty_streak = 0
 
             # Abaikan baris judul/subtotal yang kebetulan berada di area data.
