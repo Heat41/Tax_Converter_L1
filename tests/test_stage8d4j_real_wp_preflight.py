@@ -4,7 +4,7 @@ from openpyxl import Workbook
 
 from config.database import init_database
 from core.coretax_official_schema import OFFICIAL_CORETAX_SCHEMAS
-from core.evy_reconciliation import EvyReconciliationResult
+from core.reconciliation import ReconciliationResult
 from core.finalization import FinalizationInput, FinalizationService
 from core.mapping.worksheet_harta_mapper import WorksheetHartaRow
 from core.real_wp_preflight import (
@@ -14,7 +14,7 @@ from core.real_wp_preflight import (
 
 
 def _analysis():
-    return EvyReconciliationResult(
+    return ReconciliationResult(
         total_harta_sebelumnya=0.0,
         total_harta_berjalan=100_000_000.0,
         total_utang_sebelumnya=0.0,
@@ -40,7 +40,7 @@ def _analysis():
 def _final_input():
     return FinalizationInput(
         npwp="6101015612710001",
-        nama_wp="EVY BACHTIAR",
+        nama_wp="WAJIB PAJAK TEST",
         tahun_pajak=2025,
         harta_current_rows=[
             WorksheetHartaRow(
