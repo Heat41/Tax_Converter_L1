@@ -33,7 +33,7 @@ class TestWorksheetPPhStage7Fix(unittest.TestCase):
                     kode_ct="0102",
                     nama_harta="Tabungan",
                     nomor_akun_keterangan="1",
-                    atas_nama="EVY BACHTIAR",
+                    atas_nama="WAJIB PAJAK TEST",
                     nama_bank="BRI",
                     tahun_perolehan=2025,
                     nilai_tahun_sebelumnya=0,
@@ -42,7 +42,7 @@ class TestWorksheetPPhStage7Fix(unittest.TestCase):
             ],
             current_year=2025,
             npwp="6101015612710001",
-            nama_wp="EVY BACHTIAR",
+            nama_wp="WAJIB PAJAK TEST",
         )
         self.page.load_harta_preview(self.result)
 
@@ -50,12 +50,12 @@ class TestWorksheetPPhStage7Fix(unittest.TestCase):
         self.page.deleteLater()
         shutil.rmtree(self.temp_dir, ignore_errors=True)
 
-    def _fill_evy_bupot_total(self):
+    def _fill_reference_bupot_total(self):
         self.page._add_bupot_row()
         self.page.bupot_table.item(0, 1).setText("BP21")
-        self.page.bupot_table.item(0, 2).setText("TEST-EVY-2025")
+        self.page.bupot_table.item(0, 2).setText("TEST-BUPOT-2025")
         self.page.bupot_table.item(0, 7).setText("6101015612710001")
-        self.page.bupot_table.item(0, 8).setText("EVY BACHTIAR")
+        self.page.bupot_table.item(0, 8).setText("WAJIB PAJAK TEST")
         self.page.bupot_table.item(0, 12).setText("1.037.999.641")
         self.page.bupot_table.item(0, 15).setText("249.079.224")
         self.page.bupot_table.item(0, 16).setText("105.486.376")
@@ -76,7 +76,7 @@ class TestWorksheetPPhStage7Fix(unittest.TestCase):
         self.assertIn("NPWP PEMOTONG", headers)
 
     def test_linked_other_income_and_zakat_are_visible_in_summary(self):
-        self._fill_evy_bupot_total()
+        self._fill_reference_bupot_total()
         self.page._other_income_state["domestic_other_enabled"] = True
         self.page._other_income_state["domestic_other_dpp"] = 75_160_827
         self.page._other_income_state["zakat"] = 45_000_000
