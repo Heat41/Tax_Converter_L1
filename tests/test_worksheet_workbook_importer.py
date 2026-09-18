@@ -285,3 +285,37 @@ def test_long_utang_block_feeds_reconciliation_totals():
     reconciliation = result.pph_components["reconciliation"]
     assert reconciliation["utang_sebelumnya"] == 2_696_288_961
     assert reconciliation["utang_berjalan"] == 3_043_750_663
+
+
+def test_analysis_net_income_keeps_exact_value_before_tax_rounding():
+    rows = [[None] * 12 for _ in range(120)]
+    rows[70][8] = "2024"
+    rows[70][9] = "2025"
+
+    rows[90][0] = "ANALISIS"
+    rows[91][0] = "Naik/Turun Harta dan Utang"
+    rows[91][9] = 218_638_904
+    rows[92][0] = "Biaya Hidup Setahun"
+    rows[92][9] = 76_800_000
+    rows[93][0] = "Pajak-pajak"
+    rows[93][9] = 36_415_000
+    rows[94][0] = "Pengeluaran lain-lain"
+    rows[94][9] = 5_306_227
+    rows[95][0] = "Total Pengeluaran Per Tahun"
+    rows[95][9] = 337_160_131
+    rows[99][0] = "Penghasilan Netto (Bruto UMKM x Margin + Penghasilan Lainnya)"
+    rows[99][9] = 337_160_131
+
+    result = type(
+        "Result",
+        (),
+        {"tahun_pajak": 2025, "pph_components": {}},
+    )()
+
+    WorksheetWorkbookImporter()._parse_reconciliation(
+        pd.DataFrame(rows),
+        result,
+    )
+
+    reconciliation = result.pph_components["reconciliation"]
+    assert reconciliation["penghasilan_netto_analisis"] == 337_160_131
