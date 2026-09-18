@@ -692,8 +692,7 @@ class FinalizationPage(QWidget):
         self.export_coretax_button = QPushButton("Export Paket Coretax")
         self.export_coretax_button.setObjectName("primaryButton")
         self.export_coretax_button.setToolTip(
-            "Membuat 6 Excel resmi L-1. XML dibuat untuk kategori yang sudah "
-            "memiliki kontrak XML resmi, lalu seluruh paket divalidasi."
+            "Membuat paket final 6 Excel + 6 XML resmi L-1, lalu seluruh paket divalidasi."
         )
 
         self.recheck_button.clicked.connect(self.refresh_page)
@@ -1676,8 +1675,7 @@ class FinalizationPage(QWidget):
                 f"Lokasi: {output_dir}\n"
                 f"Isi: {len(export_result.excel_result.files)} Excel + "
                 f"{len(export_result.xml_result.files)} XML + manifest.json\n"
-                "Coverage XML resmi: KAS, INVESTASI, BERGERAK, HTB\n"
-                "Menunggu kontrak XML: PIUTANG, LAINNYA\n"
+                "Coverage XML resmi: 6/6 kategori L-1\n"
                 f"Rekonsiliasi sumber: {reconciliation_status}\n"
                 f"{reconciliation_detail}"
             ),
