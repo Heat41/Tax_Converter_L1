@@ -41,9 +41,9 @@ def calculate_final_other_income(
 
 
 def default_evy_final_other_income_rows() -> list[FinalOtherIncomeRow]:
-    """Baris awal mengikuti struktur detail pada kertas kerja EVY BACHTIAR.
+    """Baris awal mengikuti struktur detail pada Kertas Kerja.
 
-    Nama dapat diubah dari UI. Tarif awal mengikuti formula pada workbook Evy:
+    Nama dapat diubah dari UI. Tarif awal mengikuti formula Kertas Kerja:
     deposito 20% dan obligasi 10%.
     """
     return [
