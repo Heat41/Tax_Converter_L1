@@ -248,3 +248,40 @@ def test_pph_summary_values_are_parsed_from_worksheet_bottom_block():
     assert components["pph_terutang"] == 36_415_000
     assert components["kredit_pajak"] == 16_880_171
     assert components["pph25"] == 5_600_888
+
+
+def test_long_utang_block_feeds_reconciliation_totals():
+    rows = [[None] * 12 for _ in range(120)]
+    rows[75][0] = "UTANG"
+    rows[75][8] = "2024"
+    rows[75][9] = "2025"
+
+    for index in range(13):
+        row = 76 + index
+        rows[row][0] = index + 1
+        rows[row][1] = "101"
+        rows[row][2] = f"UTANG {index + 1}"
+        rows[row][8] = 100_000_000 + index
+        rows[row][9] = 200_000_000 + index
+
+    rows[89][0] = "TOTAL"
+    rows[89][8] = 2_696_288_961
+    rows[89][9] = 3_043_750_663
+
+    result = type(
+        "Result",
+        (),
+        {
+            "tahun_pajak": 2025,
+            "pph_components": {},
+        },
+    )()
+
+    WorksheetWorkbookImporter()._parse_reconciliation(
+        pd.DataFrame(rows),
+        result,
+    )
+
+    reconciliation = result.pph_components["reconciliation"]
+    assert reconciliation["utang_sebelumnya"] == 2_696_288_961
+    assert reconciliation["utang_berjalan"] == 3_043_750_663
