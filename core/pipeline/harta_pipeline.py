@@ -196,7 +196,7 @@ class HartaPreviewPipeline:
     def _infer_unique_owner_name(cls, rows: List[WorksheetHartaRow]) -> Optional[str]:
         """Fallback konservatif untuk Nama WP dari variasi ATAS NAMA.
 
-        Nama seperti ``DR EVY BACHTIAR SPOG`` dan ``EVY BACHTIAR`` dianggap
+        Nama dengan variasi gelar/profesi dan nama dasar dianggap
         satu identitas karena perbedaannya hanya gelar. Bila nama intinya tetap
         berbeda, fungsi mengembalikan None agar UI tidak menebak WP yang salah.
         """
