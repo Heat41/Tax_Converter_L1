@@ -455,7 +455,9 @@ class WorksheetPage(BaseWorksheetPage):
             except Exception:
                 persisted = None
             if persisted is not None:
-                raw_state = persisted.components.get("other_income")\n                if not isinstance(raw_state, dict):\n                    raw_state = persisted.components.get(legacy_component_key("other_income"))
+                raw_state = persisted.components.get("other_income")
+                if not isinstance(raw_state, dict):
+                    raw_state = persisted.components.get(legacy_component_key("other_income"))
                 if isinstance(raw_state, dict):
                     for key in state:
                         if key in raw_state:
@@ -468,7 +470,9 @@ class WorksheetPage(BaseWorksheetPage):
                                     state[key] = max(0.0, float(raw_state[key] or 0))
                                 except (TypeError, ValueError):
                                     pass
-                raw_final = persisted.components.get("final_other_income_rows")\n                if not isinstance(raw_final, list):\n                    raw_final = persisted.components.get(legacy_component_key("final_other_income_rows"))
+                raw_final = persisted.components.get("final_other_income_rows")
+                if not isinstance(raw_final, list):
+                    raw_final = persisted.components.get(legacy_component_key("final_other_income_rows"))
                 if isinstance(raw_final, list):
                     parsed = []
                     for item in raw_final:
