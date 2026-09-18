@@ -33,7 +33,7 @@ class TestWorksheetHartaLink(unittest.TestCase):
             kode_ct="0102",
             nama_harta="Tabungan (Bank/Lembaga Keuangan)",
             nomor_akun_keterangan="116801005138508",
-            atas_nama="EVY BACHTIAR",
+            atas_nama="WAJIB PAJAK TEST",
             nama_bank="BRI",
             tahun_perolehan=2025,
             nilai_tahun_sebelumnya=0,
