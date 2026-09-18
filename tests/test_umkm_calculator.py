@@ -4,7 +4,7 @@ from core.umkm_calculator import calculate_umkm_monthly
 
 
 class TestUMKMCalculator(unittest.TestCase):
-    def test_all_zero_matches_evy_current_worksheet(self):
+    def test_all_zero_matches_reference_current_worksheet(self):
         result = calculate_umkm_monthly([0] * 12, [0] * 12)
         self.assertEqual(result.total_bruto, 0)
         self.assertEqual(result.total_pph, 0)
@@ -24,7 +24,7 @@ class TestUMKMCalculator(unittest.TestCase):
         self.assertEqual(result.total_bruto, 600_000_000)
         self.assertEqual(result.total_pph, 500_000)
 
-    def test_pph_is_incremental_per_month_like_evy_formula(self):
+    def test_pph_is_incremental_per_month_like_reference_formula(self):
         result = calculate_umkm_monthly([600_000_000, 100_000_000])
         self.assertEqual(result.months[0].pph, 500_000)
         self.assertEqual(result.months[1].pph, 500_000)
