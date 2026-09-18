@@ -8,7 +8,7 @@ from pathlib import Path
 from typing import Any, Dict, List, Optional
 
 from config.database import get_db_connection
-from core.evy_reconciliation import EvyReconciliationResult
+from core.reconciliation import ReconciliationResult
 from core.worksheet_pph_state import WorksheetBupotRow
 from core.mapping.worksheet_harta_mapper import WorksheetHartaRow
 
@@ -62,7 +62,7 @@ class FinalizationInput:
     zakat: float
     status_ptkp: str
     pph_calc_result: Dict[str, Any]
-    analisis_result: EvyReconciliationResult
+    analisis_result: ReconciliationResult
     is_harta_dirty: bool = False
     is_pph_dirty: bool = False
     is_analisis_dirty: bool = False
