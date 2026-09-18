@@ -42,7 +42,7 @@ def test_lampiran_i_uses_snapshot_bupot_and_domestic_other_values():
     assert not result.errors
 
 
-def test_lampiran_i_is_not_hardcoded_to_evy_values():
+def test_lampiran_i_is_not_hardcoded_to_sample_values():
     document = Legacy1770Document(
         npwp="9999888877776666",
         nama_wp="MODEL DATA BERBEDA",
