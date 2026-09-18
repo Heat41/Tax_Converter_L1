@@ -3,8 +3,8 @@ import unittest
 from core.evy_other_income import FinalOtherIncomeRow, calculate_final_other_income
 
 
-class TestEvyOtherIncome(unittest.TestCase):
-    def test_evy_final_other_income_matches_reference_subtotal(self):
+class TestOtherIncome(unittest.TestCase):
+    def test_final_other_income_matches_reference_subtotal(self):
         result = calculate_final_other_income(
             [
                 FinalOtherIncomeRow("Deposito BRI", 90_000_000, 0.20),
