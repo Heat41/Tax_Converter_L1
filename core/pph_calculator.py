@@ -20,7 +20,7 @@ PTKP_BY_STATUS: Dict[str, float] = {
     "K/I/3": 126_000_000.0,
 }
 
-# Batas progresif yang dipakai pada sheet 2025 kertas kerja EVY BACHTIAR.
+# Batas progresif yang dipakai pada sheet tahun Kertas Kerja.
 PPh_BRACKETS: Tuple[Tuple[float | None, float], ...] = (
     (60_000_000.0, 0.05),
     (250_000_000.0, 0.15),
