@@ -72,6 +72,22 @@ class TestWorksheetPPhStage7(unittest.TestCase):
             "6.000.000",
         )
 
+
+    def test_exact_analysis_net_income_wins_over_rounded_pph_baseline(self):
+        self.page._status_ptkp = "K/2"
+        self.page._reconciliation_manual["utang_sebelumnya"] = 2_696_288_961
+        self.page._reconciliation_manual["utang_berjalan"] = 3_043_750_663
+        self.page._reconciliation_manual[
+            "penghasilan_netto_analisis"
+        ] = 337_160_131
+        self.page._pph_component_values[
+            "penghasilan_neto_gabungan_imported"
+        ] = 337_160_000
+
+        result = self.page._calculate_reconciliation()
+
+        self.assertEqual(result.penghasilan_netto, 337_160_131)
+
     def test_signed_other_expense_is_allowed(self):
         item = self.page.reconciliation_table.item(3, 3)
         item.setText("-4.518.411")
