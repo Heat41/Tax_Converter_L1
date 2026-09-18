@@ -37,7 +37,33 @@ class TestWorksheetPPhStage1(unittest.TestCase):
         self.assertEqual(self.page.bupot_table.item(0, 4).text(), "1.500.000")
         self.assertEqual(self.page.bupot_table.item(0, 5).text(), "500.000")
         self.assertEqual(self.page.bupot_table.item(0, 6).text(), "1.000.000")
-        self.assertIn("Total Netto Rp 1.000.000", self.page.pph_status.text())
+        self.assertEqual(
+            self.page.bupot_summary_values["jumlah_bupot"].text(), "1"
+        )
+        self.assertEqual(
+            self.page.bupot_summary_values["total_bruto"].text(), "Rp 1.500.000"
+        )
+        self.assertEqual(
+            self.page.bupot_summary_values["total_pengurang"].text(), "Rp 500.000"
+        )
+        self.assertEqual(
+            self.page.bupot_summary_values["total_netto"].text(), "Rp 1.000.000"
+        )
+
+
+    def test_bupot_totals_are_persistent_fields_not_top_notification(self):
+        self.assertTrue(hasattr(self.page, "bupot_summary_values"))
+        self.assertFalse(self.page.pph_status.isVisible())
+        self.assertEqual(
+            set(self.page.bupot_summary_values),
+            {
+                "jumlah_bupot",
+                "total_bruto",
+                "total_pengurang",
+                "total_netto",
+                "total_pph",
+            },
+        )
 
     def test_bupot_table_uses_pixel_scrolling(self):
         self.assertEqual(
