@@ -162,3 +162,9 @@ def test_lampiran_iv_utang_geometry_stays_inside_bagian_b():
 
     # Total Bagian B harus tepat sesudah baris Utang ke-10, bukan turun ke Bagian C.
     assert service.UTANG_TOTAL_RECT[1] == service.UTANG_ROW_BOUNDS[-1][1]
+
+
+def test_lampiran_iv_utang_text_uses_downward_offset_without_moving_total():
+    service = Legacy1770LampiranIVService
+    assert service.UTANG_TEXT_Y_OFFSET == 5.8
+    assert service.UTANG_TOTAL_RECT == (476.00, 598.40, 580.80, 615.20)
