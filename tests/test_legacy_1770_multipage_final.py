@@ -4,7 +4,7 @@ from core.legacy_1770_multipage_final import (
 )
 
 
-def test_non_last_page_displays_only_page_subtotal():
+def test_non_last_lampiran_i_page_displays_grand_total():
     summary = MultipagePageSummary(
         section="L1",
         page_number=2,
@@ -14,7 +14,7 @@ def test_non_last_page_displays_only_page_subtotal():
         subtotal_available=True,
     )
 
-    assert Legacy1770MultipageService._display_value_for_summary(summary) == 57_232_543
+    assert Legacy1770MultipageService._display_value_for_summary(summary) == 788_920_417
 
 
 def test_section_page_helper_distinguishes_last_page():
@@ -23,7 +23,7 @@ def test_section_page_helper_distinguishes_last_page():
     assert Legacy1770MultipageService._is_last_section_page(5, 4) is True
 
 
-def test_last_page_displays_only_grand_total():
+def test_last_lampiran_i_page_displays_same_grand_total():
     summary = MultipagePageSummary(
         section="L1",
         page_number=4,
@@ -36,7 +36,7 @@ def test_last_page_displays_only_grand_total():
     assert Legacy1770MultipageService._display_value_for_summary(summary) == 788_920_417
 
 
-def test_non_last_page_without_reconciled_detail_displays_dash():
+def test_non_last_bupot_page_displays_grand_total_even_without_page_subtotal():
     summary = MultipagePageSummary(
         section="L2",
         page_number=1,
@@ -46,17 +46,58 @@ def test_non_last_page_without_reconciled_detail_displays_dash():
         subtotal_available=False,
     )
 
-    assert Legacy1770MultipageService._display_value_for_summary(summary) is None
+    assert Legacy1770MultipageService._display_value_for_summary(summary) == 105_486_376
 
 
-def test_last_page_uses_grand_total_even_when_detail_is_unavailable():
-    summary = MultipagePageSummary(
+def test_every_bupot_page_uses_same_grand_total():
+    first = MultipagePageSummary(
+        section="L2",
+        page_number=1,
+        page_count=2,
+        subtotal=40_000_000,
+        grand_total=105_486_376,
+        subtotal_available=True,
+    )
+    last = MultipagePageSummary(
         section="L2",
         page_number=2,
         page_count=2,
-        subtotal=None,
+        subtotal=65_486_376,
         grand_total=105_486_376,
-        subtotal_available=False,
+        subtotal_available=True,
     )
 
-    assert Legacy1770MultipageService._display_value_for_summary(summary) == 105_486_376
+    assert Legacy1770MultipageService._display_value_for_summary(first) == 105_486_376
+    assert Legacy1770MultipageService._display_value_for_summary(last) == 105_486_376
+
+
+def test_every_harta_page_uses_same_grand_total():
+    first = MultipagePageSummary(
+        section="L4",
+        page_number=1,
+        page_count=3,
+        subtotal=150_000_000,
+        grand_total=725_000_000,
+        subtotal_available=True,
+    )
+    middle = MultipagePageSummary(
+        section="L4",
+        page_number=2,
+        page_count=3,
+        subtotal=250_000_000,
+        grand_total=725_000_000,
+        subtotal_available=True,
+    )
+    last = MultipagePageSummary(
+        section="L4",
+        page_number=3,
+        page_count=3,
+        subtotal=325_000_000,
+        grand_total=725_000_000,
+        subtotal_available=True,
+    )
+
+    expected = 725_000_000
+    assert Legacy1770MultipageService._display_value_for_summary(first) == expected
+    assert Legacy1770MultipageService._display_value_for_summary(middle) == expected
+    assert Legacy1770MultipageService._display_value_for_summary(last) == expected
