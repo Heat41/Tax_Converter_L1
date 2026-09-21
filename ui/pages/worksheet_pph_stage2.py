@@ -5,6 +5,7 @@ from PySide6.QtGui import QColor
 from PySide6.QtWidgets import QLabel, QPushButton, QTableWidgetItem
 
 from core.worksheet_pph_state import WorksheetBupotRow, WorksheetPPhStateStore
+from core.worksheet_sorting import sort_bupot_rows
 from ui.pages.worksheet_pph_stage1 import WorksheetPage as BaseWorksheetPage
 from ui.performance import suspended_updates
 
@@ -103,8 +104,9 @@ class WorksheetPage(BaseWorksheetPage):
                     "State Bupot database gagal dibaca.", "warning", 3600
                 )
         else:
-            self._render_bupot_rows(persisted.bupot_rows)
-            self._bupot_saved_rows = list(persisted.bupot_rows)
+            ordered_bupot_rows = sort_bupot_rows(persisted.bupot_rows)
+            self._render_bupot_rows(ordered_bupot_rows)
+            self._bupot_saved_rows = list(ordered_bupot_rows)
             self._bupot_restored_from_db = True
             self.toast_notification.show_message(
                 f"{len(persisted.bupot_rows)} baris Bupot dipulihkan dari database.",
