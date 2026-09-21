@@ -128,6 +128,8 @@ class TestLegacy1770HybridXlsx(unittest.TestCase):
         )
         self.assertIn(DATA_HARTA_SHEET, wb.sheetnames)
         self.assertIn(DATA_BUPOT_SHEET, wb.sheetnames)
+        self.assertEqual(wb[DATA_HARTA_SHEET].sheet_state, "veryHidden")
+        self.assertEqual(wb[DATA_BUPOT_SHEET].sheet_state, "veryHidden")
         self.assertEqual(wb[META_SHEET].sheet_state, "veryHidden")
         self.assertEqual(
             wb["01 eForm Induk H1"]["A2"].value,
@@ -187,8 +189,6 @@ class TestLegacy1770HybridXlsx(unittest.TestCase):
             "04 Legacy Lamp II",
             "05 Legacy Lamp III",
             "06 Legacy Lamp IV",
-            DATA_HARTA_SHEET,
-            DATA_BUPOT_SHEET,
         )
         for sheet_name in expected:
             ws = wb[sheet_name]
