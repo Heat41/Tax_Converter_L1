@@ -10,6 +10,7 @@ from PySide6.QtWidgets import (
 )
 
 from core.worksheet_pph_state import WorksheetBupotRow
+from core.worksheet_sorting import sort_bupot_rows, sort_harta_rows
 
 from ui.pages.worksheet_pph_stage7 import WorksheetPage as BaseWorksheetPage
 from ui.performance import optimize_scroll_area
@@ -127,6 +128,7 @@ class WorksheetPage(BaseWorksheetPage):
         if not hasattr(self, "bupot_table"):
             return
 
+        rows = sort_bupot_rows(rows)
         self._rendering_bupot = True
         self.bupot_table.blockSignals(True)
         try:
@@ -478,7 +480,7 @@ class WorksheetPage(BaseWorksheetPage):
         if pipeline is not None:
             self.load_harta_preview(pipeline)
 
-        revision_rows = list(
+        revision_rows = sort_harta_rows(
             getattr(import_result, "revision_harta_rows", []) or []
         )
         if pipeline is not None and revision_rows:
