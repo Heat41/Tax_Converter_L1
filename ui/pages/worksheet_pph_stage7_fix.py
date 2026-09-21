@@ -4,9 +4,12 @@ from PySide6.QtCore import Qt
 from PySide6.QtWidgets import (
     QAbstractScrollArea,
     QFrame,
+    QLabel,
     QScrollArea,
     QSizePolicy,
+    QTableWidget,
     QTableWidgetItem,
+    QVBoxLayout,
 )
 
 from core.worksheet_pph_state import WorksheetBupotRow
@@ -58,6 +61,7 @@ class WorksheetPage(BaseWorksheetPage):
         self._repolish_widget(self.harta_prev_value)
         self._configure_harta_visible_rows()
         self._install_harta_page_scrolling()
+        self._install_utang_support_table()
         self._upgrade_bupot_table_to_rekap_fields()
         self._render_reconciliation()
         self._recalculate_pph_summary()
@@ -429,6 +433,128 @@ class WorksheetPage(BaseWorksheetPage):
             return str(int(round(number)))
         return f"{number:.4f}".rstrip("0").rstrip(".")
 
+    UTANG_HEADERS = (
+        "NO",
+        "KODE UTANG",
+        "NAMA PEMBERI PINJAMAN",
+        "ALAMAT PEMBERI PINJAMAN",
+        "TAHUN PINJAMAN",
+        "JUMLAH",
+    )
+
+    def _install_utang_support_table(self):
+        """Tampilkan detail Utang SIMULASI sebagai data pendukung rekonsiliasi."""
+        if hasattr(self, "utang_support_table"):
+            return
+
+        layout = self.harta_tab.layout()
+        if layout is None:
+            return
+
+        self.utang_support_card = QFrame(objectName="card")
+        card_layout = QVBoxLayout(self.utang_support_card)
+        card_layout.setContentsMargins(20, 18, 20, 18)
+        card_layout.setSpacing(8)
+
+        title = QLabel("Utang — SIMULASI I")
+        title.setObjectName("sectionTitle")
+        description = QLabel(
+            "Data pendukung rekonsiliasi dari blok UTANG pada SIMULASI I. "
+            "Tabel ini read-only dan ikut digunakan pada Lampiran IV Bagian B Format Lama."
+        )
+        description.setObjectName("pageSubTitle")
+        description.setWordWrap(True)
+
+        self.utang_support_status = QLabel("Belum ada detail Utang dari SIMULASI I.")
+        self.utang_support_status.setObjectName("mutedLabel")
+
+        self.utang_support_table = QTableWidget(0, len(self.UTANG_HEADERS))
+        self.utang_support_table.setHorizontalHeaderLabels(self.UTANG_HEADERS)
+        self.utang_support_table.setAlternatingRowColors(True)
+        self.utang_support_table.verticalHeader().setVisible(False)
+        self.utang_support_table.setEditTriggers(QTableWidget.NoEditTriggers)
+        self.utang_support_table.setSelectionBehavior(QTableWidget.SelectRows)
+        self.utang_support_table.setMinimumHeight(260)
+        self.utang_support_table.setHorizontalScrollBarPolicy(Qt.ScrollBarAsNeeded)
+        self.utang_support_table.setVerticalScrollBarPolicy(Qt.ScrollBarAsNeeded)
+
+        widths = {
+            0: 55,
+            1: 105,
+            2: 230,
+            3: 260,
+            4: 125,
+            5: 150,
+        }
+        for column, width in widths.items():
+            self.utang_support_table.setColumnWidth(column, width)
+
+        card_layout.addWidget(title)
+        card_layout.addWidget(description)
+        card_layout.addWidget(self.utang_support_status)
+        card_layout.addWidget(self.utang_support_table)
+
+        layout.addWidget(self.utang_support_card)
+        self._render_utang_support_rows()
+
+    @staticmethod
+    def _utang_sort_key(row):
+        try:
+            year = int(float(row.get("tahun_pinjaman", 0) or 0))
+        except (TypeError, ValueError):
+            year = 0
+        return (
+            year if year > 0 else 9999,
+            str(row.get("kode_utang", "") or "").strip(),
+            str(row.get("nama_pemberi_pinjaman", "") or "").strip().casefold(),
+        )
+
+    def _render_utang_support_rows(self):
+        if not hasattr(self, "utang_support_table"):
+            return
+
+        rows = sorted(
+            list(getattr(self, "_utang_rows", []) or []),
+            key=self._utang_sort_key,
+        )
+
+        self.utang_support_table.clearContents()
+        self.utang_support_table.setRowCount(len(rows))
+
+        total = 0.0
+        for row_index, row in enumerate(rows):
+            try:
+                amount = float(row.get("jumlah", 0) or 0)
+            except (TypeError, ValueError):
+                amount = 0.0
+            total += amount
+
+            values = (
+                row_index + 1,
+                row.get("kode_utang", ""),
+                row.get("nama_pemberi_pinjaman", ""),
+                row.get("alamat_pemberi_pinjaman", ""),
+                row.get("tahun_pinjaman", "") or "",
+                self._format_bupot_money(amount),
+            )
+            for column, value in enumerate(values):
+                item = QTableWidgetItem(str(value or ""))
+                item.setFlags(item.flags() & ~Qt.ItemIsEditable)
+                if column == 5:
+                    item.setTextAlignment(Qt.AlignRight | Qt.AlignVCenter)
+                    item.setData(Qt.UserRole, amount)
+                self.utang_support_table.setItem(row_index, column, item)
+
+        if rows:
+            self.utang_support_status.setText(
+                f"{len(rows)} baris Utang • Total Tahun Berjalan Rp "
+                f"{self._format_bupot_money(total)}"
+            )
+        else:
+            self.utang_support_status.setText(
+                "Belum ada detail Utang dari SIMULASI I."
+            )
+
     def _configure_harta_visible_rows(self):
         header = self.harta_table.horizontalHeader()
         header_height = max(header.height(), header.sizeHint().height())
@@ -514,6 +640,7 @@ class WorksheetPage(BaseWorksheetPage):
 
         if pipeline is not None and hasattr(self, "_load_pph_state_for_current_wp"):
             self._load_pph_state_for_current_wp()
+        self._render_utang_support_rows()
 
         if hasattr(self, "toast_notification"):
             revision_note = (
@@ -526,6 +653,10 @@ class WorksheetPage(BaseWorksheetPage):
                 "success",
                 3200,
             )
+
+    def _load_pph_state_for_current_wp(self):
+        super()._load_pph_state_for_current_wp()
+        self._render_utang_support_rows()
 
     @staticmethod
     def _repolish_widget(widget):
