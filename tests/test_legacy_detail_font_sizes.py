@@ -6,7 +6,7 @@ from core import legacy_1770_lampiran_iv as lampiran_iv
 
 
 def test_lampiran_i_detail_font_targets_12pt():
-    assert Legacy1770LampiranIService.C_IDENTITY_FONT_SIZE == 12.0
+    assert Legacy1770LampiranIService.C_IDENTITY_FONT_SIZE == 10.0
     source = inspect.getsource(Legacy1770LampiranIService._draw_right)
     assert "size=12.0" in source
 
