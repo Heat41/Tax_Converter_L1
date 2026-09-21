@@ -17,13 +17,12 @@ class Legacy1770MultipageService(BaseLegacy1770MultipageService):
     """Finalisasi visual Stage 8C.9.
 
     Aturan sel jumlah multipage:
-    - halaman sebelum halaman terakhir hanya menampilkan subtotal halaman itu;
-    - halaman terakhir hanya menampilkan total keseluruhan bagian/lampiran;
-    - tidak ada label "Hal"/"Total" dan tidak ada catatan subtotal di footer;
-    - status halaman terakhir ditentukan dari page_number/page_count aktual yang
-      sedang dirender, bukan hanya metadata summary tersimpan;
-    - bila subtotal Lampiran II tidak dapat dihitung karena detail PPh per Bupot
-      tidak tersedia/rekonsiliasi, halaman non-terakhir menampilkan '-'.
+    - setiap halaman selalu menampilkan total keseluruhan bagian/lampiran;
+    - baris detail tetap dipecah per halaman, tetapi nilai JUMLAH tidak menjadi
+      subtotal halaman;
+    - aturan ini berlaku konsisten untuk Lampiran I Bagian C, Lampiran II Bupot,
+      dan Lampiran IV Harta Akhir Tahun;
+    - tidak ada label "Hal"/"Total" dan tidak ada catatan subtotal di footer.
     """
 
     @staticmethod
@@ -33,13 +32,12 @@ class Legacy1770MultipageService(BaseLegacy1770MultipageService):
 
     @classmethod
     def _display_value_for_summary(cls, summary: MultipagePageSummary) -> Optional[float]:
-        # Jangan pernah menentukan halaman terakhir dari urutan fisik PDF/master.
-        # Gunakan nomor halaman kelompok lampiran (mis. Lampiran-I 4 dari 4).
-        if cls._is_last_section_page(summary.page_number, summary.page_count):
-            return float(summary.grand_total or 0)
-        if summary.subtotal_available and summary.subtotal is not None:
-            return float(summary.subtotal)
-        return None
+        """Sel JUMLAH pada setiap halaman selalu memakai total keseluruhan.
+
+        Subtotal per halaman tetap boleh dihitung di metadata internal untuk
+        rekonsiliasi/debug, tetapi tidak pernah ditampilkan sebagai nilai form.
+        """
+        return float(summary.grand_total or 0)
 
     @staticmethod
     def _with_actual_page_metadata(
@@ -100,7 +98,7 @@ class Legacy1770MultipageService(BaseLegacy1770MultipageService):
         display_value = self._display_value_for_summary(summary)
         text = self._money(display_value) if display_value is not None else "-"
 
-        # Satu nilai saja. Non-terakhir = subtotal; terakhir = grand total.
+        # Satu nilai saja: selalu grand total bagian/lampiran pada setiap halaman.
         # Font dinaikkan sedikit agar tetap terbaca ketika seluruh halaman dicetak.
         max_width = max(1.0, (x1 - x0) - (6.0 * sx))
         size = 8.2
