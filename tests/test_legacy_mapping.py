@@ -62,6 +62,7 @@ def _row(**overrides):
         ("0104", "014"),
         ("0201", "021"),
         ("0305", "034"),
+        ("0310", "019"),
         ("0403", "043"),
         ("0501", "061"),
         ("0506", "062"),
@@ -149,3 +150,23 @@ def test_mapping_uses_only_final_snapshot_rows(temp_db):
 
     assert result.rows[0].nama_harta == "Deposito FINAL"
     assert result.rows[0].nilai_tahun_berjalan == 123456789.0
+
+
+def test_coretax_0310_maps_to_eform_019_for_legacy_pdf(temp_db):
+    _insert_final_snapshot(
+        temp_db,
+        rows=[
+            _row(
+                kode_eform="",
+                kode_ct="0310",
+                nama_harta="NILAI TUNAI ASURANSI",
+            )
+        ],
+    )
+    result = LegacyFormatMappingService(temp_db).map_active_final(
+        "6101015612710001", 2025
+    )
+
+    assert result.can_export is True
+    assert result.rows[0].kode_eform == "019"
+    assert result.rows[0].kode_coretax == "0310"
