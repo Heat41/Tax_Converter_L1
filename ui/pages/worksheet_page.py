@@ -2,6 +2,8 @@ from dataclasses import replace
 
 from PySide6.QtCore import Qt
 from PySide6.QtGui import QColor
+from core.worksheet_sorting import sort_harta_rows
+
 from PySide6.QtWidgets import (
     QFrame,
     QHBoxLayout,
@@ -170,9 +172,11 @@ class WorksheetPage(QWidget):
             return
 
         self.harta_pipeline_result = pipeline_result
-        self.harta_original_rows = list(pipeline_result.worksheet_rows)
-        self.harta_current_rows = list(pipeline_result.worksheet_rows)
-        self.harta_saved_rows = list(pipeline_result.worksheet_rows)
+        ordered_rows = sort_harta_rows(pipeline_result.worksheet_rows)
+        pipeline_result.worksheet_rows = list(ordered_rows)
+        self.harta_original_rows = list(ordered_rows)
+        self.harta_current_rows = list(ordered_rows)
+        self.harta_saved_rows = list(ordered_rows)
         self.harta_mode = "original"
 
         year = pipeline_result.current_year or "-"
