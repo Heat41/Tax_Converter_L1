@@ -38,6 +38,7 @@ class WorksheetPage(BaseWorksheetPage):
 
     def __init__(self, parent=None):
         self._rendering_reconciliation = False
+        self._utang_rows = []
         self._reconciliation_manual = self._default_reconciliation_manual()
         self._saved_reconciliation_manual = deepcopy(self._reconciliation_manual)
         self._last_reconciliation = None
@@ -481,6 +482,8 @@ class WorksheetPage(BaseWorksheetPage):
             except Exception:
                 persisted = None
             if persisted is not None:
+                raw_utang = persisted.components.get("utang_rows")
+                self._utang_rows = list(raw_utang) if isinstance(raw_utang, list) else []
                 raw = persisted.components.get("reconciliation")
                 if not isinstance(raw, dict):
                     raw = persisted.components.get(legacy_component_key("reconciliation"))
@@ -597,6 +600,7 @@ class WorksheetPage(BaseWorksheetPage):
                 key: float(value)
                 for key, value in self._reconciliation_manual.items()
             }
+            components["utang_rows"] = list(self._utang_rows or [])
             result = self.pph_state_store.save(
                 npwp=npwp,
                 tahun_pajak=year,
