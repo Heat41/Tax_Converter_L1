@@ -491,6 +491,13 @@ class WorksheetPage(BaseWorksheetPage):
             self._refresh_harta_actions()
             self._update_harta_status(saved=True)
 
+        imported_components = dict(
+            getattr(import_result, "pph_components", {}) or {}
+        )
+        raw_utang_rows = imported_components.get("utang_rows")
+        if isinstance(raw_utang_rows, list):
+            self._utang_rows = list(raw_utang_rows)
+
         year = int(getattr(import_result, "tahun_pajak", 0) or 0)
         if year:
             pph_container = getattr(self, "pph_scroll_area", None)
