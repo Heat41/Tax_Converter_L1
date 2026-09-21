@@ -40,8 +40,8 @@ class Legacy1770LampiranIIService(BaseLegacy1770LampiranIIService):
         width,
         height,
         *,
-        size: float = 6.2,
-        min_size: float = 4.2,
+        size: float = 12.0,
+        min_size: float = 8.0,
     ) -> None:
         # Lebih besar dari renderer awal, tetapi helper base tetap mengecilkan
         # teks panjang agar tidak keluar dari sel.
@@ -51,7 +51,7 @@ class Legacy1770LampiranIIService(BaseLegacy1770LampiranIIService):
             text,
             width,
             height,
-            size=size + 1.25,
+            size=12.0,
             min_size=min_size,
         )
 
@@ -64,7 +64,7 @@ class Legacy1770LampiranIIService(BaseLegacy1770LampiranIIService):
         width,
         height,
         *,
-        size: float = 6.4,
+        size: float = 12.0,
     ) -> None:
         # Nilai PPh dan JBA dibuat lebih mudah dibaca tanpa mengubah posisi kolom.
         return super()._draw_right_money(
@@ -73,5 +73,5 @@ class Legacy1770LampiranIIService(BaseLegacy1770LampiranIIService):
             value,
             width,
             height,
-            size=size + 1.15,
+            size=12.0,
         )
