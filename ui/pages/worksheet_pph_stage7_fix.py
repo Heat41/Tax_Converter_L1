@@ -621,8 +621,9 @@ class WorksheetPage(BaseWorksheetPage):
             getattr(import_result, "pph_components", {}) or {}
         )
         raw_utang_rows = imported_components.get("utang_rows")
-        if isinstance(raw_utang_rows, list):
-            self._utang_rows = list(raw_utang_rows)
+        imported_utang_rows = (
+            list(raw_utang_rows) if isinstance(raw_utang_rows, list) else []
+        )
 
         year = int(getattr(import_result, "tahun_pajak", 0) or 0)
         if year:
@@ -640,6 +641,11 @@ class WorksheetPage(BaseWorksheetPage):
 
         if pipeline is not None and hasattr(self, "_load_pph_state_for_current_wp"):
             self._load_pph_state_for_current_wp()
+
+        # Import workbook terbaru adalah sumber utama detail Utang. State lama
+        # hanya menjadi fallback ketika workbook memang tidak membawa detail.
+        if imported_utang_rows:
+            self._utang_rows = imported_utang_rows
         self._render_utang_support_rows()
 
         if hasattr(self, "toast_notification"):
