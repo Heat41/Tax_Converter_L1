@@ -207,8 +207,13 @@ class Legacy1770HybridXlsxService:
             ws = wb.create_sheet(title)
             self._render_form_sheet(ws, data, mode, heading, revision)
 
-        self._write_harta_sheet(wb.create_sheet(DATA_HARTA_SHEET), data)
-        self._write_bupot_sheet(wb.create_sheet(DATA_BUPOT_SHEET), data)
+        harta_data_ws = wb.create_sheet(DATA_HARTA_SHEET)
+        bupot_data_ws = wb.create_sheet(DATA_BUPOT_SHEET)
+        self._write_harta_sheet(harta_data_ws, data)
+        self._write_bupot_sheet(bupot_data_ws, data)
+        harta_data_ws.sheet_state = "veryHidden"
+        bupot_data_ws.sheet_state = "veryHidden"
+
         self._write_meta_sheet(
             wb.create_sheet(META_SHEET),
             data,
