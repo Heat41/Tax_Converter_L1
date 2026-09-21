@@ -285,6 +285,10 @@ def test_long_utang_block_feeds_reconciliation_totals():
     reconciliation = result.pph_components["reconciliation"]
     assert reconciliation["utang_sebelumnya"] == 2_696_288_961
     assert reconciliation["utang_berjalan"] == 3_043_750_663
+    assert len(result.pph_components["utang_rows"]) == 13
+    assert result.pph_components["utang_rows"][0]["kode_utang"] == "101"
+    assert result.pph_components["utang_rows"][0]["nama_pemberi_pinjaman"] == "UTANG 1"
+    assert result.pph_components["utang_rows"][0]["jumlah"] == 200_000_000
 
 
 def test_analysis_net_income_keeps_exact_value_before_tax_rounding():
