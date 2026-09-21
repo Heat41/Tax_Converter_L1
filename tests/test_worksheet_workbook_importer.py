@@ -323,3 +323,44 @@ def test_analysis_net_income_keeps_exact_value_before_tax_rounding():
 
     reconciliation = result.pph_components["reconciliation"]
     assert reconciliation["penghasilan_netto_analisis"] == 337_160_131
+
+
+def test_utang_detail_imports_lender_address_and_year():
+    rows = [[None] * 12 for _ in range(80)]
+    rows[40][0] = "UTANG"
+    rows[40][8] = "2024"
+    rows[40][9] = "2025"
+
+    rows[41][0] = 1
+    rows[41][1] = "101"
+    rows[41][2] = "BANK CONTOH"
+    rows[41][3] = "JL. MERDEKA NO. 1"
+    rows[41][4] = 2023
+    rows[41][8] = 100_000_000
+    rows[41][9] = 80_000_000
+
+    rows[42][0] = "TOTAL"
+    rows[42][8] = 100_000_000
+    rows[42][9] = 80_000_000
+
+    result = type(
+        "Result",
+        (),
+        {
+            "tahun_pajak": 2025,
+            "pph_components": {},
+        },
+    )()
+
+    WorksheetWorkbookImporter()._parse_reconciliation(
+        pd.DataFrame(rows),
+        result,
+    )
+
+    assert len(result.pph_components["utang_rows"]) == 1
+    utang = result.pph_components["utang_rows"][0]
+    assert utang["kode_utang"] == "101"
+    assert utang["nama_pemberi_pinjaman"] == "BANK CONTOH"
+    assert utang["alamat_pemberi_pinjaman"] == "JL. MERDEKA NO. 1"
+    assert utang["tahun_pinjaman"] == 2023
+    assert utang["jumlah"] == 80_000_000
