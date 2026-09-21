@@ -34,6 +34,7 @@ class MultipagePlan:
     employment_rows: int = 0
     lampiran_ii_rows: int = 0
     harta_rows: int = 0
+    utang_rows: int = 0
     issues: List[MultipageIssue] = field(default_factory=list)
 
     @property
@@ -95,12 +96,18 @@ class Legacy1770MultipageService:
             lampiran_ii_pages=self._pages_for_rows(
                 len(l2.rows), Legacy1770LampiranIIService.MAX_ROWS
             ),
-            lampiran_iv_pages=self._pages_for_rows(
-                len(l4.harta_rows), Legacy1770LampiranIVService.MAX_HARTA_ROWS
+            lampiran_iv_pages=max(
+                self._pages_for_rows(
+                    len(l4.harta_rows), Legacy1770LampiranIVService.MAX_HARTA_ROWS
+                ),
+                self._pages_for_rows(
+                    len(l4.utang_rows), Legacy1770LampiranIVService.MAX_UTANG_ROWS
+                ),
             ),
             employment_rows=len(l1.employment_rows),
             lampiran_ii_rows=len(l2.rows),
             harta_rows=len(l4.harta_rows),
+            utang_rows=len(l4.utang_rows),
         )
 
         if plan.extra_pages:
@@ -286,12 +293,17 @@ class Legacy1770MultipageService:
         page_count: int,
         *,
         is_last: bool,
+        utang_rows: Sequence = (),
+        utang_grand_total: float = 0.0,
     ):
         page = deepcopy(template_page)
         service = Legacy1770LampiranIVService()
         mapping = LampiranIVMappingResult(
             harta_rows=list(rows),
-            jumlah_bagian_a=float(grand_total if is_last else 0),
+            jumlah_bagian_a=float(grand_total),
+            utang_rows=list(utang_rows),
+            utang_rows_count=len(list(utang_rows)),
+            jumlah_bagian_b=float(utang_grand_total),
         )
         self._merge_stream(page, service._make_overlay(page, document, mapping))
         self._merge_stream(
@@ -450,11 +462,14 @@ class Legacy1770MultipageService:
             writer.add_page(base_reader.pages[4])
             writer.add_page(base_l4)
 
-            # Lampiran IV Harta: 10 baris per halaman.
+            # Lampiran IV: Harta dan Utang masing-masing 10 baris per halaman.
             l4_size = l4_service.MAX_HARTA_ROWS
+            utang_size = l4_service.MAX_UTANG_ROWS
             for page_index in range(1, plan.lampiran_iv_pages):
                 start = page_index * l4_size
                 rows = l4.harta_rows[start : start + l4_size]
+                utang_start = page_index * utang_size
+                utang_rows = l4.utang_rows[utang_start : utang_start + utang_size]
                 writer.add_page(
                     self._build_l4_continuation(
                         template_reader.pages[5],
@@ -464,6 +479,8 @@ class Legacy1770MultipageService:
                         page_index + 1,
                         plan.lampiran_iv_pages,
                         is_last=page_index == plan.lampiran_iv_pages - 1,
+                        utang_rows=utang_rows,
+                        utang_grand_total=l4.jumlah_bagian_b,
                     )
                 )
 
