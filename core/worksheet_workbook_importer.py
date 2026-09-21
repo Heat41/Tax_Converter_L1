@@ -681,7 +681,7 @@ class WorksheetWorkbookImporter:
                         for key in ("alamat pemberi pinjaman", "alamat pinjaman", "alamat")
                         if key in header_map
                     ),
-                    None,
+                    3 if df.shape[1] > 3 else None,
                 )
                 loan_year_col = next(
                     (
@@ -689,7 +689,7 @@ class WorksheetWorkbookImporter:
                         for key in ("tahun pinjaman", "tahun peminjaman")
                         if key in header_map
                     ),
-                    None,
+                    4 if df.shape[1] > 4 else None,
                 )
 
                 effective_current_col = current_col
@@ -709,6 +709,23 @@ class WorksheetWorkbookImporter:
                         if loan_year_col is not None and loan_year_col < df.shape[1]
                         else 0
                     )
+                    if loan_year < 1900 or (
+                        current_year and loan_year > int(current_year)
+                    ):
+                        # Fallback aman untuk struktur SIMULASI tanpa header:
+                        # cari satu-satunya nilai tahun yang masuk akal sebelum
+                        # kolom saldo tahun sebelumnya/tahun berjalan.
+                        loan_year = 0
+                        scan_end = previous_col if previous_col is not None else (
+                            current_col if current_col is not None else df.shape[1]
+                        )
+                        for candidate_col in range(3, min(scan_end, df.shape[1])):
+                            candidate_year = int(
+                                self._number(df.iat[detail_row, candidate_col])
+                            )
+                            if 1900 <= candidate_year <= int(current_year or 9999):
+                                loan_year = candidate_year
+                                break
                     amount = (
                         self._number(df.iat[detail_row, effective_current_col])
                         if effective_current_col is not None and effective_current_col < df.shape[1]
