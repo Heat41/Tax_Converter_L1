@@ -1,4 +1,4 @@
-from core.legacy_1770 import Legacy1770Document
+from core.legacy_1770 import Legacy1770Document, Legacy1770UtangRow
 from core.legacy_1770_lampiran_iv import Legacy1770LampiranIVService
 from core.legacy_mapping import LegacyHartaRow
 
@@ -115,3 +115,39 @@ def test_lampiran_iv_blocks_missing_identity():
 
     assert not result.can_fill
     assert {issue.code for issue in result.errors} == {"L4_001", "L4_002", "L4_003"}
+
+
+def test_lampiran_iv_maps_utang_and_sums_current_balance():
+    document = Legacy1770Document(
+        npwp="1111222233334444",
+        nama_wp="WP DENGAN UTANG",
+        tahun_pajak=2025,
+        harta_rows=[_harta(1)],
+        utang_rows=[
+            Legacy1770UtangRow(
+                nomor=1,
+                kode_utang="101",
+                nama_pemberi_pinjaman="BANK A",
+                alamat_pemberi_pinjaman="PONTIANAK",
+                tahun_pinjaman=2023,
+                jumlah=150_000_000,
+            ),
+            Legacy1770UtangRow(
+                nomor=2,
+                kode_utang="102",
+                nama_pemberi_pinjaman="BANK B",
+                alamat_pemberi_pinjaman="JAKARTA",
+                tahun_pinjaman=2024,
+                jumlah=250_000_000,
+            ),
+        ],
+    )
+
+    result = Legacy1770LampiranIVService().map_document(document)
+
+    assert result.can_fill
+    assert result.utang_rows_count == 2
+    assert result.utang_rows[0].kode_utang == "101"
+    assert result.utang_rows[0].nama_pemberi_pinjaman == "BANK A"
+    assert result.jumlah_bagian_b == 400_000_000
+    assert not any(issue.code == "L4_W03" for issue in result.warnings)
