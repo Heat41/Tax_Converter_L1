@@ -24,6 +24,16 @@ class Legacy1770BupotRow:
 
 
 @dataclass(frozen=True)
+class Legacy1770UtangRow:
+    nomor: int
+    kode_utang: str
+    nama_pemberi_pinjaman: str
+    alamat_pemberi_pinjaman: str
+    tahun_pinjaman: int
+    jumlah: float
+
+
+@dataclass(frozen=True)
 class Legacy1770FinalIncomeRow:
     keterangan: str
     dpp: float
@@ -58,6 +68,7 @@ class Legacy1770Document:
 
     bupot_rows: List[Legacy1770BupotRow] = field(default_factory=list)
     harta_rows: List[LegacyHartaRow] = field(default_factory=list)
+    utang_rows: List[Legacy1770UtangRow] = field(default_factory=list)
     issues: List[LegacyMappingIssue] = field(default_factory=list)
 
     @property
@@ -174,6 +185,25 @@ class Legacy1770DocumentService:
             other.get("hibah_warisan_dpp")
         )
 
+        raw_utang = components.get("utang_rows") or []
+        for index, item in enumerate(raw_utang, start=1):
+            if not isinstance(item, dict):
+                continue
+            document.utang_rows.append(
+                Legacy1770UtangRow(
+                    nomor=index,
+                    kode_utang=str(item.get("kode_utang") or "").strip(),
+                    nama_pemberi_pinjaman=str(
+                        item.get("nama_pemberi_pinjaman") or ""
+                    ).strip(),
+                    alamat_pemberi_pinjaman=str(
+                        item.get("alamat_pemberi_pinjaman") or ""
+                    ).strip(),
+                    tahun_pinjaman=int(self._float(item.get("tahun_pinjaman"))),
+                    jumlah=self._float(item.get("jumlah")),
+                )
+            )
+
         raw_bupot = payload.get("bupot_rows") or []
         for index, item in enumerate(raw_bupot, start=1):
             if not isinstance(item, dict):
@@ -235,11 +265,19 @@ class Legacy1770DocumentService:
                     )
                 )
 
+        if not document.utang_rows:
+            document.issues.append(
+                LegacyMappingIssue(
+                    "PDF_W02",
+                    "WARNING",
+                    "Detail Utang belum tersedia; Bagian B Lampiran IV dibiarkan kosong.",
+                )
+            )
         document.issues.append(
             LegacyMappingIssue(
-                "PDF_W02",
+                "PDF_W04",
                 "WARNING",
-                "Data Utang dan Susunan Anggota Keluarga belum memiliki modul lengkap; Bagian B dan C Lampiran IV akan dibiarkan kosong.",
+                "Susunan Anggota Keluarga belum memiliki sumber data lengkap; Bagian C Lampiran IV dibiarkan kosong.",
             )
         )
 
