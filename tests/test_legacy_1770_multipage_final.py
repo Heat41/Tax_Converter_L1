@@ -107,5 +107,5 @@ def test_total_font_default_is_enlarged():
     source = __import__(
         "inspect"
     ).getsource(Legacy1770MultipageService._make_summary_overlay)
-    assert "size = 12.0" in source
-    assert "while size > 9.0" in source
+    assert "size = 14.0" in source
+    assert "while size > 12.0" in source
