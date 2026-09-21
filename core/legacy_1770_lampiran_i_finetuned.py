@@ -22,7 +22,7 @@ class Legacy1770LampiranIService(BaseLegacy1770LampiranIService):
     """
 
     # Perbesar identitas Nama/NPWP pemberi kerja tanpa mengubah geometri sel.
-    C_IDENTITY_FONT_SIZE = 12.0
+    C_IDENTITY_FONT_SIZE = 10.0
 
     # Koordinat master Lampiran I halaman 1, origin kiri-atas.
     PAGE1_YEAR_RECT: Rect = (457.84, 23.90, 579.60, 43.82)
