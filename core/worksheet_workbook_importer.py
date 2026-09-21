@@ -617,6 +617,7 @@ class WorksheetWorkbookImporter:
                     current_col = candidate_current
 
         utang_row = self._find_label_row(df, "UTANG", columns=(0, 1, 2))
+        utang_rows = []
         if utang_row is not None:
             total_row = None
             # Header UTANG biasanya memuat tahun sebelumnya dan tahun berjalan.
@@ -651,6 +652,79 @@ class WorksheetWorkbookImporter:
                     break
 
             if total_row is not None:
+                # Ambil detail Utang untuk Lampiran IV. Kolom 1/2 adalah fallback
+                # struktur SIMULASI lama (Kode Utang / Nama Pemberi Pinjaman).
+                # Kolom alamat/tahun hanya diisi bila header eksplisit tersedia;
+                # parser tidak menebak isi kolom yang tidak berlabel.
+                header_map = {}
+                for scan_row in range(max(0, utang_row - 2), min(len(df), utang_row + 3)):
+                    for col in range(df.shape[1]):
+                        label = self._label(df.iat[scan_row, col])
+                        if label:
+                            header_map.setdefault(label, col)
+
+                code_col = next(
+                    (header_map[key] for key in ("kode utang", "kode") if key in header_map),
+                    1 if df.shape[1] > 1 else 0,
+                )
+                name_col = next(
+                    (
+                        header_map[key]
+                        for key in ("nama pemberi pinjaman", "nama pinjaman", "nama utang")
+                        if key in header_map
+                    ),
+                    2 if df.shape[1] > 2 else code_col,
+                )
+                address_col = next(
+                    (
+                        header_map[key]
+                        for key in ("alamat pemberi pinjaman", "alamat pinjaman", "alamat")
+                        if key in header_map
+                    ),
+                    None,
+                )
+                loan_year_col = next(
+                    (
+                        header_map[key]
+                        for key in ("tahun pinjaman", "tahun peminjaman")
+                        if key in header_map
+                    ),
+                    None,
+                )
+
+                effective_current_col = current_col
+                if effective_current_col is None and df.shape[1] > 9:
+                    effective_current_col = 9
+
+                for detail_row in range(utang_row + 1, total_row):
+                    code = self._text(df.iat[detail_row, code_col]) if code_col < df.shape[1] else ""
+                    name = self._text(df.iat[detail_row, name_col]) if name_col < df.shape[1] else ""
+                    address = (
+                        self._text(df.iat[detail_row, address_col])
+                        if address_col is not None and address_col < df.shape[1]
+                        else ""
+                    )
+                    loan_year = (
+                        int(self._number(df.iat[detail_row, loan_year_col]))
+                        if loan_year_col is not None and loan_year_col < df.shape[1]
+                        else 0
+                    )
+                    amount = (
+                        self._number(df.iat[detail_row, effective_current_col])
+                        if effective_current_col is not None and effective_current_col < df.shape[1]
+                        else 0.0
+                    )
+                    if any((code, name, address, loan_year, amount)):
+                        utang_rows.append(
+                            {
+                                "kode_utang": code,
+                                "nama_pemberi_pinjaman": name,
+                                "alamat_pemberi_pinjaman": address,
+                                "tahun_pinjaman": loan_year,
+                                "jumlah": float(amount or 0),
+                            }
+                        )
+
                 if previous_col is None and df.shape[1] > 8:
                     previous_col = 8
                 if current_col is None and df.shape[1] > 9:
@@ -664,6 +738,8 @@ class WorksheetWorkbookImporter:
                     state["utang_berjalan"] = self._number(
                         df.iat[total_row, current_col]
                     )
+
+        result.pph_components["utang_rows"] = utang_rows
 
         # Nilai ini berbeda dari Penghasilan Neto Gabungan pada blok PPh.
         # Blok ANALISIS memakai nilai presisi (sebelum pembulatan pajak) untuk
