@@ -394,7 +394,7 @@ class Legacy1770LampiranIVService:
                 row.kode_harta,
                 width,
                 height,
-                size=5.7,
+                size=12.0,
             )
             self._draw_fit_center(
                 canvas,
@@ -402,7 +402,7 @@ class Legacy1770LampiranIVService:
                 row.nama_harta.upper(),
                 width,
                 height,
-                size=5.5,
+                size=12.0,
             )
             if row.tahun_perolehan:
                 self._draw_fit_center(
@@ -411,7 +411,7 @@ class Legacy1770LampiranIVService:
                     str(row.tahun_perolehan),
                     width,
                     height,
-                    size=5.8,
+                    size=12.0,
                 )
             self._draw_right_money(
                 canvas,
@@ -419,7 +419,7 @@ class Legacy1770LampiranIVService:
                 row.harga_perolehan,
                 width,
                 height,
-                size=5.9,
+                size=12.0,
             )
             self._draw_fit_center(
                 canvas,
@@ -427,8 +427,8 @@ class Legacy1770LampiranIVService:
                 row.keterangan,
                 width,
                 height,
-                size=5.1,
-                min_size=3.8,
+                size=12.0,
+                min_size=8.0,
             )
 
         if abs(mapping.jumlah_bagian_a) > 0.000001:
