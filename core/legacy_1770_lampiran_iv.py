@@ -24,6 +24,16 @@ class LampiranIVHartaRow:
 
 
 @dataclass(frozen=True)
+class LampiranIVUtangRow:
+    nomor: int
+    kode_utang: str
+    nama_pemberi_pinjaman: str
+    alamat_pemberi_pinjaman: str
+    tahun_pinjaman: int
+    jumlah: float
+
+
+@dataclass(frozen=True)
 class LampiranIVIssue:
     code: str
     severity: str
@@ -34,6 +44,7 @@ class LampiranIVIssue:
 class LampiranIVMappingResult:
     harta_rows: List[LampiranIVHartaRow] = field(default_factory=list)
     jumlah_bagian_a: float = 0.0
+    utang_rows: List[LampiranIVUtangRow] = field(default_factory=list)
     utang_rows_count: int = 0
     jumlah_bagian_b: float = 0.0
     anggota_keluarga_count: int = 0
@@ -65,6 +76,7 @@ class Legacy1770LampiranIVService:
     BASE_HEIGHT = 936.0
     PAGE_INDEX = 5
     MAX_HARTA_ROWS = 10
+    MAX_UTANG_ROWS = 10
 
     # ------------------------------------------------------------------
     # Header khusus halaman 6 / Lampiran IV.
@@ -144,6 +156,27 @@ class Legacy1770LampiranIVService:
     HARTA_NOTE_X = (459.70, 580.80)
     HARTA_TOTAL_RECT: Rect = (318.91, 366.05, 459.45, 382.39)
 
+    # Bagian B - Kewajiban/Utang pada akhir tahun.
+    # Koordinat mengikuti tabel Bagian B pada master Lampiran IV halaman 6.
+    UTANG_ROW_BOUNDS: Sequence[Tuple[float, float]] = (
+        (467.20, 483.60),
+        (483.60, 500.00),
+        (500.00, 516.40),
+        (516.40, 532.80),
+        (532.80, 549.20),
+        (549.20, 565.60),
+        (565.60, 582.00),
+        (582.00, 598.40),
+        (598.40, 614.80),
+        (614.80, 631.20),
+    )
+    UTANG_CODE_X = (63.00, 100.68)
+    UTANG_NAME_X = (101.40, 263.00)
+    UTANG_ADDRESS_X = (263.00, 397.00)
+    UTANG_YEAR_X = (397.00, 476.00)
+    UTANG_VALUE_X = (476.00, 580.80)
+    UTANG_TOTAL_RECT: Rect = (476.00, 631.20, 580.80, 648.00)
+
     @staticmethod
     def _meaningful_harta(row: LegacyHartaRow) -> bool:
         return bool(
@@ -188,6 +221,24 @@ class Legacy1770LampiranIVService:
 
         result.jumlah_bagian_a = sum(row.harga_perolehan for row in result.harta_rows)
 
+        for index, row in enumerate(document.utang_rows or [], start=1):
+            result.utang_rows.append(
+                LampiranIVUtangRow(
+                    nomor=index,
+                    kode_utang=str(row.kode_utang or "").strip(),
+                    nama_pemberi_pinjaman=" ".join(
+                        str(row.nama_pemberi_pinjaman or "").strip().split()
+                    ),
+                    alamat_pemberi_pinjaman=" ".join(
+                        str(row.alamat_pemberi_pinjaman or "").strip().split()
+                    ),
+                    tahun_pinjaman=int(row.tahun_pinjaman or 0),
+                    jumlah=float(row.jumlah or 0),
+                )
+            )
+        result.utang_rows_count = len(result.utang_rows)
+        result.jumlah_bagian_b = sum(row.jumlah for row in result.utang_rows)
+
         if not result.harta_rows:
             result.issues.append(
                 LampiranIVIssue(
@@ -206,13 +257,29 @@ class Legacy1770LampiranIVService:
                 )
             )
 
-        # Domain Worksheet saat ini belum mempunyai daftar Utang dan anggota
-        # keluarga yang lengkap. Tetap kosong, tanpa asumsi data.
+        if len(result.utang_rows) > self.MAX_UTANG_ROWS:
+            result.issues.append(
+                LampiranIVIssue(
+                    "L4_W04",
+                    "WARNING",
+                    f"Lampiran IV memiliki {len(result.utang_rows)} baris Utang; halaman lanjutan ditangani Stage 8C.9.",
+                )
+            )
+
+        if not result.utang_rows:
+            result.issues.append(
+                LampiranIVIssue(
+                    "L4_W03",
+                    "WARNING",
+                    "Detail Utang tidak tersedia; Bagian B Lampiran IV dibiarkan kosong.",
+                )
+            )
+
         result.issues.append(
             LampiranIVIssue(
-                "L4_W03",
+                "L4_W05",
                 "WARNING",
-                "Bagian B Utang dan Bagian C Susunan Anggota Keluarga belum mempunyai sumber data lengkap; keduanya dibiarkan kosong.",
+                "Susunan Anggota Keluarga belum mempunyai sumber data lengkap; Bagian C dibiarkan kosong.",
             )
         )
         return result
@@ -429,6 +496,75 @@ class Legacy1770LampiranIVService:
                 height,
                 size=12.0,
                 min_size=8.0,
+            )
+
+        for index, row in enumerate(mapping.utang_rows[: self.MAX_UTANG_ROWS]):
+            y0, y1 = self.UTANG_ROW_BOUNDS[index]
+            self._draw_fit_center(
+                canvas,
+                (self.UTANG_CODE_X[0], y0, self.UTANG_CODE_X[1], y1),
+                row.kode_utang,
+                width,
+                height,
+                size=12.0,
+                min_size=8.0,
+            )
+            self._draw_fit_center(
+                canvas,
+                (self.UTANG_NAME_X[0], y0, self.UTANG_NAME_X[1], y1),
+                row.nama_pemberi_pinjaman.upper(),
+                width,
+                height,
+                size=12.0,
+                min_size=8.0,
+            )
+            self._draw_fit_center(
+                canvas,
+                (self.UTANG_ADDRESS_X[0], y0, self.UTANG_ADDRESS_X[1], y1),
+                row.alamat_pemberi_pinjaman.upper(),
+                width,
+                height,
+                size=12.0,
+                min_size=8.0,
+            )
+            if row.tahun_pinjaman:
+                self._draw_fit_center(
+                    canvas,
+                    (self.UTANG_YEAR_X[0], y0, self.UTANG_YEAR_X[1], y1),
+                    str(row.tahun_pinjaman),
+                    width,
+                    height,
+                    size=12.0,
+                    min_size=8.0,
+                )
+            self._draw_right_money(
+                canvas,
+                (self.UTANG_VALUE_X[0], y0, self.UTANG_VALUE_X[1], y1),
+                row.jumlah,
+                width,
+                height,
+                size=12.0,
+            )
+
+        if abs(mapping.jumlah_bagian_b) > 0.000001:
+            x0, y0, x1, y1 = self._pdf_rect(self.UTANG_TOTAL_RECT, width, height)
+            canvas.setFillColor(Color(1.0, 1.0, 0.60))
+            canvas.rect(
+                x0 + 0.8,
+                y0 + 0.8,
+                (x1 - x0) - 1.6,
+                (y1 - y0) - 1.6,
+                stroke=0,
+                fill=1,
+            )
+            canvas.setFillColorRGB(0, 0, 0)
+            self._draw_right_money(
+                canvas,
+                self.UTANG_TOTAL_RECT,
+                mapping.jumlah_bagian_b,
+                width,
+                height,
+                size=14.0,
             )
 
         if abs(mapping.jumlah_bagian_a) > 0.000001:
