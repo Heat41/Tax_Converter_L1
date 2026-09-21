@@ -12,6 +12,7 @@ from core.mapping.harta_mapper import HartaMappingResult
 from core.mapping.worksheet_harta_mapper import WorksheetHartaRow
 from core.pipeline.harta_pipeline import HartaPipelineResult
 from core.worksheet_pph_state import WorksheetBupotRow, WorksheetPPhStateStore
+from core.worksheet_sorting import sort_harta_rows
 from core.worksheet_state import WorksheetHartaStateStore
 
 
@@ -572,6 +573,8 @@ class WorksheetWorkbookImporter:
                     nilai_tahun_berjalan=self._number(df.iat[row, headers[current_name]]),
                 )
             )
+
+        result.harta_rows = sort_harta_rows(result.harta_rows)
 
     def _parse_reconciliation(self, df, result):
         state = {
