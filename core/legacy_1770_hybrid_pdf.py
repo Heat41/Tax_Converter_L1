@@ -241,7 +241,33 @@ class Legacy1770HybridPdfService:
 
         if not document.can_export_pdf:
             result = HybridPdfResult(output_path=target)
-            result.issues.append(HybridPdfIssue("HPDF_004", "ERROR", "Snapshot FINAL belum siap untuk ekspor PDF HYBRID."))
+            if document.errors:
+                for issue in document.errors:
+                    row_number = getattr(issue, "row_number", None)
+                    row_text = f" (baris Harta {row_number})" if row_number else ""
+                    result.issues.append(
+                        HybridPdfIssue(
+                            getattr(issue, "code", "HPDF_004"),
+                            "ERROR",
+                            f"{getattr(issue, 'message', 'Snapshot FINAL belum siap.')}{row_text}",
+                        )
+                    )
+            else:
+                missing = []
+                if not document.npwp:
+                    missing.append("NPWP")
+                if not document.nama_wp:
+                    missing.append("Nama WP")
+                if not document.tahun_pajak:
+                    missing.append("Tahun Pajak")
+                detail = ", ".join(missing) if missing else "identitas snapshot"
+                result.issues.append(
+                    HybridPdfIssue(
+                        "HPDF_004",
+                        "ERROR",
+                        f"Snapshot FINAL belum siap untuk ekspor PDF HYBRID: {detail} belum lengkap.",
+                    )
+                )
             return result
 
         with TemporaryDirectory(prefix="tax1770_hybrid_pdf_") as temp_dir:
