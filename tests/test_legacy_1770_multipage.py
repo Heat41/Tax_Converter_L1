@@ -1,4 +1,4 @@
-from core.legacy_1770 import Legacy1770BupotRow, Legacy1770Document
+from core.legacy_1770 import Legacy1770BupotRow, Legacy1770Document, Legacy1770UtangRow
 from core.legacy_1770_multipage import Legacy1770MultipageService
 from core.legacy_mapping import LegacyHartaRow
 
@@ -96,3 +96,23 @@ def test_multipage_page_calculation_never_returns_zero():
     assert service._pages_for_rows(7, 6) == 2
     assert service._pages_for_rows(30, 15) == 2
     assert service._pages_for_rows(31, 15) == 3
+
+
+def test_lampiran_iv_page_count_also_scales_with_utang_rows():
+    document = _document(bupot_count=1, harta_count=1)
+    document.utang_rows = [
+        Legacy1770UtangRow(
+            nomor=index,
+            kode_utang="101",
+            nama_pemberi_pinjaman=f"PINJAMAN {index}",
+            alamat_pemberi_pinjaman="",
+            tahun_pinjaman=2025,
+            jumlah=1_000_000,
+        )
+        for index in range(1, 14)
+    ]
+
+    plan = Legacy1770MultipageService().build_plan(document)
+
+    assert plan.utang_rows == 13
+    assert plan.lampiran_iv_pages == 2
