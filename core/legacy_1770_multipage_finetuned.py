@@ -457,6 +457,8 @@ class Legacy1770MultipageService(BaseLegacy1770MultipageService):
         page_count: int,
         *,
         is_last: bool,
+        utang_rows: Sequence = (),
+        utang_grand_total: float = 0.0,
     ):
         page = self._fresh_template_page(template_page)
         service = Legacy1770LampiranIVService()
@@ -466,9 +468,11 @@ class Legacy1770MultipageService(BaseLegacy1770MultipageService):
         )
         mapping = LampiranIVMappingResult(
             harta_rows=list(rows),
-            jumlah_bagian_a=float(
-                grand_total if is_last else subtotal
-            ),
+            # Sesuai aturan UAT: total keseluruhan tampil pada setiap halaman.
+            jumlah_bagian_a=float(grand_total),
+            utang_rows=list(utang_rows),
+            utang_rows_count=len(list(utang_rows)),
+            jumlah_bagian_b=float(utang_grand_total),
         )
         self._merge_stream(
             page,
