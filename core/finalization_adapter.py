@@ -79,6 +79,11 @@ class FinalizationAdapter:
             or ""
         )
         pph_components["status_ptkp"] = status_ptkp
+        pph_components["utang_rows"] = list(
+            getattr(worksheet, "_utang_rows", None)
+            or pph_components.get("utang_rows", [])
+            or []
+        )
 
         umkm_state = {
             "bruto_bulanan": list(getattr(worksheet, "_saved_umkm_bruto", []) or []),
