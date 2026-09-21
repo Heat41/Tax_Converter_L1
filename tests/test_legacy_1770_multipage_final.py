@@ -101,3 +101,11 @@ def test_every_harta_page_uses_same_grand_total():
     assert Legacy1770MultipageService._display_value_for_summary(first) == expected
     assert Legacy1770MultipageService._display_value_for_summary(middle) == expected
     assert Legacy1770MultipageService._display_value_for_summary(last) == expected
+
+
+def test_total_font_default_is_enlarged():
+    source = __import__(
+        "inspect"
+    ).getsource(Legacy1770MultipageService._make_summary_overlay)
+    assert "size = 10.0" in source
+    assert "while size > 6.4" in source
