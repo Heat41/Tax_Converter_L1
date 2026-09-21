@@ -151,3 +151,14 @@ def test_lampiran_iv_maps_utang_and_sums_current_balance():
     assert result.utang_rows[0].nama_pemberi_pinjaman == "BANK A"
     assert result.jumlah_bagian_b == 400_000_000
     assert not any(issue.code == "L4_W03" for issue in result.warnings)
+
+
+def test_lampiran_iv_utang_geometry_stays_inside_bagian_b():
+    service = Legacy1770LampiranIVService
+
+    assert service.UTANG_ROW_BOUNDS[0] == (434.40, 450.80)
+    assert service.UTANG_ROW_BOUNDS[-1] == (582.00, 598.40)
+    assert service.UTANG_TOTAL_RECT == (476.00, 598.40, 580.80, 615.20)
+
+    # Total Bagian B harus tepat sesudah baris Utang ke-10, bukan turun ke Bagian C.
+    assert service.UTANG_TOTAL_RECT[1] == service.UTANG_ROW_BOUNDS[-1][1]
