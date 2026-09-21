@@ -6,6 +6,7 @@ from pathlib import Path
 from typing import List, Optional
 
 from config.database import get_db_connection
+from core.worksheet_sorting import sort_bupot_rows
 
 
 @dataclass(frozen=True)
@@ -107,8 +108,9 @@ class WorksheetPPhStateStore:
         if not clean_npwp:
             raise ValueError("NPWP WP tidak tersedia untuk menyimpan Worksheet PPh.")
 
+        ordered_bupot_rows = sort_bupot_rows(bupot_rows)
         rows_json = json.dumps(
-            [self._row_to_json(row) for row in bupot_rows],
+            [self._row_to_json(row) for row in ordered_bupot_rows],
             ensure_ascii=False,
             separators=(",", ":"),
         )
@@ -152,7 +154,7 @@ class WorksheetPPhStateStore:
             conn.commit()
             return WorksheetPPhSaveResult(
                 state_id=state_id,
-                row_count=len(bupot_rows),
+                row_count=len(ordered_bupot_rows),
             )
         except Exception:
             conn.rollback()
