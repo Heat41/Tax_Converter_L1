@@ -3,6 +3,7 @@ import unittest
 from pathlib import Path
 
 from core.legacy_1770 import Legacy1770Document
+from core.legacy_mapping import LegacyMappingIssue
 from core.legacy_1770_hybrid_pdf import Legacy1770HybridPdfService
 
 
@@ -54,6 +55,35 @@ class TestLegacy1770HybridPdf(unittest.TestCase):
             for page in reader.pages:
                 self.assertAlmostEqual(float(page.mediabox.width), 612.0, delta=2.0)
                 self.assertAlmostEqual(float(page.mediabox.height), 936.0, delta=2.0)
+
+
+    def test_hybrid_pdf_exposes_mapping_error_instead_of_generic_hpdf004(self):
+        document = Legacy1770Document(
+            npwp="1234567890123456",
+            nama_wp="Budi",
+            tahun_pajak=2025,
+            issues=[
+                LegacyMappingIssue(
+                    "LGC_103",
+                    "ERROR",
+                    "Kode Coretax 9999 belum memiliki mapping ke EFORM.",
+                    7,
+                )
+            ],
+        )
+
+        with tempfile.TemporaryDirectory() as temp_dir:
+            result = Legacy1770HybridPdfService().export_document(
+                document,
+                Path(temp_dir) / "hybrid.pdf",
+            )
+
+        self.assertFalse(result.ok)
+        self.assertTrue(any(issue.code == "LGC_103" for issue in result.errors))
+        self.assertTrue(
+            any("baris Harta 7" in issue.message for issue in result.errors)
+        )
+        self.assertFalse(any(issue.code == "HPDF_004" for issue in result.errors))
 
 
 if __name__ == "__main__":
