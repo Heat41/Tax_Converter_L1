@@ -89,8 +89,12 @@ class TestWorksheetHartaStructure(unittest.TestCase):
         self.assertEqual(len(self.page.harta_current_rows), 1)
         self.assertEqual(self.page._count_deleted_rows(), 1)
         self.assertEqual(self.page.harta_current_rows[0].nomor, 1)
-        self.assertEqual(self.page.harta_current_rows[0].nama_harta, "Deposito")
-        self.assertEqual(self.page.harta_original_rows[0].nama_harta, "Tabungan")
+        # Setelah fitur sorting kronologis, Deposito (2022) berada di baris
+        # pertama dan terhapus. Tabungan (2025) tetap sebagai Current.
+        self.assertEqual(self.page.harta_current_rows[0].nama_harta, "Tabungan")
+        # Original Import juga sudah terurut kronologis, tetapi tetap utuh.
+        self.assertEqual(self.page.harta_original_rows[0].nama_harta, "Deposito")
+        self.assertEqual(self.page.harta_original_rows[1].nama_harta, "Tabungan")
         self.assertIn("1 baris dihapus", self.page.harta_status.text())
 
     def test_add_then_remove_new_row_returns_to_clean_state(self):
