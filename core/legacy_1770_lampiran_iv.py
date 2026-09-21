@@ -176,6 +176,8 @@ class Legacy1770LampiranIVService:
     UTANG_YEAR_X = (397.00, 476.00)
     UTANG_VALUE_X = (476.00, 580.80)
     UTANG_TOTAL_RECT: Rect = (476.00, 598.40, 580.80, 615.20)
+    # Geser isi teks ke bawah di dalam baris tanpa mengubah geometri tabel/total.
+    UTANG_TEXT_Y_OFFSET = 5.8
 
     @staticmethod
     def _meaningful_harta(row: LegacyHartaRow) -> bool:
@@ -500,9 +502,11 @@ class Legacy1770LampiranIVService:
 
         for index, row in enumerate(mapping.utang_rows[: self.MAX_UTANG_ROWS]):
             y0, y1 = self.UTANG_ROW_BOUNDS[index]
+            text_y0 = y0 + self.UTANG_TEXT_Y_OFFSET
+            text_y1 = y1 + self.UTANG_TEXT_Y_OFFSET
             self._draw_fit_center(
                 canvas,
-                (self.UTANG_CODE_X[0], y0, self.UTANG_CODE_X[1], y1),
+                (self.UTANG_CODE_X[0], text_y0, self.UTANG_CODE_X[1], text_y1),
                 row.kode_utang,
                 width,
                 height,
@@ -511,7 +515,7 @@ class Legacy1770LampiranIVService:
             )
             self._draw_fit_center(
                 canvas,
-                (self.UTANG_NAME_X[0], y0, self.UTANG_NAME_X[1], y1),
+                (self.UTANG_NAME_X[0], text_y0, self.UTANG_NAME_X[1], text_y1),
                 row.nama_pemberi_pinjaman.upper(),
                 width,
                 height,
@@ -520,7 +524,7 @@ class Legacy1770LampiranIVService:
             )
             self._draw_fit_center(
                 canvas,
-                (self.UTANG_ADDRESS_X[0], y0, self.UTANG_ADDRESS_X[1], y1),
+                (self.UTANG_ADDRESS_X[0], text_y0, self.UTANG_ADDRESS_X[1], text_y1),
                 row.alamat_pemberi_pinjaman.upper(),
                 width,
                 height,
@@ -530,7 +534,7 @@ class Legacy1770LampiranIVService:
             if row.tahun_pinjaman:
                 self._draw_fit_center(
                     canvas,
-                    (self.UTANG_YEAR_X[0], y0, self.UTANG_YEAR_X[1], y1),
+                    (self.UTANG_YEAR_X[0], text_y0, self.UTANG_YEAR_X[1], text_y1),
                     str(row.tahun_pinjaman),
                     width,
                     height,
@@ -539,7 +543,7 @@ class Legacy1770LampiranIVService:
                 )
             self._draw_right_money(
                 canvas,
-                (self.UTANG_VALUE_X[0], y0, self.UTANG_VALUE_X[1], y1),
+                (self.UTANG_VALUE_X[0], text_y0, self.UTANG_VALUE_X[1], text_y1),
                 row.jumlah,
                 width,
                 height,
