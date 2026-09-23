@@ -24,6 +24,7 @@ ROUNDTRIP_SCHEMA = "TAX_CONVERTER_L1_LEGACY_XLSX_V1"
 META_SHEET = "_TC_META"
 DATA_HARTA_SHEET = "DATA REVISI - HARTA"
 DATA_BUPOT_SHEET = "DATA REVISI - BUPOT"
+DATA_UTANG_SHEET = "DATA REVISI - UTANG"
 
 
 @dataclass(frozen=True)
@@ -60,6 +61,7 @@ class LegacyXlsxRoundTripResult:
     base_snapshot_hash: str = ""
     harta_rows: List[WorksheetHartaRow] = field(default_factory=list)
     bupot_rows: List[WorksheetBupotRow] = field(default_factory=list)
+    utang_rows: List[dict] = field(default_factory=list)
     issues: List[LegacyXlsxIssue] = field(default_factory=list)
 
     @property
@@ -92,6 +94,10 @@ class Legacy1770HybridXlsxService:
         "BRUTO", "DPP PERSEN", "TARIF", "PENGURANG BRUTO", "PPH", "BUKTI",
         "NO BUKTI", "TANGGAL BUKTI", "NPWP PEMOTONG", "NAMA PEMOTONG",
         "TANGGAL PEMOTONGAN", "MEKANISME SP2D", "NO SP2D",
+    )
+    UTANG_HEADERS = (
+        "NO", "KODE UTANG", "NAMA PEMBERI PINJAMAN",
+        "ALAMAT PEMBERI PINJAMAN", "TAHUN PINJAMAN", "JUMLAH",
     )
 
     FORM_SHEETS = (
@@ -209,10 +215,13 @@ class Legacy1770HybridXlsxService:
 
         harta_data_ws = wb.create_sheet(DATA_HARTA_SHEET)
         bupot_data_ws = wb.create_sheet(DATA_BUPOT_SHEET)
+        utang_data_ws = wb.create_sheet(DATA_UTANG_SHEET)
         self._write_harta_sheet(harta_data_ws, data)
         self._write_bupot_sheet(bupot_data_ws, data)
+        self._write_utang_sheet(utang_data_ws, data)
         harta_data_ws.sheet_state = "veryHidden"
         bupot_data_ws.sheet_state = "veryHidden"
+        utang_data_ws.sheet_state = "veryHidden"
 
         self._write_meta_sheet(
             wb.create_sheet(META_SHEET),
@@ -723,6 +732,25 @@ class Legacy1770HybridXlsxService:
         self._autofit_columns(ws, min_width=8.0, max_width=24.0)
         self._setup_print(ws, "landscape")
 
+    def _write_utang_sheet(self, ws, data: FinalizationInput) -> None:
+        ws.append(self.UTANG_HEADERS)
+        self._style_header(ws, 1, len(self.UTANG_HEADERS))
+        components = data.pph_components or {}
+        raw_rows = components.get("utang_rows") or [] if isinstance(components, dict) else []
+        for index, item in enumerate(raw_rows, start=1):
+            if not isinstance(item, dict):
+                continue
+            ws.append([
+                index,
+                self._text(item.get("kode_utang")),
+                self._text(item.get("nama_pemberi_pinjaman")),
+                self._text(item.get("alamat_pemberi_pinjaman")),
+                int(self._number(item.get("tahun_pinjaman")) or 0),
+                float(self._number(item.get("jumlah"))),
+            ])
+        self._autofit_columns(ws, min_width=8.0, max_width=30.0)
+        self._setup_print(ws, "landscape")
+
     def _write_meta_sheet(
         self,
         ws,
@@ -761,6 +789,21 @@ class Legacy1770HybridXlsxService:
                         ),
                     }
                     for row in (data.harta_current_rows or [])
+                ],
+                ensure_ascii=False,
+                separators=(",", ":"),
+            ),
+            "visible_utang_baseline": json.dumps(
+                [
+                    {
+                        "kode_utang": self._text(item.get("kode_utang")),
+                        "nama_pemberi_pinjaman": self._text(item.get("nama_pemberi_pinjaman")),
+                        "alamat_pemberi_pinjaman": self._text(item.get("alamat_pemberi_pinjaman")),
+                        "tahun_pinjaman": int(self._number(item.get("tahun_pinjaman")) or 0),
+                        "jumlah": float(self._number(item.get("jumlah"))),
+                    }
+                    for item in ((data.pph_components or {}).get("utang_rows") or [])
+                    if isinstance(item, dict)
                 ],
                 ensure_ascii=False,
                 separators=(",", ":"),
@@ -816,7 +859,7 @@ class Legacy1770HybridXlsxService:
             result.issues.append(LegacyXlsxIssue("LX_102", "ERROR", f"Workbook tidak dapat dibaca: {exc}"))
             return result
 
-        required = {META_SHEET, DATA_HARTA_SHEET, DATA_BUPOT_SHEET}
+        required = {META_SHEET, DATA_HARTA_SHEET, DATA_BUPOT_SHEET, DATA_UTANG_SHEET}
         missing = sorted(required - set(wb.sheetnames))
         if missing:
             result.issues.append(
@@ -861,6 +904,7 @@ class Legacy1770HybridXlsxService:
 
         self._read_harta(wb[DATA_HARTA_SHEET], result)
         self._read_bupot(wb[DATA_BUPOT_SHEET], result)
+        self._read_utang(wb[DATA_UTANG_SHEET], result)
 
         def _json_meta_list(key):
             raw = meta.get(key)
@@ -874,6 +918,7 @@ class Legacy1770HybridXlsxService:
 
         harta_baseline = _json_meta_list("visible_harta_baseline")
         bupot_baseline = _json_meta_list("visible_bupot_baseline")
+        utang_baseline = _json_meta_list("visible_utang_baseline")
 
         # Workbook Format Lama adalah media revisi user. Revisi pada hidden
         # canonical maupun sheet form visual sama-sama didukung. Baseline export
@@ -883,6 +928,9 @@ class Legacy1770HybridXlsxService:
         )
         self._merge_visible_bupot_revision(
             wb, result, baseline=bupot_baseline
+        )
+        self._merge_visible_utang_revision(
+            wb, result, baseline=utang_baseline
         )
         return result
 
@@ -1212,6 +1260,149 @@ class Legacy1770HybridXlsxService:
 
         if merged:
             result.bupot_rows = merged
+
+    def _read_utang(self, ws, result: LegacyXlsxRoundTripResult) -> None:
+        headers = {
+            self._text(ws.cell(1, col).value).upper(): col
+            for col in range(1, ws.max_column + 1)
+        }
+        for required in self.UTANG_HEADERS:
+            if required not in headers:
+                result.issues.append(
+                    LegacyXlsxIssue("LX_119", "ERROR", f"Kolom Utang '{required}' hilang.")
+                )
+                return
+
+        for row in range(2, ws.max_row + 1):
+            kode = self._text(ws.cell(row, headers["KODE UTANG"]).value)
+            nama = self._text(ws.cell(row, headers["NAMA PEMBERI PINJAMAN"]).value)
+            alamat = self._text(ws.cell(row, headers["ALAMAT PEMBERI PINJAMAN"]).value)
+            tahun = int(self._number(ws.cell(row, headers["TAHUN PINJAMAN"]).value) or 0)
+            jumlah = float(self._number(ws.cell(row, headers["JUMLAH"]).value))
+            if not any((kode, nama, alamat, tahun, jumlah)):
+                continue
+            result.utang_rows.append({
+                "kode_utang": kode,
+                "nama_pemberi_pinjaman": nama,
+                "alamat_pemberi_pinjaman": alamat,
+                "tahun_pinjaman": tahun,
+                "jumlah": jumlah,
+            })
+
+    def _merge_visible_utang_revision(
+        self,
+        wb,
+        result: LegacyXlsxRoundTripResult,
+        *,
+        baseline=None,
+    ) -> None:
+        sheet_name = "06 Legacy Lamp IV"
+        if sheet_name not in wb.sheetnames:
+            return
+        ws = wb[sheet_name]
+        section_row = self._find_row_by_text(
+            ws, "BAGIAN B : KEWAJIBAN/UTANG PADA AKHIR TAHUN"
+        )
+        if section_row is None:
+            result.issues.append(
+                LegacyXlsxIssue(
+                    "LX_120", "WARNING",
+                    "Sheet Lampiran IV tidak memiliki Bagian B Utang; canonical Utang dipertahankan.",
+                )
+            )
+            return
+
+        header_row = section_row + 1
+        row = header_row + 1
+        visible = []
+        extra_visible = False
+        slot_index = 0
+        while row <= ws.max_row:
+            marker = self._text(ws.cell(row, 1).value).upper()
+            if "JUMLAH BAGIAN B" in marker:
+                break
+
+            nama = self._text(ws.cell(row, 2).value)
+            alamat = self._text(ws.cell(row, 5).value)
+            tahun = int(self._number(ws.cell(row, 8).value) or 0)
+            jumlah = float(self._number(ws.cell(row, 9).value))
+            state = (nama, alamat, tahun, jumlah)
+            has_data = any((nama, alamat, tahun, jumlah))
+
+            if slot_index < len(result.utang_rows):
+                visible.append(state if has_data else None)
+            elif has_data:
+                extra_visible = True
+            slot_index += 1
+            row += 1
+
+        if extra_visible:
+            result.issues.append(
+                LegacyXlsxIssue(
+                    "LX_121", "ERROR",
+                    "Lampiran IV berisi baris Utang tambahan yang tidak dapat dipetakan "
+                    "ke KODE UTANG. Tambahkan Utang melalui Worksheet.",
+                )
+            )
+            return
+
+        baseline = baseline or []
+        merged = []
+        for index, canonical in enumerate(result.utang_rows):
+            if index >= len(visible):
+                merged.append(canonical)
+                continue
+
+            slot = visible[index]
+            base = baseline[index] if index < len(baseline) else {}
+            if slot is None:
+                if base:
+                    continue
+                merged.append(canonical)
+                continue
+
+            nama, alamat, tahun, jumlah = slot
+            visible_state = {
+                "kode_utang": self._text(canonical.get("kode_utang")),
+                "nama_pemberi_pinjaman": nama,
+                "alamat_pemberi_pinjaman": alamat,
+                "tahun_pinjaman": int(tahun or 0),
+                "jumlah": float(jumlah or 0),
+            }
+            canonical_state = {
+                "kode_utang": self._text(canonical.get("kode_utang")),
+                "nama_pemberi_pinjaman": self._text(canonical.get("nama_pemberi_pinjaman")),
+                "alamat_pemberi_pinjaman": self._text(canonical.get("alamat_pemberi_pinjaman")),
+                "tahun_pinjaman": int(self._number(canonical.get("tahun_pinjaman")) or 0),
+                "jumlah": float(self._number(canonical.get("jumlah"))),
+            }
+
+            if base:
+                base_state = {
+                    "kode_utang": self._text(base.get("kode_utang")),
+                    "nama_pemberi_pinjaman": self._text(base.get("nama_pemberi_pinjaman")),
+                    "alamat_pemberi_pinjaman": self._text(base.get("alamat_pemberi_pinjaman")),
+                    "tahun_pinjaman": int(self._number(base.get("tahun_pinjaman")) or 0),
+                    "jumlah": float(self._number(base.get("jumlah"))),
+                }
+                visible_changed = visible_state != base_state
+                canonical_changed = canonical_state != base_state
+                if visible_changed and canonical_changed and visible_state != canonical_state:
+                    result.issues.append(
+                        LegacyXlsxIssue(
+                            "LX_122", "ERROR",
+                            f"Konflik revisi Utang baris {index + 1}: sheet visual dan canonical "
+                            "sama-sama diubah dengan nilai berbeda.",
+                        )
+                    )
+                    return
+                chosen = visible_state if visible_changed else canonical_state
+            else:
+                chosen = canonical_state
+
+            merged.append(chosen)
+
+        result.utang_rows = merged
 
     def _read_harta(self, ws, result: LegacyXlsxRoundTripResult) -> None:
         headers = {
