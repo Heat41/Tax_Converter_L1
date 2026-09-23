@@ -670,26 +670,41 @@ class WorksheetWorkbookImporter:
                 name_col = next(
                     (
                         header_map[key]
-                        for key in ("nama pemberi pinjaman", "nama pinjaman", "nama utang")
+                        for key in (
+                            "nama pemberi pinjaman",
+                            "nama pemberi utang",
+                            "nama pinjaman",
+                            "nama utang",
+                        )
                         if key in header_map
                     ),
-                    2 if df.shape[1] > 2 else code_col,
+                    None,
                 )
                 address_col = next(
                     (
                         header_map[key]
-                        for key in ("alamat pemberi pinjaman", "alamat pinjaman", "alamat")
+                        for key in (
+                            "alamat pemberi pinjaman",
+                            "alamat pemberi utang",
+                            "alamat pinjaman",
+                            "alamat utang",
+                            "alamat",
+                        )
                         if key in header_map
                     ),
-                    3 if df.shape[1] > 3 else None,
+                    None,
                 )
                 loan_year_col = next(
                     (
                         header_map[key]
-                        for key in ("tahun pinjaman", "tahun peminjaman")
+                        for key in (
+                            "tahun pinjaman",
+                            "tahun peminjaman",
+                            "tahun utang",
+                        )
                         if key in header_map
                     ),
-                    4 if df.shape[1] > 4 else None,
+                    None,
                 )
 
                 effective_current_col = current_col
@@ -698,7 +713,11 @@ class WorksheetWorkbookImporter:
 
                 for detail_row in range(utang_row + 1, total_row):
                     code = self._text(df.iat[detail_row, code_col]) if code_col < df.shape[1] else ""
-                    name = self._text(df.iat[detail_row, name_col]) if name_col < df.shape[1] else ""
+                    name = (
+                        self._text(df.iat[detail_row, name_col])
+                        if name_col is not None and name_col < df.shape[1]
+                        else ""
+                    )
                     address = (
                         self._text(df.iat[detail_row, address_col])
                         if address_col is not None and address_col < df.shape[1]
@@ -709,23 +728,86 @@ class WorksheetWorkbookImporter:
                         if loan_year_col is not None and loan_year_col < df.shape[1]
                         else 0
                     )
+
+                    # SIMULASI I produksi memakai beberapa kolom kosong/merge di
+                    # blok Utang. Karena itu nama/alamat tidak boleh diasumsikan
+                    # selalu berada tepat di kolom 2/3. Tentukan dulu posisi tahun
+                    # pinjaman, lalu baca kolom teks sebelum tahun tersebut.
+                    inferred_year_col = loan_year_col
                     if loan_year < 1900 or (
                         current_year and loan_year > int(current_year)
                     ):
-                        # Fallback aman untuk struktur SIMULASI tanpa header:
-                        # cari satu-satunya nilai tahun yang masuk akal sebelum
-                        # kolom saldo tahun sebelumnya/tahun berjalan.
                         loan_year = 0
+                        inferred_year_col = None
                         scan_end = previous_col if previous_col is not None else (
                             current_col if current_col is not None else df.shape[1]
                         )
-                        for candidate_col in range(3, min(scan_end, df.shape[1])):
+                        for candidate_col in range(
+                            min(code_col + 1, df.shape[1]),
+                            min(scan_end, df.shape[1]),
+                        ):
                             candidate_year = int(
                                 self._number(df.iat[detail_row, candidate_col])
                             )
                             if 1900 <= candidate_year <= int(current_year or 9999):
                                 loan_year = candidate_year
+                                inferred_year_col = candidate_col
                                 break
+
+                    if not name or not address:
+                        text_end = (
+                            inferred_year_col
+                            if inferred_year_col is not None
+                            else (
+                                previous_col
+                                if previous_col is not None
+                                else (
+                                    current_col
+                                    if current_col is not None
+                                    else df.shape[1]
+                                )
+                            )
+                        )
+                        text_candidates = []
+                        for candidate_col in range(
+                            min(code_col + 1, df.shape[1]),
+                            min(text_end, df.shape[1]),
+                        ):
+                            if candidate_col == address_col:
+                                continue
+                            candidate_text = self._text(
+                                df.iat[detail_row, candidate_col]
+                            )
+                            if not candidate_text:
+                                continue
+                            if re.fullmatch(r"[\d.,\-]+", candidate_text):
+                                continue
+                            text_candidates.append(candidate_text)
+
+                        if not name and text_candidates:
+                            name = text_candidates[0]
+
+                        if not address:
+                            # Jika alamat memiliki header eksplisit, nilainya sudah
+                            # dibaca di atas. Tanpa header, ambil teks terakhir
+                            # sebelum kolom tahun dan pastikan berbeda dari nama.
+                            address_candidates = []
+                            for candidate_col in range(
+                                min(code_col + 1, df.shape[1]),
+                                min(text_end, df.shape[1]),
+                            ):
+                                candidate_text = self._text(
+                                    df.iat[detail_row, candidate_col]
+                                )
+                                if (
+                                    candidate_text
+                                    and candidate_text != name
+                                    and not re.fullmatch(r"[\d.,\-]+", candidate_text)
+                                ):
+                                    address_candidates.append(candidate_text)
+                            if address_candidates:
+                                address = address_candidates[-1]
+
                     amount = (
                         self._number(df.iat[detail_row, effective_current_col])
                         if effective_current_col is not None and effective_current_col < df.shape[1]
