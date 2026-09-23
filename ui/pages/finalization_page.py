@@ -1211,6 +1211,7 @@ class FinalizationPage(QWidget):
             (
                 f"Workbook berasal dari Revision {result.base_revision}.\n"
                 f"Harta: {len(result.harta_rows)} baris\n"
+                f"Utang: {len(result.utang_rows)} baris\n"
                 f"Bupot: {len(result.bupot_rows)} baris\n\n"
                 "Terapkan sebagai Edited / Current? Original Import tidak akan diubah."
             ),
@@ -1237,6 +1238,20 @@ class FinalizationPage(QWidget):
                 source._render_harta_rows(source.harta_current_rows)
             if hasattr(source, "save_harta_changes"):
                 source.save_harta_changes()
+
+            # Utang ikut round-trip melalui Lampiran IV / hidden canonical.
+            # Simpan ke state Worksheet sebelum save_bupot_changes agar Stage 7
+            # menulis utang_rows kembali ke components_json bersama rekonsiliasi.
+            if hasattr(source, "_utang_rows"):
+                source._utang_rows = list(result.utang_rows or [])
+                if hasattr(source, "_reconciliation_manual") and isinstance(
+                    source._reconciliation_manual, dict
+                ):
+                    source._reconciliation_manual["utang_berjalan"] = sum(
+                        float(item.get("jumlah", 0) or 0)
+                        for item in source._utang_rows
+                        if isinstance(item, dict)
+                    )
 
             if hasattr(source, "_render_bupot_rows"):
                 source._render_bupot_rows(result.bupot_rows)
