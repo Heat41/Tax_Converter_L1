@@ -139,6 +139,7 @@ class LegacyLampiranIVXlsxRenderer:
         items = list(data.harta_current_rows or [])
         visible_rows = max(10, len(items))
         total = 0
+        first_data_row = row
 
         for index in range(visible_rows):
             item = items[index] if index < len(items) else None
@@ -188,7 +189,8 @@ class LegacyLampiranIVXlsxRenderer:
         ws.cell(row, 1).font = Font(bold=True)
         ws.cell(row, 1).alignment = Alignment(horizontal="center")
         ws.merge_cells(start_row=row, start_column=6, end_row=row, end_column=7)
-        ws.cell(row, 6).value = total
+        last_data_row = row - 1
+        ws.cell(row, 6).value = f"=SUM(F{first_data_row}:F{last_data_row})"
         ws.cell(row, 6).number_format = self.MONEY
         ws.cell(row, 6).font = Font(bold=True)
         ws.cell(row, 6).fill = self.VALUE_FILL
@@ -229,6 +231,7 @@ class LegacyLampiranIVXlsxRenderer:
 
         visible_rows = max(8, len(raw_utang))
         total = 0
+        first_data_row = row
         for index in range(visible_rows):
             item = raw_utang[index] if index < len(raw_utang) else None
             if isinstance(item, dict):
@@ -261,7 +264,8 @@ class LegacyLampiranIVXlsxRenderer:
         ws.cell(row, 1).font = Font(bold=True)
         ws.cell(row, 1).alignment = Alignment(horizontal="center")
         ws.merge_cells(start_row=row, start_column=9, end_row=row, end_column=10)
-        ws.cell(row, 9).value = total
+        last_data_row = row - 1
+        ws.cell(row, 9).value = f"=SUM(I{first_data_row}:I{last_data_row})"
         ws.cell(row, 9).number_format = self.MONEY
         ws.cell(row, 9).font = Font(bold=True)
         for col in range(1, 11):
