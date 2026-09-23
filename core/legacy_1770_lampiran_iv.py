@@ -179,7 +179,7 @@ class Legacy1770LampiranIVService:
     # Bagian Utang mengikuti mekanisme render Harta: gunakan rect fisik asli
     # tanpa offset vertikal khusus. Font awal/minimum dikunci 12 pt; teks yang
     # terlalu panjang dipotong dengan elipsis oleh _draw_fit_center.
-    UTANG_TEXT_Y_OFFSET = 2.2
+    UTANG_TEXT_Y_OFFSET = 3.6
     UTANG_FONT_SIZE = 12.0
 
     @staticmethod
@@ -616,6 +616,7 @@ class Legacy1770LampiranIVService:
                     height,
                     size=self.UTANG_FONT_SIZE,
                     min_size=self.UTANG_FONT_SIZE,
+                    y_offset_top=self.UTANG_TEXT_Y_OFFSET,
                 )
             self._draw_right_money_with_baseline_offset(
                 canvas,
@@ -630,22 +631,24 @@ class Legacy1770LampiranIVService:
         if abs(mapping.jumlah_bagian_b) > 0.000001:
             x0, y0, x1, y1 = self._pdf_rect(self.UTANG_TOTAL_RECT, width, height)
             canvas.setFillColor(Color(1.0, 1.0, 0.60))
+            fill_inset = 1.8
             canvas.rect(
-                x0 + 0.8,
-                y0 + 0.8,
-                (x1 - x0) - 1.6,
-                (y1 - y0) - 1.6,
+                x0 + fill_inset,
+                y0 + fill_inset,
+                max(0.1, (x1 - x0) - (2.0 * fill_inset)),
+                max(0.1, (y1 - y0) - (2.0 * fill_inset)),
                 stroke=0,
                 fill=1,
             )
             canvas.setFillColorRGB(0, 0, 0)
-            self._draw_right_money(
+            self._draw_right_money_with_baseline_offset(
                 canvas,
                 self.UTANG_TOTAL_RECT,
                 mapping.jumlah_bagian_b,
                 width,
                 height,
-                size=14.0,
+                size=self.UTANG_FONT_SIZE,
+                y_offset_top=self.UTANG_TEXT_Y_OFFSET,
             )
 
         if abs(mapping.jumlah_bagian_a) > 0.000001:
