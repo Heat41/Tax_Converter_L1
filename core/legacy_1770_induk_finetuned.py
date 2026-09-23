@@ -28,6 +28,46 @@ class Legacy1770IndukService(BaseLegacy1770IndukService):
     INDUK_DATA_FONT_SIZE = 10.0
 
     @classmethod
+    def _draw_year_four_digits(cls, canvas, rect, year, width, height) -> None:
+        digits = f"{int(year):04d}"[-4:]
+        target = cls._to_reportlab_rect(rect, width, height)
+        cell_width = (target[2] - target[0]) / 4.0
+        sy = height / cls.BASE_HEIGHT
+        font_size = cls.INDUK_DATA_FONT_SIZE * sy
+        canvas.setFont("Helvetica-Bold", font_size)
+        y = cls._baseline(target, cls.INDUK_DATA_FONT_SIZE)
+        for index, digit in enumerate(digits):
+            canvas.drawCentredString(
+                target[0] + cell_width * (index + 0.5),
+                y,
+                digit,
+            )
+
+    @classmethod
+    def _draw_period_four_digits(
+        cls,
+        canvas,
+        rect,
+        month,
+        year,
+        width,
+        height,
+    ) -> None:
+        text = f"{int(month):02d}{int(year) % 100:02d}"
+        target = cls._to_reportlab_rect(rect, width, height)
+        cell_width = (target[2] - target[0]) / 4.0
+        sy = height / cls.BASE_HEIGHT
+        font_size = cls.INDUK_DATA_FONT_SIZE * sy
+        canvas.setFont("Helvetica", font_size)
+        y = cls._baseline(target, cls.INDUK_DATA_FONT_SIZE)
+        for index, digit in enumerate(text):
+            canvas.drawCentredString(
+                target[0] + cell_width * (index + 0.5),
+                y,
+                digit,
+            )
+
+    @classmethod
     def _draw_ptkp_status(cls, canvas, status: str, width: float, height: float) -> None:
         """Cetak digit tanggungan langsung dari titik pusat hasil kalibrasi.
 
@@ -57,7 +97,7 @@ class Legacy1770IndukService(BaseLegacy1770IndukService):
         # drawCentredString memakai baseline, bukan geometric center. Baseline
         # diturunkan ±1.5 pt dari titik pusat agar digit tampak tepat di tengah box.
         y = height - ((y_top + 1.5) * sy)
-        font_size = 6.2 * sy
+        font_size = cls.INDUK_DATA_FONT_SIZE * sy
         canvas.setFont("Helvetica", font_size)
         canvas.drawCentredString(x, y, dependent)
 
