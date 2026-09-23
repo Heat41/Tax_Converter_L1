@@ -364,3 +364,48 @@ def test_utang_detail_imports_lender_address_and_year():
     assert utang["alamat_pemberi_pinjaman"] == "JL. MERDEKA NO. 1"
     assert utang["tahun_pinjaman"] == 2023
     assert utang["jumlah"] == 80_000_000
+
+
+
+def test_utang_detail_handles_merged_simulasi_layout_name_and_address_columns():
+    rows = [[None] * 12 for _ in range(80)]
+    rows[40][0] = "UTANG"
+    rows[40][6] = "ALAMAT PEMBERI UTANG"
+    rows[40][8] = "2024"
+    rows[40][9] = "2025"
+
+    # Layout produksi: kolom kosong/merge berada di antara kode dan nama.
+    # Nama lender ada di kolom 3, alamat di 6, tahun pinjaman di 7.
+    rows[41][0] = 1
+    rows[41][1] = "101"
+    rows[41][3] = "BANK SYARIAH INDONESIA"
+    rows[41][6] = "JL AHMAD YANI PONTIANAK"
+    rows[41][7] = 2018
+    rows[41][8] = 167_442_724
+    rows[41][9] = 119_601_940
+
+    rows[42][0] = "TOTAL"
+    rows[42][8] = 167_442_724
+    rows[42][9] = 119_601_940
+
+    result = type(
+        "Result",
+        (),
+        {
+            "tahun_pajak": 2025,
+            "pph_components": {},
+        },
+    )()
+
+    WorksheetWorkbookImporter()._parse_reconciliation(
+        pd.DataFrame(rows),
+        result,
+    )
+
+    assert len(result.pph_components["utang_rows"]) == 1
+    utang = result.pph_components["utang_rows"][0]
+    assert utang["kode_utang"] == "101"
+    assert utang["nama_pemberi_pinjaman"] == "BANK SYARIAH INDONESIA"
+    assert utang["alamat_pemberi_pinjaman"] == "JL AHMAD YANI PONTIANAK"
+    assert utang["tahun_pinjaman"] == 2018
+    assert utang["jumlah"] == 119_601_940
