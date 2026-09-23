@@ -1123,7 +1123,10 @@ class Legacy1770HybridXlsxService:
                 "tanggal": self._text(
                     canonical.tanggal_pemotongan or canonical.tanggal_bukti
                 ),
-                "jenis_pph": self._text(canonical.jenis_pph),
+                # Bandingkan dalam representasi visual yang sama dengan
+                # Lampiran II agar raw canonical "Pasal 21" tidak dianggap
+                # berbeda dari teks renderer "PPh Pasal 21".
+                "jenis_pph": LegacyLampiranIIXlsxRenderer._jenis_pph(canonical),
                 "pph_dipotong": float(canonical.pph_dipotong or 0),
             }
 
