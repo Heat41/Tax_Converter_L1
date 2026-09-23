@@ -147,6 +147,7 @@ class LegacyLampiranIH2XlsxRenderer:
             ("NO.", "JENIS USAHA", "PEREDARAN USAHA (Rupiah)", "NORMA (%)", "PENGHASILAN NETO (Rupiah)"),
             spans,
         )
+        first_data_row = row
         for idx, jenis in enumerate(("DAGANG", "INDUSTRI", "JASA", "PEKERJAAN BEBAS"), start=1):
             self._write_spanned(ws, row, (idx, jenis, 0, "", 0), spans, {5, 9})
             row += 1
@@ -156,7 +157,7 @@ class LegacyLampiranIH2XlsxRenderer:
         ws.cell(row, 1).font = Font(bold=True)
         ws.cell(row, 1).alignment = Alignment(horizontal="right")
         ws.merge_cells(start_row=row, start_column=9, end_row=row, end_column=10)
-        ws.cell(row, 9).value = 0
+        ws.cell(row, 9).value = f"=SUM(I{first_data_row}:I{row - 1})"
         ws.cell(row, 9).number_format = self.MONEY
         ws.cell(row, 9).font = Font(bold=True)
         ws.cell(row, 9).fill = self.VALUE_FILL
@@ -190,6 +191,7 @@ class LegacyLampiranIH2XlsxRenderer:
         if not entries:
             entries = [None]
 
+        first_data_row = row
         for idx, item in enumerate(entries, start=1):
             if item is None:
                 values = ("", "", 0, 0, 0)
@@ -204,6 +206,8 @@ class LegacyLampiranIH2XlsxRenderer:
                 total_pengurang += pengurang
                 total_netto += netto
             self._write_spanned(ws, row, values, spans, {5, 7, 9})
+            # Neto mengikuti koreksi Bruto/Pengurang langsung di Excel.
+            ws.cell(row, 9).value = f"=E{row}-G{row}"
             ws.row_dimensions[row].height = 32
             row += 1
 
@@ -211,9 +215,9 @@ class LegacyLampiranIH2XlsxRenderer:
         ws.cell(row, 1).value = "JUMLAH BAGIAN C"
         ws.cell(row, 1).font = Font(bold=True)
         ws.cell(row, 1).alignment = Alignment(horizontal="right")
-        for c1, c2, value in ((5, 6, total_bruto), (7, 8, total_pengurang), (9, 10, total_netto)):
+        for c1, c2, source_col in ((5, 6, "E"), (7, 8, "G"), (9, 10, "I")):
             ws.merge_cells(start_row=row, start_column=c1, end_row=row, end_column=c2)
-            ws.cell(row, c1).value = self._money(value)
+            ws.cell(row, c1).value = f"=SUM({source_col}{first_data_row}:{source_col}{row - 1})"
             ws.cell(row, c1).number_format = self.MONEY
             ws.cell(row, c1).font = Font(bold=True)
             ws.cell(row, c1).fill = self.VALUE_FILL
@@ -242,6 +246,7 @@ class LegacyLampiranIH2XlsxRenderer:
             "KEUNTUNGAN DARI PENJUALAN/PENGALIHAN HARTA",
             "PENGHASILAN LAINNYA",
         )
+        first_data_row = row
         for idx, kind in enumerate(kinds, start=1):
             value = domestic_other if kind == "PENGHASILAN LAINNYA" else 0
             self._write_spanned(ws, row, (idx, kind, self._money(value)), spans, {8})
@@ -252,7 +257,7 @@ class LegacyLampiranIH2XlsxRenderer:
         ws.cell(row, 1).font = Font(bold=True)
         ws.cell(row, 1).alignment = Alignment(horizontal="right")
         ws.merge_cells(start_row=row, start_column=8, end_row=row, end_column=10)
-        ws.cell(row, 8).value = self._money(domestic_other)
+        ws.cell(row, 8).value = f"=SUM(H{first_data_row}:H{row - 1})"
         ws.cell(row, 8).number_format = self.MONEY
         ws.cell(row, 8).font = Font(bold=True)
         ws.cell(row, 8).fill = self.VALUE_FILL
