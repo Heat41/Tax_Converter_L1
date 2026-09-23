@@ -293,6 +293,7 @@ class LegacyLampiranIIIXlsxRenderer:
 
         buckets = self._map_final_rows(data)
         total_dpp = total_pph = 0.0
+        first_data_row = row
         for no, label in enumerate(self.FINAL_LABELS, start=1):
             dpp, pph = buckets[no]
             total_dpp += dpp
@@ -321,9 +322,9 @@ class LegacyLampiranIIIXlsxRenderer:
         ws.cell(row, 1).value = "17. JUMLAH (1 s.d. 16)"
         ws.cell(row, 1).font = Font(bold=True)
         ws.cell(row, 1).alignment = Alignment(horizontal="right")
-        for c1, c2, value in ((7, 8, total_dpp), (9, 10, total_pph)):
+        for c1, c2, source_col in ((7, 8, "G"), (9, 10, "I")):
             ws.merge_cells(start_row=row, start_column=c1, end_row=row, end_column=c2)
-            ws.cell(row, c1).value = self._money(value)
+            ws.cell(row, c1).value = f"=SUM({source_col}{first_data_row}:{source_col}{row - 1})"
             ws.cell(row, c1).number_format = self.MONEY
             ws.cell(row, c1).font = Font(bold=True)
             ws.cell(row, c1).fill = self.VALUE_FILL
@@ -346,6 +347,7 @@ class LegacyLampiranIIIXlsxRenderer:
         row += 1
 
         total = self._non_object_total(data)
+        first_data_row = row
         for no, label in enumerate(self.NON_OBJECT_LABELS, start=1):
             value = total if no == 6 else 0
             values = (no, label, self._money(value))
@@ -373,7 +375,7 @@ class LegacyLampiranIIIXlsxRenderer:
         ws.cell(row, 1).font = Font(bold=True)
         ws.cell(row, 1).alignment = Alignment(horizontal="right")
         ws.merge_cells(start_row=row, start_column=8, end_row=row, end_column=10)
-        ws.cell(row, 8).value = self._money(total)
+        ws.cell(row, 8).value = f"=SUM(H{first_data_row}:H{row - 1})"
         ws.cell(row, 8).number_format = self.MONEY
         ws.cell(row, 8).font = Font(bold=True)
         ws.cell(row, 8).fill = self.VALUE_FILL
