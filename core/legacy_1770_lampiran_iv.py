@@ -176,6 +176,7 @@ class Legacy1770LampiranIVService:
     UTANG_YEAR_X = (397.00, 476.00)
     UTANG_VALUE_X = (476.00, 580.80)
     UTANG_TOTAL_RECT: Rect = (476.00, 598.40, 580.80, 615.20)
+    UTANG_TOTAL_FILL_INSET = 0.8
     # Bagian Utang mengikuti mekanisme render Harta: gunakan rect fisik asli
     # tanpa offset vertikal khusus. Font awal/minimum dikunci 12 pt; teks yang
     # terlalu panjang dipotong dengan elipsis oleh _draw_fit_center.
@@ -631,7 +632,7 @@ class Legacy1770LampiranIVService:
         if abs(mapping.jumlah_bagian_b) > 0.000001:
             x0, y0, x1, y1 = self._pdf_rect(self.UTANG_TOTAL_RECT, width, height)
             canvas.setFillColor(Color(1.0, 1.0, 0.60))
-            fill_inset = 1.8
+            fill_inset = self.UTANG_TOTAL_FILL_INSET
             canvas.rect(
                 x0 + fill_inset,
                 y0 + fill_inset,
