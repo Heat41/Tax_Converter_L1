@@ -128,6 +128,7 @@ class LegacyLampiranIIXlsxRenderer:
         items = list(data.bupot_rows or [])
         visible_rows = max(15, len(items))
         total_pph = 0
+        first_data_row = row
 
         for index in range(visible_rows):
             item = items[index] if index < len(items) else None
@@ -170,7 +171,7 @@ class LegacyLampiranIIXlsxRenderer:
         ws.cell(row, 1).font = Font(bold=True)
         ws.cell(row, 1).alignment = Alignment(horizontal="center")
         ws.merge_cells(start_row=row, start_column=9, end_row=row, end_column=10)
-        ws.cell(row, 9).value = total_pph
+        ws.cell(row, 9).value = f"=SUM(I{first_data_row}:I{row - 1})"
         ws.cell(row, 9).number_format = self.MONEY
         ws.cell(row, 9).font = Font(bold=True)
         ws.cell(row, 9).fill = self.VALUE_FILL
