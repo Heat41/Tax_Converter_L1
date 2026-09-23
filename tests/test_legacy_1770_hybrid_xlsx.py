@@ -381,6 +381,98 @@ class TestLegacy1770HybridXlsx(unittest.TestCase):
         self.assertEqual(len(result.harta_rows), 1)
         self.assertEqual(len(result.bupot_rows), 1)
 
+
+    def test_roundtrip_no_edit_remains_clean(self):
+        self.service.export(
+            _input(),
+            self.path,
+            revision=10,
+            snapshot_hash="snapshot-final-10",
+        )
+        result = self.service.import_revision(
+            self.path,
+            expected_npwp="1234567890123456",
+            expected_year=2025,
+            expected_snapshot_hash="snapshot-final-10",
+        )
+        self.assertTrue(result.ok)
+        self.assertFalse(result.errors)
+
+    def test_roundtrip_detects_conflicting_visual_and_canonical_edits(self):
+        self.service.export(
+            _input(),
+            self.path,
+            revision=11,
+            snapshot_hash="snapshot-final-11",
+        )
+        wb = load_workbook(self.path)
+
+        # Hidden canonical dan form visual sama-sama diubah berbeda.
+        wb[DATA_HARTA_SHEET]["D2"] = "Kas Canonical"
+        lamp4 = wb["06 Legacy Lamp IV"]
+        harta_section = next(
+            row
+            for row in range(1, lamp4.max_row + 1)
+            if str(lamp4.cell(row, 1).value or "").strip()
+            == "BAGIAN A : HARTA PADA AKHIR TAHUN"
+        )
+        lamp4.cell(harta_section + 2, 3).value = "Kas Visual"
+        wb.save(self.path)
+
+        result = self.service.import_revision(
+            self.path,
+            expected_npwp="1234567890123456",
+            expected_year=2025,
+            expected_snapshot_hash="snapshot-final-11",
+        )
+        self.assertFalse(result.ok)
+        self.assertTrue(any(i.code == "LX_117" for i in result.errors))
+
+    def test_roundtrip_middle_row_delete_does_not_shift_following_harta(self):
+        data = _input()
+        data.harta_current_rows.append(
+            WorksheetHartaRow(
+                nomor=2,
+                kode_eform="012",
+                kode_ct="0102",
+                nama_harta="Tabungan",
+                nomor_akun_keterangan="TAB-01",
+                atas_nama="BUDI",
+                nama_bank="BANK A",
+                tahun_perolehan=2021,
+                nilai_tahun_sebelumnya=20000000.0,
+                nilai_tahun_berjalan=25000000.0,
+            )
+        )
+        self.service.export(
+            data,
+            self.path,
+            revision=12,
+            snapshot_hash="snapshot-final-12",
+        )
+        wb = load_workbook(self.path)
+        lamp4 = wb["06 Legacy Lamp IV"]
+        section = next(
+            row
+            for row in range(1, lamp4.max_row + 1)
+            if str(lamp4.cell(row, 1).value or "").strip()
+            == "BAGIAN A : HARTA PADA AKHIR TAHUN"
+        )
+        first = section + 2
+        for col in (2, 3, 5, 6, 8):
+            lamp4.cell(first, col).value = ""
+        wb.save(self.path)
+
+        result = self.service.import_revision(
+            self.path,
+            expected_npwp="1234567890123456",
+            expected_year=2025,
+            expected_snapshot_hash="snapshot-final-12",
+        )
+        self.assertTrue(result.ok)
+        self.assertEqual(len(result.harta_rows), 1)
+        self.assertEqual(result.harta_rows[0].nama_harta, "Tabungan")
+
     def test_roundtrip_rejects_wrong_wp_or_snapshot(self):
         self.service.export(_input(), self.path, revision=2, snapshot_hash="snapshot-2")
 
