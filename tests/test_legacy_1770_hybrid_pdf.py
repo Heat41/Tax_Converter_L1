@@ -88,3 +88,8 @@ class TestLegacy1770HybridPdf(unittest.TestCase):
 
 if __name__ == "__main__":
     unittest.main()
+
+
+def test_hybrid_induk_new_pages_use_10pt_font():
+    from core.legacy_1770_hybrid_pdf import Legacy1770HybridPdfService
+    assert Legacy1770HybridPdfService.NEW_PAGE_FONT_SIZE == 10.0
