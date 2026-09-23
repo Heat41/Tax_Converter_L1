@@ -299,6 +299,88 @@ class TestLegacy1770HybridXlsx(unittest.TestCase):
         self.assertEqual(result.bupot_rows[0].pengurang, 300000)
         self.assertEqual(result.bupot_rows[0].pph_dipotong, 15000)
 
+
+
+    def test_roundtrip_reads_visible_form_edits_for_harta_and_bupot(self):
+        self.service.export(
+            _input(),
+            self.path,
+            revision=8,
+            snapshot_hash="snapshot-final-8",
+        )
+
+        wb = load_workbook(self.path)
+
+        # User merevisi sheet visual, bukan hidden canonical sheet.
+        lamp4 = wb["06 Legacy Lamp IV"]
+        harta_section = next(
+            row
+            for row in range(1, lamp4.max_row + 1)
+            if str(lamp4.cell(row, 1).value or "").strip()
+            == "BAGIAN A : HARTA PADA AKHIR TAHUN"
+        )
+        harta_row = harta_section + 2
+        lamp4.cell(harta_row, 3).value = "Kas Koreksi Visual"
+        lamp4.cell(harta_row, 6).value = 19000000
+
+        lamp2 = wb["04 Legacy Lamp II"]
+        bupot_header = next(
+            row
+            for row in range(1, lamp2.max_row + 1)
+            if str(lamp2.cell(row, 1).value or "").strip().upper() == "NO"
+        )
+        bupot_row = bupot_header + 1
+        lamp2.cell(bupot_row, 2).value = "PEMOTONG KOREKSI VISUAL"
+        lamp2.cell(bupot_row, 9).value = 17500
+
+        wb.save(self.path)
+
+        result = self.service.import_revision(
+            self.path,
+            expected_npwp="1234567890123456",
+            expected_year=2025,
+            expected_snapshot_hash="snapshot-final-8",
+        )
+
+        self.assertTrue(result.ok)
+        self.assertEqual(result.harta_rows[0].nama_harta, "Kas Koreksi Visual")
+        self.assertEqual(result.harta_rows[0].nilai_tahun_berjalan, 19000000)
+        self.assertEqual(result.bupot_rows[0].nama_pemotong, "PEMOTONG KOREKSI VISUAL")
+        self.assertEqual(result.bupot_rows[0].pph_dipotong, 17500)
+
+    def test_roundtrip_ignores_unmodelled_family_section_safely(self):
+        self.service.export(
+            _input(),
+            self.path,
+            revision=9,
+            snapshot_hash="snapshot-final-9",
+        )
+
+        wb = load_workbook(self.path)
+        lamp4 = wb["06 Legacy Lamp IV"]
+
+        # Bagian keluarga belum memiliki domain. Perubahan di area ini tidak
+        # boleh membuat import revisi gagal ataupun mengubah canonical Harta/Bupot.
+        family_row = next(
+            row
+            for row in range(1, lamp4.max_row + 1)
+            if str(lamp4.cell(row, 1).value or "").strip()
+            == "BAGIAN C : DAFTAR SUSUNAN ANGGOTA KELUARGA"
+        )
+        lamp4.cell(family_row + 2, 2).value = "ANGGOTA DUMMY"
+        wb.save(self.path)
+
+        result = self.service.import_revision(
+            self.path,
+            expected_npwp="1234567890123456",
+            expected_year=2025,
+            expected_snapshot_hash="snapshot-final-9",
+        )
+
+        self.assertTrue(result.ok)
+        self.assertEqual(len(result.harta_rows), 1)
+        self.assertEqual(len(result.bupot_rows), 1)
+
     def test_roundtrip_rejects_wrong_wp_or_snapshot(self):
         self.service.export(_input(), self.path, revision=2, snapshot_hash="snapshot-2")
 
