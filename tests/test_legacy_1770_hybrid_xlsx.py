@@ -89,7 +89,18 @@ def _input():
                 npwp_pemberi_kerja="0072103856707000",
             )
         ],
-        pph_components={"pph_terutang": 1000000.0},
+        pph_components={
+            "pph_terutang": 1000000.0,
+            "utang_rows": [
+                {
+                    "kode_utang": "101",
+                    "nama_pemberi_pinjaman": "BANK DUMMY",
+                    "alamat_pemberi_pinjaman": "PONTIANAK",
+                    "tahun_pinjaman": 2024,
+                    "jumlah": 5000000.0,
+                }
+            ],
+        },
         umkm_state={},
         penghasilan_lainnya={},
         zakat=0.0,
@@ -472,6 +483,76 @@ class TestLegacy1770HybridXlsx(unittest.TestCase):
         self.assertTrue(result.ok)
         self.assertEqual(len(result.harta_rows), 1)
         self.assertEqual(result.harta_rows[0].nama_harta, "Tabungan")
+
+
+    def test_utangnya_renders_and_roundtrips_from_visible_lampiran_iv(self):
+        self.service.export(
+            _input(),
+            self.path,
+            revision=13,
+            snapshot_hash="snapshot-final-13",
+        )
+
+        wb = load_workbook(self.path)
+        self.assertIn("DATA REVISI - UTANG", wb.sheetnames)
+        self.assertEqual(wb["DATA REVISI - UTANG"].sheet_state, "veryHidden")
+
+        lamp4 = wb["06 Legacy Lamp IV"]
+        section = next(
+            row
+            for row in range(1, lamp4.max_row + 1)
+            if str(lamp4.cell(row, 1).value or "").strip()
+            == "BAGIAN B : KEWAJIBAN/UTANG PADA AKHIR TAHUN"
+        )
+        first = section + 2
+        self.assertEqual(lamp4.cell(first, 2).value, "BANK DUMMY")
+        self.assertEqual(lamp4.cell(first, 5).value, "PONTIANAK")
+        self.assertEqual(lamp4.cell(first, 8).value, 2024)
+        self.assertEqual(lamp4.cell(first, 9).value, 5000000)
+
+        lamp4.cell(first, 2).value = "BANK DUMMY REVISI"
+        lamp4.cell(first, 9).value = 6500000
+        wb.save(self.path)
+
+        result = self.service.import_revision(
+            self.path,
+            expected_npwp="1234567890123456",
+            expected_year=2025,
+            expected_snapshot_hash="snapshot-final-13",
+        )
+        self.assertTrue(result.ok)
+        self.assertEqual(len(result.utang_rows), 1)
+        self.assertEqual(
+            result.utang_rows[0]["nama_pemberi_pinjaman"],
+            "BANK DUMMY REVISI",
+        )
+        self.assertEqual(result.utang_rows[0]["jumlah"], 6500000)
+
+    def test_utangnya_roundtrip_hidden_canonical_still_supported(self):
+        self.service.export(
+            _input(),
+            self.path,
+            revision=14,
+            snapshot_hash="snapshot-final-14",
+        )
+        wb = load_workbook(self.path)
+        utang = wb["DATA REVISI - UTANG"]
+        utang["C2"] = "BANK CANONICAL REVISI"
+        utang["F2"] = 7200000
+        wb.save(self.path)
+
+        result = self.service.import_revision(
+            self.path,
+            expected_npwp="1234567890123456",
+            expected_year=2025,
+            expected_snapshot_hash="snapshot-final-14",
+        )
+        self.assertTrue(result.ok)
+        self.assertEqual(
+            result.utang_rows[0]["nama_pemberi_pinjaman"],
+            "BANK CANONICAL REVISI",
+        )
+        self.assertEqual(result.utang_rows[0]["jumlah"], 7200000)
 
     def test_roundtrip_rejects_wrong_wp_or_snapshot(self):
         self.service.export(_input(), self.path, revision=2, snapshot_hash="snapshot-2")
