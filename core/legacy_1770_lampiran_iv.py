@@ -390,17 +390,19 @@ class Legacy1770LampiranIVService:
         sx = width / cls.BASE_WIDTH
         sy = height / cls.BASE_HEIGHT
         font_size = float(size) * sy
-        max_width = max(1.0, (x1 - x0) - (4.0 * sx))
+        # Beri ruang aman kiri/kanan agar teks 12 pt tidak terlihat menempel
+        # pada garis vertikal tabel.
+        max_width = max(1.0, (x1 - x0) - (8.0 * sx))
 
         canvas.setFont("Helvetica", font_size)
         natural_width = canvas.stringWidth(value, "Helvetica", font_size)
         horizontal_scale = min(100.0, (max_width / natural_width) * 100.0) if natural_width else 100.0
         # Hindari teks menjadi terlalu tipis; bila sangat panjang, batasi isi
         # terlebih dahulu tetapi tetap pertahankan ukuran font 12 pt.
-        if horizontal_scale < 55.0:
+        if horizontal_scale < 45.0:
             suffix = "..."
             clipped = value
-            target_natural = max_width / 0.55
+            target_natural = max_width / 0.45
             while clipped and canvas.stringWidth(
                 clipped + suffix, "Helvetica", font_size
             ) > target_natural:
@@ -420,7 +422,7 @@ class Legacy1770LampiranIVService:
         # garis tabel ke kolom/baris tetangga.
         canvas.saveState()
         clip_path = canvas.beginPath()
-        inset_x = 1.5 * sx
+        inset_x = 3.0 * sx
         inset_y = 0.7 * sy
         clip_path.rect(
             x0 + inset_x,
