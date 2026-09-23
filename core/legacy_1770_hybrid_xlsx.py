@@ -921,6 +921,8 @@ class Legacy1770HybridXlsxService:
         # Header berada tepat sesudah judul Bagian A pada renderer saat ini.
         row = section_row + 2
         visible = []
+        extra_visible = False
+        slot_index = 0
         while row <= ws.max_row:
             marker = self._text(ws.cell(row, 1).value).upper()
             if "JUMLAH BAGIAN A" in marker:
@@ -931,16 +933,20 @@ class Legacy1770HybridXlsxService:
             year = self._number(ws.cell(row, 5).value)
             amount = self._number(ws.cell(row, 6).value)
             note = self._text(ws.cell(row, 8).value)
+            state = (code, name, year, amount, note)
+            has_data = any((code, name, year, amount, note))
 
-            # Slot kosong bawaan form tidak dianggap sebagai baris revisi.
-            if any((code, name, year, amount, note)):
-                visible.append((code, name, year, amount, note))
+            # Pertahankan posisi fisik setiap baris canonical. Ini mencegah
+            # baris berikutnya bergeser saat user mengosongkan satu baris di tengah.
+            if slot_index < len(result.harta_rows):
+                visible.append(state if has_data else None)
+            elif has_data:
+                extra_visible = True
+
+            slot_index += 1
             row += 1
 
-        if not visible:
-            return
-
-        if len(visible) > len(result.harta_rows):
+        if extra_visible:
             result.issues.append(
                 LegacyXlsxIssue(
                     "LX_114", "ERROR",
@@ -954,16 +960,21 @@ class Legacy1770HybridXlsxService:
         merged = []
         for index, canonical in enumerate(result.harta_rows):
             if index >= len(visible):
-                # Bila baseline tersedia dan form visual sengaja dikosongkan,
-                # perlakukan sebagai penghapusan visual. Tanpa baseline, jangan
-                # menebak penghapusan.
-                if baseline and index < len(baseline):
+                merged.append(canonical)
+                continue
+
+            slot = visible[index]
+            base = baseline[index] if index < len(baseline) else {}
+            if slot is None:
+                # Workbook baru memiliki baseline, sehingga blank pada slot yang
+                # sebelumnya berisi data berarti penghapusan disengaja. Untuk
+                # workbook lama tanpa baseline, pertahankan canonical.
+                if base:
                     continue
                 merged.append(canonical)
                 continue
 
-            code, name, year, amount, note = visible[index]
-            base = baseline[index] if index < len(baseline) else {}
+            code, name, year, amount, note = slot
 
             visible_state = {
                 "kode_eform": code,
@@ -1065,7 +1076,9 @@ class Legacy1770HybridXlsxService:
             return
 
         visible = []
+        extra_visible = False
         row = header_row + 1
+        slot_index = 0
         while row <= ws.max_row:
             marker = self._text(ws.cell(row, 1).value).upper()
             if "JUMLAH BAGIAN A" in marker:
@@ -1077,14 +1090,18 @@ class Legacy1770HybridXlsxService:
             tanggal = self._text(ws.cell(row, 7).value)
             jenis_pph = self._text(ws.cell(row, 8).value)
             pph = self._number(ws.cell(row, 9).value)
+            state = (nama, npwp, no_bupot, tanggal, jenis_pph, pph)
+            has_data = any((nama, npwp, no_bupot, tanggal, jenis_pph, pph))
 
-            if any((nama, npwp, no_bupot, tanggal, jenis_pph, pph)):
-                visible.append((nama, npwp, no_bupot, tanggal, jenis_pph, pph))
+            if slot_index < len(result.bupot_rows):
+                visible.append(state if has_data else None)
+            elif has_data:
+                extra_visible = True
+
+            slot_index += 1
             row += 1
 
-        if not visible:
-            return
-        if len(visible) > len(result.bupot_rows):
+        if extra_visible:
             result.issues.append(
                 LegacyXlsxIssue(
                     "LX_116", "ERROR",
@@ -1098,13 +1115,18 @@ class Legacy1770HybridXlsxService:
         merged = []
         for index, canonical in enumerate(result.bupot_rows):
             if index >= len(visible):
-                if baseline and index < len(baseline):
+                merged.append(canonical)
+                continue
+
+            slot = visible[index]
+            base = baseline[index] if index < len(baseline) else {}
+            if slot is None:
+                if base:
                     continue
                 merged.append(canonical)
                 continue
 
-            nama, npwp, no_bupot, tanggal, jenis_pph, pph = visible[index]
-            base = baseline[index] if index < len(baseline) else {}
+            nama, npwp, no_bupot, tanggal, jenis_pph, pph = slot
 
             visible_state = {
                 "nama_pemotong": nama,
