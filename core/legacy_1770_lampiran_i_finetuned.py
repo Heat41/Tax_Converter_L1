@@ -23,6 +23,7 @@ class Legacy1770LampiranIService(BaseLegacy1770LampiranIService):
 
     # Perbesar identitas Nama/NPWP pemberi kerja tanpa mengubah geometri sel.
     C_IDENTITY_FONT_SIZE = 10.0
+    PAGE1_DATA_FONT_SIZE = 10.0
 
     # Koordinat master Lampiran I halaman 1, origin kiri-atas.
     PAGE1_YEAR_RECT: Rect = (457.84, 23.90, 579.60, 43.82)
@@ -85,7 +86,7 @@ class Legacy1770LampiranIService(BaseLegacy1770LampiranIService):
         x0, y0, x1, y1 = cls._pdf_rect(rect, width, height)
         cell_width = (x1 - x0) / 4.0
         sy = height / cls.BASE_HEIGHT
-        font_size = 8.5 * sy
+        font_size = cls.PAGE1_DATA_FONT_SIZE * sy
         canvas.setFont("Helvetica-Bold", font_size)
         baseline = y0 + ((y1 - y0 - font_size) / 2.0) + (1.5 * sy)
         for index, digit in enumerate(digits):
@@ -107,7 +108,7 @@ class Legacy1770LampiranIService(BaseLegacy1770LampiranIService):
         x0, y0, x1, y1 = cls._pdf_rect(rect, width, height)
         cell_width = (x1 - x0) / 4.0
         sy = height / cls.BASE_HEIGHT
-        font_size = 6.0 * sy
+        font_size = cls.PAGE1_DATA_FONT_SIZE * sy
         canvas.setFont("Helvetica", font_size)
         baseline = y0 + ((y1 - y0 - font_size) / 2.0) + (1.5 * sy)
         for index, digit in enumerate(text):
@@ -129,7 +130,7 @@ class Legacy1770LampiranIService(BaseLegacy1770LampiranIService):
 
         sx = width / cls.BASE_WIDTH
         sy = height / cls.BASE_HEIGHT
-        font_size = 7.0 * sy
+        font_size = cls.PAGE1_DATA_FONT_SIZE * sy
         canvas.setFont("Helvetica", font_size)
 
         box_y0_top = 121.22
@@ -158,10 +159,10 @@ class Legacy1770LampiranIService(BaseLegacy1770LampiranIService):
         sx = width / cls.BASE_WIDTH
         sy = height / cls.BASE_HEIGHT
         font_name = "Helvetica"
-        size = 7.0
+        size = cls.PAGE1_DATA_FONT_SIZE
         max_width = (x1 - x0) - (4.0 * sx)
 
-        while size > 5.0:
+        while size > 7.0:
             canvas.setFont(font_name, size * sy)
             if canvas.stringWidth(text, font_name, size * sy) <= max_width:
                 break
