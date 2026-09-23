@@ -159,6 +159,8 @@ class Legacy1770LampiranIVService:
     # Bagian B - Kewajiban/Utang pada akhir tahun.
     # Koordinat mengikuti tabel Bagian B pada master Lampiran IV halaman 6.
     UTANG_ROW_BOUNDS: Sequence[Tuple[float, float]] = (
+        (434.40, 450.80),
+        (450.80, 467.20),
         (467.20, 483.60),
         (483.60, 500.00),
         (500.00, 516.40),
@@ -167,19 +169,17 @@ class Legacy1770LampiranIVService:
         (549.20, 565.60),
         (565.60, 582.00),
         (582.00, 598.40),
-        (598.40, 614.80),
-        (614.80, 631.20),
     )
     UTANG_CODE_X = (63.00, 100.68)
     UTANG_NAME_X = (101.40, 263.00)
     UTANG_ADDRESS_X = (263.00, 397.00)
     UTANG_YEAR_X = (397.00, 476.00)
     UTANG_VALUE_X = (476.00, 580.80)
-    UTANG_TOTAL_RECT: Rect = (476.00, 631.20, 580.80, 648.00)
+    UTANG_TOTAL_RECT: Rect = (476.00, 598.40, 580.80, 615.20)
     # Bagian Utang mengikuti mekanisme render Harta: gunakan rect fisik asli
     # tanpa offset vertikal khusus. Font awal/minimum dikunci 12 pt; teks yang
     # terlalu panjang dipotong dengan elipsis oleh _draw_fit_center.
-    UTANG_TEXT_Y_OFFSET = 0.0
+    UTANG_TEXT_Y_OFFSET = 2.2
     UTANG_FONT_SIZE = 12.0
 
     @staticmethod
@@ -372,6 +372,46 @@ class Legacy1770LampiranIVService:
         canvas.drawCentredString((x0 + x1) / 2.0, baseline, value)
 
     @classmethod
+    def _draw_fit_center_with_baseline_offset(
+        cls,
+        canvas,
+        rect: Rect,
+        text: str,
+        width: float,
+        height: float,
+        *,
+        size: float = 12.0,
+        min_size: float = 12.0,
+        y_offset_top: float = 0.0,
+    ) -> None:
+        """Mekanisme _draw_fit_center dengan koreksi baseline khusus Utang."""
+        value = str(text or "").strip()
+        if not value:
+            return
+        x0, y0, x1, y1 = cls._pdf_rect(rect, width, height)
+        sx = width / cls.BASE_WIDTH
+        sy = height / cls.BASE_HEIGHT
+        value, actual = cls._fit_text(
+            canvas,
+            value,
+            (x1 - x0) - (4.0 * sx),
+            start_size=size,
+            min_size=min_size,
+            scale_y=sy,
+        )
+        font_size = actual * sy
+        canvas.setFont("Helvetica", font_size)
+        # Koordinat sumber memakai origin dari atas; offset positif berarti
+        # teks diturunkan. Rectangle tetap asli sehingga tidak masuk ke row lain.
+        baseline = (
+            y0
+            + ((y1 - y0 - font_size) / 2.0)
+            + (1.6 * sy)
+            - (float(y_offset_top) * sy)
+        )
+        canvas.drawCentredString((x0 + x1) / 2.0, baseline, value)
+
+    @classmethod
     def _draw_right_money(
         cls,
         canvas,
@@ -392,6 +432,38 @@ class Legacy1770LampiranIVService:
         canvas.setFont("Helvetica", font_size)
         baseline = y0 + ((y1 - y0 - font_size) / 2.0) + (1.6 * sy)
         canvas.drawRightString(x1 - (3.0 * width / cls.BASE_WIDTH), baseline, text)
+
+    @classmethod
+    def _draw_right_money_with_baseline_offset(
+        cls,
+        canvas,
+        rect: Rect,
+        value: float,
+        width: float,
+        height: float,
+        *,
+        size: float = 12.0,
+        y_offset_top: float = 0.0,
+    ) -> None:
+        number = int(round(float(value or 0)))
+        if number == 0:
+            return
+        text = ("-" if number < 0 else "") + f"{abs(number):,}".replace(",", ".")
+        x0, y0, x1, y1 = cls._pdf_rect(rect, width, height)
+        sy = height / cls.BASE_HEIGHT
+        font_size = size * sy
+        canvas.setFont("Helvetica", font_size)
+        baseline = (
+            y0
+            + ((y1 - y0 - font_size) / 2.0)
+            + (1.6 * sy)
+            - (float(y_offset_top) * sy)
+        )
+        canvas.drawRightString(
+            x1 - (3.0 * width / cls.BASE_WIDTH),
+            baseline,
+            text,
+        )
 
     @classmethod
     def _draw_header(
@@ -505,7 +577,7 @@ class Legacy1770LampiranIVService:
 
         for index, row in enumerate(mapping.utang_rows[: self.MAX_UTANG_ROWS]):
             y0, y1 = self.UTANG_ROW_BOUNDS[index]
-            self._draw_fit_center(
+            self._draw_fit_center_with_baseline_offset(
                 canvas,
                 (self.UTANG_CODE_X[0], y0, self.UTANG_CODE_X[1], y1),
                 row.kode_utang,
@@ -513,8 +585,9 @@ class Legacy1770LampiranIVService:
                 height,
                 size=self.UTANG_FONT_SIZE,
                 min_size=self.UTANG_FONT_SIZE,
+                y_offset_top=self.UTANG_TEXT_Y_OFFSET,
             )
-            self._draw_fit_center(
+            self._draw_fit_center_with_baseline_offset(
                 canvas,
                 (self.UTANG_NAME_X[0], y0, self.UTANG_NAME_X[1], y1),
                 row.nama_pemberi_pinjaman.upper(),
@@ -522,8 +595,9 @@ class Legacy1770LampiranIVService:
                 height,
                 size=self.UTANG_FONT_SIZE,
                 min_size=self.UTANG_FONT_SIZE,
+                y_offset_top=self.UTANG_TEXT_Y_OFFSET,
             )
-            self._draw_fit_center(
+            self._draw_fit_center_with_baseline_offset(
                 canvas,
                 (self.UTANG_ADDRESS_X[0], y0, self.UTANG_ADDRESS_X[1], y1),
                 row.alamat_pemberi_pinjaman.upper(),
@@ -531,9 +605,10 @@ class Legacy1770LampiranIVService:
                 height,
                 size=self.UTANG_FONT_SIZE,
                 min_size=self.UTANG_FONT_SIZE,
+                y_offset_top=self.UTANG_TEXT_Y_OFFSET,
             )
             if row.tahun_pinjaman:
-                self._draw_fit_center(
+                self._draw_fit_center_with_baseline_offset(
                     canvas,
                     (self.UTANG_YEAR_X[0], y0, self.UTANG_YEAR_X[1], y1),
                     str(row.tahun_pinjaman),
@@ -542,13 +617,14 @@ class Legacy1770LampiranIVService:
                     size=self.UTANG_FONT_SIZE,
                     min_size=self.UTANG_FONT_SIZE,
                 )
-            self._draw_right_money(
+            self._draw_right_money_with_baseline_offset(
                 canvas,
                 (self.UTANG_VALUE_X[0], y0, self.UTANG_VALUE_X[1], y1),
                 row.jumlah,
                 width,
                 height,
                 size=self.UTANG_FONT_SIZE,
+                y_offset_top=self.UTANG_TEXT_Y_OFFSET,
             )
 
         if abs(mapping.jumlah_bagian_b) > 0.000001:
