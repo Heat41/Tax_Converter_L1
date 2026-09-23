@@ -554,6 +554,51 @@ class TestLegacy1770HybridXlsx(unittest.TestCase):
         )
         self.assertEqual(result.utang_rows[0]["jumlah"], 7200000)
 
+
+    def test_visible_legacy_totals_use_excel_formulas(self):
+        self.service.export(
+            _input(),
+            self.path,
+            revision=15,
+            snapshot_hash="snapshot-final-15",
+        )
+        wb = load_workbook(self.path, data_only=False)
+
+        # Lampiran II total PPh.
+        lamp2 = wb["04 Legacy Lamp II"]
+        total_row_l2 = next(
+            row for row in range(1, lamp2.max_row + 1)
+            if str(lamp2.cell(row, 1).value or "").strip() == "JUMLAH BAGIAN A"
+        )
+        self.assertTrue(str(lamp2.cell(total_row_l2, 9).value).startswith("=SUM(I"))
+
+        # Lampiran IV total Harta dan Utang.
+        lamp4 = wb["06 Legacy Lamp IV"]
+        total_harta = next(
+            row for row in range(1, lamp4.max_row + 1)
+            if str(lamp4.cell(row, 1).value or "").strip() == "JUMLAH BAGIAN A"
+        )
+        total_utang = next(
+            row for row in range(1, lamp4.max_row + 1)
+            if str(lamp4.cell(row, 1).value or "").strip() == "JUMLAH BAGIAN B"
+        )
+        self.assertTrue(str(lamp4.cell(total_harta, 6).value).startswith("=SUM(F"))
+        self.assertTrue(str(lamp4.cell(total_utang, 9).value).startswith("=SUM(I"))
+
+        # Lampiran III total final dan bukan objek.
+        lamp3 = wb["05 Legacy Lamp III"]
+        total_final = next(
+            row for row in range(1, lamp3.max_row + 1)
+            if str(lamp3.cell(row, 1).value or "").strip() == "17. JUMLAH (1 s.d. 16)"
+        )
+        total_non_obj = next(
+            row for row in range(1, lamp3.max_row + 1)
+            if str(lamp3.cell(row, 1).value or "").strip() == "JUMLAH BAGIAN B"
+        )
+        self.assertTrue(str(lamp3.cell(total_final, 7).value).startswith("=SUM(G"))
+        self.assertTrue(str(lamp3.cell(total_final, 9).value).startswith("=SUM(I"))
+        self.assertTrue(str(lamp3.cell(total_non_obj, 8).value).startswith("=SUM(H"))
+
     def test_roundtrip_rejects_wrong_wp_or_snapshot(self):
         self.service.export(_input(), self.path, revision=2, snapshot_hash="snapshot-2")
 
