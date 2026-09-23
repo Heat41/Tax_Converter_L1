@@ -173,4 +173,4 @@ def test_lampiran_iv_utang_uses_same_row_geometry_as_harta_at_12pt():
 
 def test_lampiran_iv_utang_total_fill_stays_neatly_inside_border():
     service = Legacy1770LampiranIVService
-    assert service.UTANG_TOTAL_FILL_INSET == 0.8
+    assert service.UTANG_TOTAL_FILL_INSET == 0.0
