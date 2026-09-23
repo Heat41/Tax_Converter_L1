@@ -159,8 +159,6 @@ class Legacy1770LampiranIVService:
     # Bagian B - Kewajiban/Utang pada akhir tahun.
     # Koordinat mengikuti tabel Bagian B pada master Lampiran IV halaman 6.
     UTANG_ROW_BOUNDS: Sequence[Tuple[float, float]] = (
-        (434.40, 450.80),
-        (450.80, 467.20),
         (467.20, 483.60),
         (483.60, 500.00),
         (500.00, 516.40),
@@ -169,13 +167,15 @@ class Legacy1770LampiranIVService:
         (549.20, 565.60),
         (565.60, 582.00),
         (582.00, 598.40),
+        (598.40, 614.80),
+        (614.80, 631.20),
     )
     UTANG_CODE_X = (63.00, 100.68)
     UTANG_NAME_X = (101.40, 263.00)
     UTANG_ADDRESS_X = (263.00, 397.00)
     UTANG_YEAR_X = (397.00, 476.00)
     UTANG_VALUE_X = (476.00, 580.80)
-    UTANG_TOTAL_RECT: Rect = (476.00, 598.40, 580.80, 615.20)
+    UTANG_TOTAL_RECT: Rect = (476.00, 631.20, 580.80, 648.00)
     # Bagian Utang mengikuti mekanisme render Harta: gunakan rect fisik asli
     # tanpa offset vertikal khusus. Font awal/minimum dikunci 12 pt; teks yang
     # terlalu panjang dipotong dengan elipsis oleh _draw_fit_center.
