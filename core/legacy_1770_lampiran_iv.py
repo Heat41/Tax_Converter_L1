@@ -180,7 +180,7 @@ class Legacy1770LampiranIVService:
     # tanpa offset vertikal khusus. Font awal/minimum dikunci 12 pt; teks yang
     # terlalu panjang dipotong dengan elipsis oleh _draw_fit_center.
     UTANG_TEXT_Y_OFFSET = 3.6
-    UTANG_FONT_SIZE = 12.0
+    UTANG_FONT_SIZE = 11.0
 
     @staticmethod
     def _meaningful_harta(row: LegacyHartaRow) -> bool:
