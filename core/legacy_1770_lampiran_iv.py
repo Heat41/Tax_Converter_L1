@@ -397,12 +397,13 @@ class Legacy1770LampiranIVService:
         canvas.setFont("Helvetica", font_size)
         natural_width = canvas.stringWidth(value, "Helvetica", font_size)
         horizontal_scale = min(100.0, (max_width / natural_width) * 100.0) if natural_width else 100.0
-        # Hindari teks menjadi terlalu tipis; bila sangat panjang, batasi isi
-        # terlebih dahulu tetapi tetap pertahankan ukuran font 12 pt.
-        if horizontal_scale < 45.0:
+        # Hindari teks menjadi terlalu tipis. Untuk menjaga tampilan rapi,
+        # batasi pemadatan horizontal minimal 72%; jika lebih panjang,
+        # potong dengan elipsis tetapi ukuran font tetap 12 pt.
+        if horizontal_scale < 72.0:
             suffix = "..."
             clipped = value
-            target_natural = max_width / 0.45
+            target_natural = max_width / 0.72
             while clipped and canvas.stringWidth(
                 clipped + suffix, "Helvetica", font_size
             ) > target_natural:
@@ -437,6 +438,76 @@ class Legacy1770LampiranIVService:
             x0 + ((x1 - x0 - rendered_width) / 2.0),
             baseline,
         )
+        text_obj.setFont("Helvetica", font_size)
+        text_obj.setHorizScale(horizontal_scale)
+        text_obj.textOut(value)
+        canvas.drawText(text_obj)
+        canvas.restoreState()
+
+    @classmethod
+    def _draw_fixed_size_fit_left(
+        cls,
+        canvas,
+        rect: Rect,
+        text: str,
+        width: float,
+        height: float,
+        *,
+        size: float = 12.0,
+    ) -> None:
+        """Teks 12 pt rata kiri, dipadatkan secukupnya, lalu dipotong bila perlu."""
+        value = str(text or "").strip()
+        if not value:
+            return
+
+        x0, y0, x1, y1 = cls._pdf_rect(rect, width, height)
+        sx = width / cls.BASE_WIDTH
+        sy = height / cls.BASE_HEIGHT
+        font_size = float(size) * sy
+        inset_x = 4.0 * sx
+        inset_y = 0.7 * sy
+        max_width = max(1.0, (x1 - x0) - (2.0 * inset_x))
+
+        canvas.setFont("Helvetica", font_size)
+        natural_width = canvas.stringWidth(value, "Helvetica", font_size)
+        horizontal_scale = (
+            min(100.0, (max_width / natural_width) * 100.0)
+            if natural_width
+            else 100.0
+        )
+
+        if horizontal_scale < 72.0:
+            suffix = "..."
+            clipped = value
+            target_natural = max_width / 0.72
+            while clipped and canvas.stringWidth(
+                clipped.rstrip() + suffix,
+                "Helvetica",
+                font_size,
+            ) > target_natural:
+                clipped = clipped[:-1]
+            value = (clipped.rstrip() + suffix) if clipped else suffix
+            natural_width = canvas.stringWidth(value, "Helvetica", font_size)
+            horizontal_scale = (
+                min(100.0, (max_width / natural_width) * 100.0)
+                if natural_width
+                else 100.0
+            )
+
+        baseline = y0 + ((y1 - y0 - font_size) / 2.0) + (1.1 * sy)
+
+        canvas.saveState()
+        clip_path = canvas.beginPath()
+        clip_path.rect(
+            x0 + inset_x,
+            y0 + inset_y,
+            max(0.1, (x1 - x0) - (2.0 * inset_x)),
+            max(0.1, (y1 - y0) - (2.0 * inset_y)),
+        )
+        canvas.clipPath(clip_path, stroke=0, fill=0)
+
+        text_obj = canvas.beginText()
+        text_obj.setTextOrigin(x0 + inset_x, baseline)
         text_obj.setFont("Helvetica", font_size)
         text_obj.setHorizScale(horizontal_scale)
         text_obj.textOut(value)
@@ -586,7 +657,7 @@ class Legacy1770LampiranIVService:
                 height,
                 size=self.UTANG_FONT_SIZE,
             )
-            self._draw_fixed_size_fit_center(
+            self._draw_fixed_size_fit_left(
                 canvas,
                 (self.UTANG_NAME_X[0], text_y0, self.UTANG_NAME_X[1], text_y1),
                 row.nama_pemberi_pinjaman.upper(),
@@ -594,7 +665,7 @@ class Legacy1770LampiranIVService:
                 height,
                 size=self.UTANG_FONT_SIZE,
             )
-            self._draw_fixed_size_fit_center(
+            self._draw_fixed_size_fit_left(
                 canvas,
                 (self.UTANG_ADDRESS_X[0], text_y0, self.UTANG_ADDRESS_X[1], text_y1),
                 row.alamat_pemberi_pinjaman.upper(),
