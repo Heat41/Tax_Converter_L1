@@ -32,7 +32,7 @@ class LegacyLampiranIVXlsxRenderer:
     def render(self, ws, data) -> None:
         self._header(ws, data)
         row = self._bagian_a(ws, data)
-        row = self._bagian_b(ws, row)
+        row = self._bagian_b(ws, row, data)
         row = self._bagian_c(ws, row)
         self._finish(ws, row)
 
@@ -198,7 +198,7 @@ class LegacyLampiranIVXlsxRenderer:
             ws.cell(row, col).border = self.BORDER
         return row + 2
 
-    def _bagian_b(self, ws, row: int) -> int:
+    def _bagian_b(self, ws, row: int, data) -> int:
         row = self._section(ws, row, "BAGIAN B : KEWAJIBAN/UTANG PADA AKHIR TAHUN")
         headers = (
             "NO.",
@@ -220,10 +220,29 @@ class LegacyLampiranIVXlsxRenderer:
         ws.row_dimensions[row].height = 32
         row += 1
 
-        # Domain aktif belum mempunyai canonical daftar Utang. Pertahankan slot
-        # legacy agar user tidak kehilangan bentuk form dan jangan menebak data.
-        for index in range(8):
-            values = (index + 1, "", "", "", 0)
+        raw_utang = []
+        components = getattr(data, "pph_components", {}) or {}
+        if isinstance(components, dict):
+            candidate = components.get("utang_rows") or []
+            if isinstance(candidate, list):
+                raw_utang = candidate
+
+        visible_rows = max(8, len(raw_utang))
+        total = 0
+        for index in range(visible_rows):
+            item = raw_utang[index] if index < len(raw_utang) else None
+            if isinstance(item, dict):
+                amount = self._money(item.get("jumlah"))
+                total += amount
+                values = (
+                    index + 1,
+                    self._text(item.get("nama_pemberi_pinjaman")),
+                    self._text(item.get("alamat_pemberi_pinjaman")),
+                    int(float(item.get("tahun_pinjaman") or 0)) or "",
+                    amount,
+                )
+            else:
+                values = (index + 1, "", "", "", 0)
             for value, (c1, c2) in zip(values, spans):
                 if c1 != c2:
                     ws.merge_cells(start_row=row, start_column=c1, end_row=row, end_column=c2)
@@ -242,7 +261,7 @@ class LegacyLampiranIVXlsxRenderer:
         ws.cell(row, 1).font = Font(bold=True)
         ws.cell(row, 1).alignment = Alignment(horizontal="center")
         ws.merge_cells(start_row=row, start_column=9, end_row=row, end_column=10)
-        ws.cell(row, 9).value = 0
+        ws.cell(row, 9).value = total
         ws.cell(row, 9).number_format = self.MONEY
         ws.cell(row, 9).font = Font(bold=True)
         for col in range(1, 11):
