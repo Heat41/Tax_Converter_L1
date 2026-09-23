@@ -176,7 +176,7 @@ class Legacy1770LampiranIVService:
     UTANG_YEAR_X = (397.00, 476.00)
     UTANG_VALUE_X = (476.00, 580.80)
     UTANG_TOTAL_RECT: Rect = (476.00, 598.40, 580.80, 615.20)
-    UTANG_TOTAL_FILL_INSET = 0.8
+    UTANG_TOTAL_FILL_INSET = 0.0
     # Bagian Utang mengikuti mekanisme render Harta: gunakan rect fisik asli
     # tanpa offset vertikal khusus. Font awal/minimum dikunci 12 pt; teks yang
     # terlalu panjang dipotong dengan elipsis oleh _draw_fit_center.
@@ -631,16 +631,22 @@ class Legacy1770LampiranIVService:
 
         if abs(mapping.jumlah_bagian_b) > 0.000001:
             x0, y0, x1, y1 = self._pdf_rect(self.UTANG_TOTAL_RECT, width, height)
+            # Isi penuh sel total, lalu gambar ulang border hitam di atas fill.
+            # Dengan cara ini warna kuning tidak meninggalkan notch/margin putih
+            # dan juga tidak menutupi garis tabel asli.
+            canvas.saveState()
             canvas.setFillColor(Color(1.0, 1.0, 0.60))
-            fill_inset = self.UTANG_TOTAL_FILL_INSET
+            canvas.setStrokeColorRGB(0, 0, 0)
+            canvas.setLineWidth(0.65)
             canvas.rect(
-                x0 + fill_inset,
-                y0 + fill_inset,
-                max(0.1, (x1 - x0) - (2.0 * fill_inset)),
-                max(0.1, (y1 - y0) - (2.0 * fill_inset)),
-                stroke=0,
+                x0,
+                y0,
+                max(0.1, x1 - x0),
+                max(0.1, y1 - y0),
+                stroke=1,
                 fill=1,
             )
+            canvas.restoreState()
             canvas.setFillColorRGB(0, 0, 0)
             self._draw_right_money_with_baseline_offset(
                 canvas,
