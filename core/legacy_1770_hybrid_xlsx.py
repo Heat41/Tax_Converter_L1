@@ -776,7 +776,11 @@ class Legacy1770HybridXlsxService:
                         "tanggal": self._text(
                             row.tanggal_pemotongan or row.tanggal_bukti
                         ),
-                        "jenis_pph": self._text(row.jenis_pph),
+                        # Baseline harus sama persis dengan nilai yang
+                        # dirender pada sheet visual Lampiran II. Renderer
+                        # menambahkan prefix "PPh " pada jenis seperti
+                        # "Pasal 21", jadi jangan simpan raw canonical di sini.
+                        "jenis_pph": LegacyLampiranIIXlsxRenderer._jenis_pph(row),
                         "pph_dipotong": float(row.pph_dipotong or 0),
                     }
                     for row in (data.bupot_rows or [])
