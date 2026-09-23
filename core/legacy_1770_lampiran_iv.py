@@ -178,7 +178,7 @@ class Legacy1770LampiranIVService:
     UTANG_TOTAL_RECT: Rect = (476.00, 598.40, 580.80, 615.20)
     # Isi Utang dipusatkan pada baris aslinya. Font Utang dikunci 12 pt;
     # teks panjang dipadatkan secara horizontal agar tidak keluar dari sel.
-    UTANG_TEXT_Y_OFFSET = 3.0
+    UTANG_TEXT_Y_OFFSET = 5.0
     UTANG_FONT_SIZE = 12.0
 
     @staticmethod
