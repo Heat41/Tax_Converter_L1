@@ -813,7 +813,188 @@ class Legacy1770HybridXlsxService:
 
         self._read_harta(wb[DATA_HARTA_SHEET], result)
         self._read_bupot(wb[DATA_BUPOT_SHEET], result)
+
+        # Workbook Format Lama adalah media revisi user. Karena sheet canonical
+        # disembunyikan, koreksi yang dilakukan pada form yang terlihat harus
+        # dibaca kembali dan digabungkan ke canonical row sebelum diterapkan ke
+        # Worksheet. Untuk saat ini cakupan aman: Harta dan Bupot. Bagian yang
+        # belum memiliki domain (mis. anggota keluarga) tetap diabaikan tanpa
+        # merusak round-trip.
+        self._merge_visible_harta_revision(wb, result)
+        self._merge_visible_bupot_revision(wb, result)
         return result
+
+    @staticmethod
+    def _find_row_by_text(ws, needle: str, *, max_col: int = 10) -> Optional[int]:
+        target = " ".join(str(needle or "").upper().split())
+        for row in range(1, ws.max_row + 1):
+            for col in range(1, min(ws.max_column, max_col) + 1):
+                value = " ".join(str(ws.cell(row, col).value or "").upper().split())
+                if value == target:
+                    return row
+        return None
+
+    def _merge_visible_harta_revision(self, wb, result: LegacyXlsxRoundTripResult) -> None:
+        sheet_name = "06 Legacy Lamp IV"
+        if sheet_name not in wb.sheetnames or not result.harta_rows:
+            return
+
+        ws = wb[sheet_name]
+        section_row = self._find_row_by_text(ws, "BAGIAN A : HARTA PADA AKHIR TAHUN")
+        if section_row is None:
+            result.issues.append(
+                LegacyXlsxIssue(
+                    "LX_113", "WARNING",
+                    "Sheet Lampiran IV tidak memiliki Bagian A Harta; canonical Harta dipertahankan.",
+                )
+            )
+            return
+
+        # Header berada tepat sesudah judul Bagian A pada renderer saat ini.
+        row = section_row + 2
+        visible = []
+        while row <= ws.max_row:
+            marker = self._text(ws.cell(row, 1).value).upper()
+            if "JUMLAH BAGIAN A" in marker:
+                break
+
+            code = self._text(ws.cell(row, 2).value)
+            name = self._text(ws.cell(row, 3).value)
+            year = self._number(ws.cell(row, 5).value)
+            amount = self._number(ws.cell(row, 6).value)
+            note = self._text(ws.cell(row, 8).value)
+
+            # Slot kosong bawaan form tidak dianggap sebagai baris revisi.
+            if any((code, name, year, amount, note)):
+                visible.append((code, name, year, amount, note))
+            row += 1
+
+        if not visible:
+            return
+
+        if len(visible) > len(result.harta_rows):
+            result.issues.append(
+                LegacyXlsxIssue(
+                    "LX_114", "ERROR",
+                    "Lampiran IV berisi baris Harta tambahan yang tidak dapat dipetakan "
+                    "karena KODE CT tidak tersedia pada form visual. Tambahkan baris melalui Worksheet.",
+                )
+            )
+            return
+
+        merged = []
+        for index, original in enumerate(result.harta_rows):
+            if index >= len(visible):
+                # Baris canonical yang dihapus/blank pada form visual dianggap
+                # sengaja dihapus dari revisi.
+                continue
+            code, name, year, amount, note = visible[index]
+            merged.append(
+                WorksheetHartaRow(
+                    nomor=len(merged) + 1,
+                    kode_eform=code or original.kode_eform,
+                    kode_ct=original.kode_ct,
+                    nama_harta=name or original.nama_harta,
+                    nomor_akun_keterangan=note or original.nomor_akun_keterangan,
+                    atas_nama=original.atas_nama,
+                    nama_bank=original.nama_bank,
+                    tahun_perolehan=int(year or original.tahun_perolehan),
+                    nilai_tahun_sebelumnya=original.nilai_tahun_sebelumnya,
+                    nilai_tahun_berjalan=float(amount),
+                )
+            )
+
+        if merged:
+            result.harta_rows = merged
+
+    def _merge_visible_bupot_revision(self, wb, result: LegacyXlsxRoundTripResult) -> None:
+        sheet_name = "04 Legacy Lamp II"
+        if sheet_name not in wb.sheetnames or not result.bupot_rows:
+            return
+
+        ws = wb[sheet_name]
+        # Renderer Lampiran II menaruh header tabel pada baris yang kolom A = NO.
+        header_row = None
+        for row in range(1, ws.max_row + 1):
+            if self._text(ws.cell(row, 1).value).upper() == "NO":
+                header_row = row
+                break
+        if header_row is None:
+            result.issues.append(
+                LegacyXlsxIssue(
+                    "LX_115", "WARNING",
+                    "Sheet Lampiran II tidak memiliki tabel Bupot; canonical Bupot dipertahankan.",
+                )
+            )
+            return
+
+        visible = []
+        row = header_row + 1
+        while row <= ws.max_row:
+            marker = self._text(ws.cell(row, 1).value).upper()
+            if "JUMLAH BAGIAN A" in marker:
+                break
+
+            nama = self._text(ws.cell(row, 2).value)
+            npwp = self._digits(ws.cell(row, 4).value)
+            no_bupot = self._text(ws.cell(row, 6).value)
+            tanggal = self._text(ws.cell(row, 7).value)
+            jenis_pph = self._text(ws.cell(row, 8).value)
+            pph = self._number(ws.cell(row, 9).value)
+
+            if any((nama, npwp, no_bupot, tanggal, jenis_pph, pph)):
+                visible.append((nama, npwp, no_bupot, tanggal, jenis_pph, pph))
+            row += 1
+
+        if not visible:
+            return
+        if len(visible) > len(result.bupot_rows):
+            result.issues.append(
+                LegacyXlsxIssue(
+                    "LX_116", "ERROR",
+                    "Lampiran II berisi Bupot tambahan. Tambahkan baris Bupot melalui Worksheet "
+                    "agar field bruto/pengurang dan metadata lain tetap lengkap.",
+                )
+            )
+            return
+
+        merged = []
+        for index, original in enumerate(result.bupot_rows):
+            if index >= len(visible):
+                continue
+            nama, npwp, no_bupot, tanggal, jenis_pph, pph = visible[index]
+            merged.append(
+                WorksheetBupotRow(
+                    jenis=original.jenis,
+                    no_bupot=no_bupot or original.no_bupot,
+                    bruto=original.bruto,
+                    pengurang=original.pengurang,
+                    pph_dipotong=float(pph),
+                    masa=original.masa,
+                    tahun=original.tahun,
+                    sifat=original.sifat,
+                    status=original.status,
+                    npwp_penerima=original.npwp_penerima,
+                    nama_penerima=original.nama_penerima,
+                    fasilitas=original.fasilitas,
+                    jenis_pph=jenis_pph or original.jenis_pph,
+                    kop=original.kop,
+                    dpp_persen=original.dpp_persen,
+                    tarif=original.tarif,
+                    bukti=original.bukti,
+                    no_bukti=original.no_bukti,
+                    tanggal_bukti=tanggal or original.tanggal_bukti,
+                    npwp_pemotong=npwp or original.npwp_pemotong,
+                    nama_pemotong=nama or original.nama_pemotong,
+                    tanggal_pemotongan=tanggal or original.tanggal_pemotongan,
+                    mekanisme_sp2d=original.mekanisme_sp2d,
+                    no_sp2d=original.no_sp2d,
+                    npwp_pemberi_kerja=npwp or original.npwp_pemberi_kerja,
+                )
+            )
+
+        if merged:
+            result.bupot_rows = merged
 
     def _read_harta(self, ws, result: LegacyXlsxRoundTripResult) -> None:
         headers = {
