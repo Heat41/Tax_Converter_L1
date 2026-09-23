@@ -169,3 +169,8 @@ def test_lampiran_iv_utang_uses_same_row_geometry_as_harta_at_12pt():
     assert service.UTANG_TEXT_Y_OFFSET == 3.6
     assert service.UTANG_FONT_SIZE == 11.0
     assert service.UTANG_TOTAL_RECT == (476.00, 598.40, 580.80, 615.20)
+
+
+def test_lampiran_iv_utang_total_fill_stays_neatly_inside_border():
+    service = Legacy1770LampiranIVService
+    assert service.UTANG_TOTAL_FILL_INSET == 0.8
