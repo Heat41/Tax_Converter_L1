@@ -52,6 +52,9 @@ class Legacy1770HybridPdfService:
     LEGAL_SIZE = (612.0, 936.0)
     LEGACY_START_INDEX = 2  # master lama: 0=Induk, 1=Lamp I H1, 2=Lamp I H2
 
+    # Dua halaman Induk format baru memakai ukuran isi yang konsisten.
+    NEW_PAGE_FONT_SIZE = 10.0
+
     def __init__(self, db_path: Optional[str | Path] = None):
         self.db_path = db_path
 
@@ -79,12 +82,31 @@ class Legacy1770HybridPdfService:
     @classmethod
     def _draw_field(cls, canvas, y: float, no: str, label: str, value="") -> float:
         canvas.rect(28, y - 18, 556, 20, fill=0, stroke=1)
-        cls._draw_text(canvas, 34, y - 11, no, size=7)
-        cls._draw_text(canvas, 62, y - 11, label[:78], size=7)
+        cls._draw_text(
+            canvas,
+            34,
+            y - 11,
+            no,
+            size=cls.NEW_PAGE_FONT_SIZE,
+        )
+        cls._draw_text(
+            canvas,
+            62,
+            y - 11,
+            label[:78],
+            size=cls.NEW_PAGE_FONT_SIZE,
+        )
         canvas.setFillColorRGB(1.0, 0.95, 0.75)
         canvas.rect(454, y - 17, 129, 18, fill=1, stroke=1)
         canvas.setFillColorRGB(0, 0, 0)
-        cls._draw_text(canvas, 460, y - 11, value, size=7, bold=True)
+        cls._draw_text(
+            canvas,
+            460,
+            y - 11,
+            value,
+            size=cls.NEW_PAGE_FONT_SIZE,
+            bold=True,
+        )
         return y - 20
 
     @classmethod
@@ -96,12 +118,54 @@ class Legacy1770HybridPdfService:
         canvas.setFont("Helvetica-Bold", 10)
         canvas.drawCentredString(width / 2, height - 43, "SPT TAHUNAN PPh WAJIB PAJAK ORANG PRIBADI")
         canvas.setFillColorRGB(0, 0, 0)
-        cls._draw_text(canvas, 28, height - 78, "KEMENTERIAN KEUANGAN RI - DIREKTORAT JENDERAL PAJAK", size=7.5, bold=True)
-        cls._draw_text(canvas, 28, height - 96, "INDUK", size=10, bold=True)
-        cls._draw_text(canvas, 500, height - 96, f"HALAMAN {page_no}", size=9, bold=True)
-        cls._draw_text(canvas, 28, height - 116, f"TAHUN PAJAK: {document.tahun_pajak}", size=8, bold=True)
-        cls._draw_text(canvas, 220, height - 116, "PERIODE: 01 s.d 12", size=8, bold=True)
-        cls._draw_text(canvas, 420, height - 116, "STATUS: NORMAL", size=8, bold=True)
+        cls._draw_text(
+            canvas,
+            28,
+            height - 78,
+            "KEMENTERIAN KEUANGAN RI - DIREKTORAT JENDERAL PAJAK",
+            size=cls.NEW_PAGE_FONT_SIZE,
+            bold=True,
+        )
+        cls._draw_text(
+            canvas,
+            28,
+            height - 96,
+            "INDUK",
+            size=cls.NEW_PAGE_FONT_SIZE,
+            bold=True,
+        )
+        cls._draw_text(
+            canvas,
+            500,
+            height - 96,
+            f"HALAMAN {page_no}",
+            size=cls.NEW_PAGE_FONT_SIZE,
+            bold=True,
+        )
+        cls._draw_text(
+            canvas,
+            28,
+            height - 116,
+            f"TAHUN PAJAK: {document.tahun_pajak}",
+            size=cls.NEW_PAGE_FONT_SIZE,
+            bold=True,
+        )
+        cls._draw_text(
+            canvas,
+            220,
+            height - 116,
+            "PERIODE: 01 s.d 12",
+            size=cls.NEW_PAGE_FONT_SIZE,
+            bold=True,
+        )
+        cls._draw_text(
+            canvas,
+            420,
+            height - 116,
+            "STATUS: NORMAL",
+            size=cls.NEW_PAGE_FONT_SIZE,
+            bold=True,
+        )
         return height - 140
 
     @classmethod
