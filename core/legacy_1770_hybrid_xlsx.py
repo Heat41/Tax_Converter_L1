@@ -740,6 +740,50 @@ class Legacy1770HybridXlsxService:
             "base_snapshot_hash": str(snapshot_hash or ""),
             "exported_at": datetime.now(timezone.utc).isoformat(),
             "harta_original_hash": str(data.harta_original_hash or ""),
+            # Baseline form visual dipakai untuk mendeteksi apakah user mengedit
+            # sheet terlihat atau hidden canonical. Ini mencegah salah satu jalur
+            # revisi menimpa jalur revisi lainnya secara diam-diam.
+            "visible_harta_baseline": json.dumps(
+                [
+                    {
+                        "kode_eform": self._text(row.kode_eform),
+                        "nama_harta": self._text(row.nama_harta),
+                        "tahun_perolehan": int(row.tahun_perolehan or 0),
+                        "nilai_tahun_berjalan": float(row.nilai_tahun_berjalan or 0),
+                        "keterangan": " | ".join(
+                            value
+                            for value in (
+                                self._text(row.nomor_akun_keterangan),
+                                self._text(row.atas_nama),
+                                self._text(row.nama_bank),
+                            )
+                            if value and value != "-"
+                        ),
+                    }
+                    for row in (data.harta_current_rows or [])
+                ],
+                ensure_ascii=False,
+                separators=(",", ":"),
+            ),
+            "visible_bupot_baseline": json.dumps(
+                [
+                    {
+                        "nama_pemotong": self._text(row.nama_pemotong),
+                        "npwp_pemotong": self._digits(
+                            row.npwp_pemotong or row.npwp_pemberi_kerja
+                        ),
+                        "no_bupot": self._text(row.no_bupot),
+                        "tanggal": self._text(
+                            row.tanggal_pemotongan or row.tanggal_bukti
+                        ),
+                        "jenis_pph": self._text(row.jenis_pph),
+                        "pph_dipotong": float(row.pph_dipotong or 0),
+                    }
+                    for row in (data.bupot_rows or [])
+                ],
+                ensure_ascii=False,
+                separators=(",", ":"),
+            ),
         }
         ws["A1"] = "KEY"
         ws["B1"] = "VALUE"
@@ -814,14 +858,28 @@ class Legacy1770HybridXlsxService:
         self._read_harta(wb[DATA_HARTA_SHEET], result)
         self._read_bupot(wb[DATA_BUPOT_SHEET], result)
 
-        # Workbook Format Lama adalah media revisi user. Karena sheet canonical
-        # disembunyikan, koreksi yang dilakukan pada form yang terlihat harus
-        # dibaca kembali dan digabungkan ke canonical row sebelum diterapkan ke
-        # Worksheet. Untuk saat ini cakupan aman: Harta dan Bupot. Bagian yang
-        # belum memiliki domain (mis. anggota keluarga) tetap diabaikan tanpa
-        # merusak round-trip.
-        self._merge_visible_harta_revision(wb, result)
-        self._merge_visible_bupot_revision(wb, result)
+        def _json_meta_list(key):
+            raw = meta.get(key)
+            if raw in (None, ""):
+                return []
+            try:
+                parsed = json.loads(str(raw))
+                return parsed if isinstance(parsed, list) else []
+            except (TypeError, ValueError, json.JSONDecodeError):
+                return []
+
+        harta_baseline = _json_meta_list("visible_harta_baseline")
+        bupot_baseline = _json_meta_list("visible_bupot_baseline")
+
+        # Workbook Format Lama adalah media revisi user. Revisi pada hidden
+        # canonical maupun sheet form visual sama-sama didukung. Baseline export
+        # dipakai untuk memilih sumber yang benar dan mendeteksi konflik.
+        self._merge_visible_harta_revision(
+            wb, result, baseline=harta_baseline
+        )
+        self._merge_visible_bupot_revision(
+            wb, result, baseline=bupot_baseline
+        )
         return result
 
     @staticmethod
@@ -834,7 +892,13 @@ class Legacy1770HybridXlsxService:
                     return row
         return None
 
-    def _merge_visible_harta_revision(self, wb, result: LegacyXlsxRoundTripResult) -> None:
+    def _merge_visible_harta_revision(
+        self,
+        wb,
+        result: LegacyXlsxRoundTripResult,
+        *,
+        baseline=None,
+    ) -> None:
         sheet_name = "06 Legacy Lamp IV"
         if sheet_name not in wb.sheetnames or not result.harta_rows:
             return
@@ -882,32 +946,100 @@ class Legacy1770HybridXlsxService:
             )
             return
 
+        baseline = baseline or []
         merged = []
-        for index, original in enumerate(result.harta_rows):
+        for index, canonical in enumerate(result.harta_rows):
             if index >= len(visible):
-                # Baris canonical yang dihapus/blank pada form visual dianggap
-                # sengaja dihapus dari revisi.
+                # Bila baseline tersedia dan form visual sengaja dikosongkan,
+                # perlakukan sebagai penghapusan visual. Tanpa baseline, jangan
+                # menebak penghapusan.
+                if baseline and index < len(baseline):
+                    continue
+                merged.append(canonical)
                 continue
+
             code, name, year, amount, note = visible[index]
+            base = baseline[index] if index < len(baseline) else {}
+
+            visible_state = {
+                "kode_eform": code,
+                "nama_harta": name,
+                "tahun_perolehan": int(year or 0),
+                "nilai_tahun_berjalan": float(amount or 0),
+                "keterangan": note,
+            }
+            canonical_state = {
+                "kode_eform": self._text(canonical.kode_eform),
+                "nama_harta": self._text(canonical.nama_harta),
+                "tahun_perolehan": int(canonical.tahun_perolehan or 0),
+                "nilai_tahun_berjalan": float(canonical.nilai_tahun_berjalan or 0),
+                "keterangan": " | ".join(
+                    value
+                    for value in (
+                        self._text(canonical.nomor_akun_keterangan),
+                        self._text(canonical.atas_nama),
+                        self._text(canonical.nama_bank),
+                    )
+                    if value and value != "-"
+                ),
+            }
+
+            if base:
+                base_state = {
+                    "kode_eform": self._text(base.get("kode_eform")),
+                    "nama_harta": self._text(base.get("nama_harta")),
+                    "tahun_perolehan": int(self._number(base.get("tahun_perolehan"))),
+                    "nilai_tahun_berjalan": float(self._number(base.get("nilai_tahun_berjalan"))),
+                    "keterangan": self._text(base.get("keterangan")),
+                }
+                visible_changed = visible_state != base_state
+                canonical_changed = canonical_state != base_state
+                if visible_changed and canonical_changed and visible_state != canonical_state:
+                    result.issues.append(
+                        LegacyXlsxIssue(
+                            "LX_117", "ERROR",
+                            f"Konflik revisi Harta baris {index + 1}: sheet visual dan canonical "
+                            "sama-sama diubah dengan nilai berbeda.",
+                        )
+                    )
+                    return
+                chosen = visible_state if visible_changed else canonical_state
+            else:
+                # Kompatibilitas workbook lama: hidden canonical tetap menjadi
+                # sumber utama agar revisi canonical lama tidak tertimpa visual.
+                chosen = canonical_state
+
             merged.append(
                 WorksheetHartaRow(
                     nomor=len(merged) + 1,
-                    kode_eform=code or original.kode_eform,
-                    kode_ct=original.kode_ct,
-                    nama_harta=name or original.nama_harta,
-                    nomor_akun_keterangan=note or original.nomor_akun_keterangan,
-                    atas_nama=original.atas_nama,
-                    nama_bank=original.nama_bank,
-                    tahun_perolehan=int(year or original.tahun_perolehan),
-                    nilai_tahun_sebelumnya=original.nilai_tahun_sebelumnya,
-                    nilai_tahun_berjalan=float(amount),
+                    kode_eform=chosen["kode_eform"] or canonical.kode_eform,
+                    kode_ct=canonical.kode_ct,
+                    nama_harta=chosen["nama_harta"] or canonical.nama_harta,
+                    nomor_akun_keterangan=(
+                        chosen["keterangan"]
+                        if chosen["keterangan"]
+                        else canonical.nomor_akun_keterangan
+                    ),
+                    atas_nama=canonical.atas_nama,
+                    nama_bank=canonical.nama_bank,
+                    tahun_perolehan=int(
+                        chosen["tahun_perolehan"] or canonical.tahun_perolehan
+                    ),
+                    nilai_tahun_sebelumnya=canonical.nilai_tahun_sebelumnya,
+                    nilai_tahun_berjalan=float(chosen["nilai_tahun_berjalan"]),
                 )
             )
 
         if merged:
             result.harta_rows = merged
 
-    def _merge_visible_bupot_revision(self, wb, result: LegacyXlsxRoundTripResult) -> None:
+    def _merge_visible_bupot_revision(
+        self,
+        wb,
+        result: LegacyXlsxRoundTripResult,
+        *,
+        baseline=None,
+    ) -> None:
         sheet_name = "04 Legacy Lamp II"
         if sheet_name not in wb.sheetnames or not result.bupot_rows:
             return
@@ -958,38 +1090,94 @@ class Legacy1770HybridXlsxService:
             )
             return
 
+        baseline = baseline or []
         merged = []
-        for index, original in enumerate(result.bupot_rows):
+        for index, canonical in enumerate(result.bupot_rows):
             if index >= len(visible):
+                if baseline and index < len(baseline):
+                    continue
+                merged.append(canonical)
                 continue
+
             nama, npwp, no_bupot, tanggal, jenis_pph, pph = visible[index]
+            base = baseline[index] if index < len(baseline) else {}
+
+            visible_state = {
+                "nama_pemotong": nama,
+                "npwp_pemotong": npwp,
+                "no_bupot": no_bupot,
+                "tanggal": tanggal,
+                "jenis_pph": jenis_pph,
+                "pph_dipotong": float(pph or 0),
+            }
+            canonical_state = {
+                "nama_pemotong": self._text(canonical.nama_pemotong),
+                "npwp_pemotong": self._digits(
+                    canonical.npwp_pemotong or canonical.npwp_pemberi_kerja
+                ),
+                "no_bupot": self._text(canonical.no_bupot),
+                "tanggal": self._text(
+                    canonical.tanggal_pemotongan or canonical.tanggal_bukti
+                ),
+                "jenis_pph": self._text(canonical.jenis_pph),
+                "pph_dipotong": float(canonical.pph_dipotong or 0),
+            }
+
+            if base:
+                base_state = {
+                    "nama_pemotong": self._text(base.get("nama_pemotong")),
+                    "npwp_pemotong": self._digits(base.get("npwp_pemotong")),
+                    "no_bupot": self._text(base.get("no_bupot")),
+                    "tanggal": self._text(base.get("tanggal")),
+                    "jenis_pph": self._text(base.get("jenis_pph")),
+                    "pph_dipotong": float(self._number(base.get("pph_dipotong"))),
+                }
+                visible_changed = visible_state != base_state
+                canonical_changed = canonical_state != base_state
+                if visible_changed and canonical_changed and visible_state != canonical_state:
+                    result.issues.append(
+                        LegacyXlsxIssue(
+                            "LX_118", "ERROR",
+                            f"Konflik revisi Bupot baris {index + 1}: sheet visual dan canonical "
+                            "sama-sama diubah dengan nilai berbeda.",
+                        )
+                    )
+                    return
+                chosen = visible_state if visible_changed else canonical_state
+            else:
+                chosen = canonical_state
+
             merged.append(
                 WorksheetBupotRow(
-                    jenis=original.jenis,
-                    no_bupot=no_bupot or original.no_bupot,
-                    bruto=original.bruto,
-                    pengurang=original.pengurang,
-                    pph_dipotong=float(pph),
-                    masa=original.masa,
-                    tahun=original.tahun,
-                    sifat=original.sifat,
-                    status=original.status,
-                    npwp_penerima=original.npwp_penerima,
-                    nama_penerima=original.nama_penerima,
-                    fasilitas=original.fasilitas,
-                    jenis_pph=jenis_pph or original.jenis_pph,
-                    kop=original.kop,
-                    dpp_persen=original.dpp_persen,
-                    tarif=original.tarif,
-                    bukti=original.bukti,
-                    no_bukti=original.no_bukti,
-                    tanggal_bukti=tanggal or original.tanggal_bukti,
-                    npwp_pemotong=npwp or original.npwp_pemotong,
-                    nama_pemotong=nama or original.nama_pemotong,
-                    tanggal_pemotongan=tanggal or original.tanggal_pemotongan,
-                    mekanisme_sp2d=original.mekanisme_sp2d,
-                    no_sp2d=original.no_sp2d,
-                    npwp_pemberi_kerja=npwp or original.npwp_pemberi_kerja,
+                    jenis=canonical.jenis,
+                    no_bupot=chosen["no_bupot"] or canonical.no_bupot,
+                    bruto=canonical.bruto,
+                    pengurang=canonical.pengurang,
+                    pph_dipotong=float(chosen["pph_dipotong"]),
+                    masa=canonical.masa,
+                    tahun=canonical.tahun,
+                    sifat=canonical.sifat,
+                    status=canonical.status,
+                    npwp_penerima=canonical.npwp_penerima,
+                    nama_penerima=canonical.nama_penerima,
+                    fasilitas=canonical.fasilitas,
+                    jenis_pph=chosen["jenis_pph"] or canonical.jenis_pph,
+                    kop=canonical.kop,
+                    dpp_persen=canonical.dpp_persen,
+                    tarif=canonical.tarif,
+                    bukti=canonical.bukti,
+                    no_bukti=canonical.no_bukti,
+                    tanggal_bukti=chosen["tanggal"] or canonical.tanggal_bukti,
+                    npwp_pemotong=chosen["npwp_pemotong"] or canonical.npwp_pemotong,
+                    nama_pemotong=chosen["nama_pemotong"] or canonical.nama_pemotong,
+                    tanggal_pemotongan=(
+                        chosen["tanggal"] or canonical.tanggal_pemotongan
+                    ),
+                    mekanisme_sp2d=canonical.mekanisme_sp2d,
+                    no_sp2d=canonical.no_sp2d,
+                    npwp_pemberi_kerja=(
+                        chosen["npwp_pemotong"] or canonical.npwp_pemberi_kerja
+                    ),
                 )
             )
 
