@@ -176,9 +176,10 @@ class Legacy1770LampiranIVService:
     UTANG_YEAR_X = (397.00, 476.00)
     UTANG_VALUE_X = (476.00, 580.80)
     UTANG_TOTAL_RECT: Rect = (476.00, 598.40, 580.80, 615.20)
-    # Isi Utang dipusatkan pada baris aslinya. Font Utang dikunci 12 pt;
-    # teks panjang dipadatkan secara horizontal agar tidak keluar dari sel.
-    UTANG_TEXT_Y_OFFSET = 5.0
+    # Bagian Utang mengikuti mekanisme render Harta: gunakan rect fisik asli
+    # tanpa offset vertikal khusus. Font awal/minimum dikunci 12 pt; teks yang
+    # terlalu panjang dipotong dengan elipsis oleh _draw_fit_center.
+    UTANG_TEXT_Y_OFFSET = 0.0
     UTANG_FONT_SIZE = 12.0
 
     @staticmethod
@@ -371,150 +372,6 @@ class Legacy1770LampiranIVService:
         canvas.drawCentredString((x0 + x1) / 2.0, baseline, value)
 
     @classmethod
-    def _draw_fixed_size_fit_center(
-        cls,
-        canvas,
-        rect: Rect,
-        text: str,
-        width: float,
-        height: float,
-        *,
-        size: float = 12.0,
-    ) -> None:
-        """Gambar teks dengan ukuran font tetap dan padatkan horizontal bila perlu."""
-        value = str(text or "").strip()
-        if not value:
-            return
-
-        x0, y0, x1, y1 = cls._pdf_rect(rect, width, height)
-        sx = width / cls.BASE_WIDTH
-        sy = height / cls.BASE_HEIGHT
-        font_size = float(size) * sy
-        # Beri ruang aman kiri/kanan agar teks 12 pt tidak terlihat menempel
-        # pada garis vertikal tabel.
-        max_width = max(1.0, (x1 - x0) - (8.0 * sx))
-
-        canvas.setFont("Helvetica", font_size)
-        natural_width = canvas.stringWidth(value, "Helvetica", font_size)
-        horizontal_scale = min(100.0, (max_width / natural_width) * 100.0) if natural_width else 100.0
-        # Hindari teks menjadi terlalu tipis. Untuk menjaga tampilan rapi,
-        # batasi pemadatan horizontal minimal 72%; jika lebih panjang,
-        # potong dengan elipsis tetapi ukuran font tetap 12 pt.
-        if horizontal_scale < 72.0:
-            suffix = "..."
-            clipped = value
-            target_natural = max_width / 0.72
-            while clipped and canvas.stringWidth(
-                clipped + suffix, "Helvetica", font_size
-            ) > target_natural:
-                clipped = clipped[:-1]
-            value = (clipped.rstrip() + suffix) if clipped else suffix
-            natural_width = canvas.stringWidth(value, "Helvetica", font_size)
-            horizontal_scale = min(
-                100.0,
-                (max_width / natural_width) * 100.0,
-            ) if natural_width else 100.0
-
-        rendered_width = natural_width * (horizontal_scale / 100.0)
-        baseline = y0 + ((y1 - y0 - font_size) / 2.0) + (1.1 * sy)
-
-        # Hard clip ke area sel. Ini penting untuk nama/alamat Utang yang
-        # panjang: font tetap 12 pt tetapi glyph tidak boleh menyeberangi
-        # garis tabel ke kolom/baris tetangga.
-        canvas.saveState()
-        clip_path = canvas.beginPath()
-        inset_x = 3.0 * sx
-        inset_y = 0.7 * sy
-        clip_path.rect(
-            x0 + inset_x,
-            y0 + inset_y,
-            max(0.1, (x1 - x0) - (2.0 * inset_x)),
-            max(0.1, (y1 - y0) - (2.0 * inset_y)),
-        )
-        canvas.clipPath(clip_path, stroke=0, fill=0)
-
-        text_obj = canvas.beginText()
-        text_obj.setTextOrigin(
-            x0 + ((x1 - x0 - rendered_width) / 2.0),
-            baseline,
-        )
-        text_obj.setFont("Helvetica", font_size)
-        text_obj.setHorizScale(horizontal_scale)
-        text_obj.textOut(value)
-        canvas.drawText(text_obj)
-        canvas.restoreState()
-
-    @classmethod
-    def _draw_fixed_size_fit_left(
-        cls,
-        canvas,
-        rect: Rect,
-        text: str,
-        width: float,
-        height: float,
-        *,
-        size: float = 12.0,
-    ) -> None:
-        """Teks 12 pt rata kiri, dipadatkan secukupnya, lalu dipotong bila perlu."""
-        value = str(text or "").strip()
-        if not value:
-            return
-
-        x0, y0, x1, y1 = cls._pdf_rect(rect, width, height)
-        sx = width / cls.BASE_WIDTH
-        sy = height / cls.BASE_HEIGHT
-        font_size = float(size) * sy
-        inset_x = 4.0 * sx
-        inset_y = 0.7 * sy
-        max_width = max(1.0, (x1 - x0) - (2.0 * inset_x))
-
-        canvas.setFont("Helvetica", font_size)
-        natural_width = canvas.stringWidth(value, "Helvetica", font_size)
-        horizontal_scale = (
-            min(100.0, (max_width / natural_width) * 100.0)
-            if natural_width
-            else 100.0
-        )
-
-        if horizontal_scale < 72.0:
-            suffix = "..."
-            clipped = value
-            target_natural = max_width / 0.72
-            while clipped and canvas.stringWidth(
-                clipped.rstrip() + suffix,
-                "Helvetica",
-                font_size,
-            ) > target_natural:
-                clipped = clipped[:-1]
-            value = (clipped.rstrip() + suffix) if clipped else suffix
-            natural_width = canvas.stringWidth(value, "Helvetica", font_size)
-            horizontal_scale = (
-                min(100.0, (max_width / natural_width) * 100.0)
-                if natural_width
-                else 100.0
-            )
-
-        baseline = y0 + ((y1 - y0 - font_size) / 2.0) + (1.1 * sy)
-
-        canvas.saveState()
-        clip_path = canvas.beginPath()
-        clip_path.rect(
-            x0 + inset_x,
-            y0 + inset_y,
-            max(0.1, (x1 - x0) - (2.0 * inset_x)),
-            max(0.1, (y1 - y0) - (2.0 * inset_y)),
-        )
-        canvas.clipPath(clip_path, stroke=0, fill=0)
-
-        text_obj = canvas.beginText()
-        text_obj.setTextOrigin(x0 + inset_x, baseline)
-        text_obj.setFont("Helvetica", font_size)
-        text_obj.setHorizScale(horizontal_scale)
-        text_obj.textOut(value)
-        canvas.drawText(text_obj)
-        canvas.restoreState()
-
-    @classmethod
     def _draw_right_money(
         cls,
         canvas,
@@ -642,49 +499,52 @@ class Legacy1770LampiranIVService:
                 row.keterangan,
                 width,
                 height,
-                size=self.UTANG_FONT_SIZE,
+                size=12.0,
+                min_size=8.0,
             )
 
         for index, row in enumerate(mapping.utang_rows[: self.MAX_UTANG_ROWS]):
             y0, y1 = self.UTANG_ROW_BOUNDS[index]
-            text_y0 = y0 + self.UTANG_TEXT_Y_OFFSET
-            text_y1 = y1 + self.UTANG_TEXT_Y_OFFSET
-            self._draw_fixed_size_fit_center(
+            self._draw_fit_center(
                 canvas,
-                (self.UTANG_CODE_X[0], text_y0, self.UTANG_CODE_X[1], text_y1),
+                (self.UTANG_CODE_X[0], y0, self.UTANG_CODE_X[1], y1),
                 row.kode_utang,
                 width,
                 height,
                 size=self.UTANG_FONT_SIZE,
+                min_size=self.UTANG_FONT_SIZE,
             )
-            self._draw_fixed_size_fit_left(
+            self._draw_fit_center(
                 canvas,
-                (self.UTANG_NAME_X[0], text_y0, self.UTANG_NAME_X[1], text_y1),
+                (self.UTANG_NAME_X[0], y0, self.UTANG_NAME_X[1], y1),
                 row.nama_pemberi_pinjaman.upper(),
                 width,
                 height,
                 size=self.UTANG_FONT_SIZE,
+                min_size=self.UTANG_FONT_SIZE,
             )
-            self._draw_fixed_size_fit_left(
+            self._draw_fit_center(
                 canvas,
-                (self.UTANG_ADDRESS_X[0], text_y0, self.UTANG_ADDRESS_X[1], text_y1),
+                (self.UTANG_ADDRESS_X[0], y0, self.UTANG_ADDRESS_X[1], y1),
                 row.alamat_pemberi_pinjaman.upper(),
                 width,
                 height,
                 size=self.UTANG_FONT_SIZE,
+                min_size=self.UTANG_FONT_SIZE,
             )
             if row.tahun_pinjaman:
-                self._draw_fixed_size_fit_center(
+                self._draw_fit_center(
                     canvas,
-                    (self.UTANG_YEAR_X[0], text_y0, self.UTANG_YEAR_X[1], text_y1),
+                    (self.UTANG_YEAR_X[0], y0, self.UTANG_YEAR_X[1], y1),
                     str(row.tahun_pinjaman),
                     width,
                     height,
                     size=self.UTANG_FONT_SIZE,
+                    min_size=self.UTANG_FONT_SIZE,
                 )
             self._draw_right_money(
                 canvas,
-                (self.UTANG_VALUE_X[0], text_y0, self.UTANG_VALUE_X[1], text_y1),
+                (self.UTANG_VALUE_X[0], y0, self.UTANG_VALUE_X[1], y1),
                 row.jumlah,
                 width,
                 height,
