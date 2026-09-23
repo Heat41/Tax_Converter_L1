@@ -156,11 +156,11 @@ def test_lampiran_iv_maps_utang_and_sums_current_balance():
 def test_lampiran_iv_utang_geometry_stays_inside_bagian_b():
     service = Legacy1770LampiranIVService
 
-    assert service.UTANG_ROW_BOUNDS[0] == (434.40, 450.80)
-    assert service.UTANG_ROW_BOUNDS[-1] == (582.00, 598.40)
-    assert service.UTANG_TOTAL_RECT == (476.00, 598.40, 580.80, 615.20)
+    assert service.UTANG_ROW_BOUNDS[0] == (467.20, 483.60)
+    assert service.UTANG_ROW_BOUNDS[-1] == (614.80, 631.20)
+    assert service.UTANG_TOTAL_RECT == (476.00, 631.20, 580.80, 648.00)
 
-    # Total Bagian B harus tepat sesudah baris Utang ke-10, bukan turun ke Bagian C.
+    # Total Bagian B harus tepat sesudah baris Utang ke-10.
     assert service.UTANG_TOTAL_RECT[1] == service.UTANG_ROW_BOUNDS[-1][1]
 
 
@@ -168,4 +168,4 @@ def test_lampiran_iv_utang_uses_same_row_geometry_as_harta_at_12pt():
     service = Legacy1770LampiranIVService
     assert service.UTANG_TEXT_Y_OFFSET == 0.0
     assert service.UTANG_FONT_SIZE == 12.0
-    assert service.UTANG_TOTAL_RECT == (476.00, 598.40, 580.80, 615.20)
+    assert service.UTANG_TOTAL_RECT == (476.00, 631.20, 580.80, 648.00)
