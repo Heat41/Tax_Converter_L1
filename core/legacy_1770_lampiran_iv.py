@@ -178,7 +178,7 @@ class Legacy1770LampiranIVService:
     UTANG_TOTAL_RECT: Rect = (476.00, 598.40, 580.80, 615.20)
     # Isi Utang dipusatkan pada baris aslinya. Font Utang dikunci 12 pt;
     # teks panjang dipadatkan secara horizontal agar tidak keluar dari sel.
-    UTANG_TEXT_Y_OFFSET = 0.0
+    UTANG_TEXT_Y_OFFSET = 3.0
     UTANG_FONT_SIZE = 12.0
 
     @staticmethod
@@ -413,7 +413,23 @@ class Legacy1770LampiranIVService:
             ) if natural_width else 100.0
 
         rendered_width = natural_width * (horizontal_scale / 100.0)
-        baseline = y0 + ((y1 - y0 - font_size) / 2.0) + (1.6 * sy)
+        baseline = y0 + ((y1 - y0 - font_size) / 2.0) + (1.1 * sy)
+
+        # Hard clip ke area sel. Ini penting untuk nama/alamat Utang yang
+        # panjang: font tetap 12 pt tetapi glyph tidak boleh menyeberangi
+        # garis tabel ke kolom/baris tetangga.
+        canvas.saveState()
+        clip_path = canvas.beginPath()
+        inset_x = 1.5 * sx
+        inset_y = 0.7 * sy
+        clip_path.rect(
+            x0 + inset_x,
+            y0 + inset_y,
+            max(0.1, (x1 - x0) - (2.0 * inset_x)),
+            max(0.1, (y1 - y0) - (2.0 * inset_y)),
+        )
+        canvas.clipPath(clip_path, stroke=0, fill=0)
+
         text_obj = canvas.beginText()
         text_obj.setTextOrigin(
             x0 + ((x1 - x0 - rendered_width) / 2.0),
@@ -423,6 +439,7 @@ class Legacy1770LampiranIVService:
         text_obj.setHorizScale(horizontal_scale)
         text_obj.textOut(value)
         canvas.drawText(text_obj)
+        canvas.restoreState()
 
     @classmethod
     def _draw_right_money(
