@@ -6,15 +6,11 @@ from dataclasses import dataclass
 from pathlib import Path
 from typing import Optional
 
+from config.settings import LEGACY_1770_TEMPLATE_DIR
+
 
 MASTER_TEMPLATE_FILENAME = "1770_master_bersih_6_halaman.pdf"
-DEFAULT_TEMPLATE_PATH = (
-    Path(__file__).resolve().parents[1]
-    / "resources"
-    / "templates"
-    / "1770"
-    / MASTER_TEMPLATE_FILENAME
-)
+DEFAULT_TEMPLATE_PATH = LEGACY_1770_TEMPLATE_DIR / MASTER_TEMPLATE_FILENAME
 
 
 @dataclass(frozen=True)
