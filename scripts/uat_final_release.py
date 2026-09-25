@@ -8,6 +8,7 @@ ROOT = Path(__file__).resolve().parents[1]
 if str(ROOT) not in sys.path:
     sys.path.insert(0, str(ROOT))
 
+from config.settings import CORETAX_TEMPLATE_DIR
 from core.final_uat import FinalUatService
 
 
@@ -22,8 +23,11 @@ def main() -> int:
     parser.add_argument("tahun", type=int)
     parser.add_argument(
         "--template-dir",
-        required=True,
-        help="Folder template Coretax asli.",
+        default=str(CORETAX_TEMPLATE_DIR),
+        help=(
+            "Folder template Coretax resmi. Default memakai resource bawaan "
+            "resources/templates/coretax."
+        ),
     )
     parser.add_argument(
         "--source-dir",
