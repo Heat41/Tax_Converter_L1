@@ -118,20 +118,20 @@ class MainWindow(QMainWindow):
         side.addSpacing(20)
 
         navigation = (
-            ("dashboard", "Dashboard"),
-            ("import", "Input Data"),
-            ("worksheet", "Worksheet"),
-            ("finalisasi", "Finalisasi"),
-            ("pengaturan", "Pengaturan"),
+            ("dashboard", "🏠  Dashboard"),
+            ("import", "📥  Input Data"),
+            ("worksheet", "📄  Worksheet"),
+            ("finalisasi", "✅  Finalisasi"),
+            ("pengaturan", "⚙️  Pengaturan"),
         )
 
         self.nav_labels = dict(navigation)
         self.nav_compact_labels = {
-            "dashboard": "D",
-            "import": "I",
-            "worksheet": "W",
-            "finalisasi": "F",
-            "pengaturan": "P",
+            "dashboard": "🏠",
+            "import": "📥",
+            "worksheet": "📄",
+            "finalisasi": "✅",
+            "pengaturan": "⚙️",
         }
 
         for key, text in navigation:
