@@ -240,5 +240,5 @@ def test_stage8e3_full_revision_cycle_creates_next_revision_and_reexports(tmp_pa
         str(meta.cell(row, 1).value): meta.cell(row, 2).value
         for row in range(1, meta.max_row + 1)
     }
-    assert int(meta_values["revision"]) == 2
-    assert str(meta_values["snapshot_hash"]) == rev2.snapshot_hash
+    assert int(meta_values["base_revision"]) == 2
+    assert str(meta_values["base_snapshot_hash"]) == rev2.snapshot_hash
