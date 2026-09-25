@@ -93,7 +93,7 @@ def test_actual_footer_page_metadata_forces_last_page_to_grand_total():
     assert Legacy1770MultipageService._display_value_for_summary(actual) == 788_920_417
 
 
-def test_non_last_page_still_uses_only_its_subtotal():
+def test_non_last_page_uses_grand_total_consistently():
     summary = MultipagePageSummary(
         section="L4",
         page_number=2,
@@ -103,4 +103,4 @@ def test_non_last_page_still_uses_only_its_subtotal():
         subtotal_available=True,
     )
 
-    assert Legacy1770MultipageService._display_value_for_summary(summary) == 4_051_940_000
+    assert Legacy1770MultipageService._display_value_for_summary(summary) == 16_268_223_888
