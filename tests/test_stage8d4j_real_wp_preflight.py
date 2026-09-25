@@ -92,6 +92,13 @@ def _template(directory: Path, category: str):
     return path
 
 
+
+def _all_templates(directory: Path):
+    for category in OFFICIAL_CORETAX_SCHEMAS:
+        _template(directory, category)
+
+
+
 def _finalized_db(tmp_path):
     db_path = tmp_path / "real_wp.db"
     init_database(db_path)
@@ -111,10 +118,10 @@ def test_stage8d4j_lists_final_snapshots(tmp_path):
     assert rows[0]["revision"] == 1
 
 
-def test_stage8d4j_only_requires_template_for_active_category(tmp_path):
+def test_stage8d4j_requires_all_six_official_templates(tmp_path):
     db_path = _finalized_db(tmp_path)
     templates = tmp_path / "templates"
-    _template(templates, "HTB")
+    _all_templates(templates)
 
     result = RealWpPreflightService(
         db_path=db_path,
@@ -127,14 +134,14 @@ def test_stage8d4j_only_requires_template_for_active_category(tmp_path):
     assert result.ready
     assert result.active_categories == ["HTB"]
     assert result.category_counts == {"HTB": 1}
-    assert set(result.template_files) == {"HTB"}
+    assert set(result.template_files) == set(OFFICIAL_CORETAX_SCHEMAS)
     assert result.missing_templates == []
 
 
 def test_stage8d4j_reports_missing_source_metadata_without_fabricating(tmp_path):
     db_path = _finalized_db(tmp_path)
     templates = tmp_path / "templates"
-    _template(templates, "HTB")
+    _all_templates(templates)
 
     result = RealWpPreflightService(
         db_path=db_path,
@@ -156,7 +163,7 @@ def test_stage8d4j_reports_missing_source_metadata_without_fabricating(tmp_path)
     )
 
 
-def test_stage8d4j_missing_active_template_is_blocking_error(tmp_path):
+def test_stage8d4j_missing_any_official_template_is_blocking_error(tmp_path):
     db_path = _finalized_db(tmp_path)
     templates = tmp_path / "templates"
     templates.mkdir()
@@ -170,7 +177,7 @@ def test_stage8d4j_missing_active_template_is_blocking_error(tmp_path):
     )
 
     assert not result.ready
-    assert result.missing_templates == ["HTB"]
+    assert set(result.missing_templates) == set(OFFICIAL_CORETAX_SCHEMAS)
     assert any(
         issue.code == "RCX4J_001"
         and issue.severity == "ERROR"
