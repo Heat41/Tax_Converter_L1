@@ -72,6 +72,24 @@ QPushButton:disabled {
     color: #9AA5B1;
     border-color: #D9E2EC;
 }
+QPushButton#sidebarToggle {
+    background: transparent;
+    color: #D9E2EC;
+    border: 1px solid #35506B;
+    border-radius: 7px;
+    padding: 0;
+    font-size: 18px;
+    font-weight: 700;
+}
+QPushButton#sidebarToggle:hover {
+    background: #1F486A;
+    color: #FFFFFF;
+    border-color: #5B7691;
+}
+QPushButton#navButton[collapsed="true"] {
+    text-align: center;
+    padding: 13px 4px;
+}
 QPushButton#navButton {
     color: #D9E2EC;
     background: transparent;
@@ -371,6 +389,16 @@ QPushButton:disabled {
     background: #162033;
     color: #66758A;
     border-color: #2B3A4F;
+}
+QPushButton#sidebarToggle {
+    background: transparent;
+    color: #C7D2E0;
+    border-color: #2F4762;
+}
+QPushButton#sidebarToggle:hover {
+    background: #142C47;
+    color: #FFFFFF;
+    border-color: #4F6A87;
 }
 QPushButton#navButton {
     color: #C7D2E0;
