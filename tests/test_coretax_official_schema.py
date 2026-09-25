@@ -12,13 +12,11 @@ def test_all_six_l1_categories_have_official_excel_schema():
     assert all(schema.excel_headers for schema in OFFICIAL_CORETAX_SCHEMAS.values())
 
 
-def test_four_uploaded_xml_references_are_locked():
+def test_all_six_uploaded_xml_references_are_locked():
     assert get_official_schema("KAS").xml_root == "CashAndCashEquivalentBulk"
     assert get_official_schema("INVESTASI").xml_root == "InvesmentSecuritiesBulk"
     assert get_official_schema("BERGERAK").xml_root == "MovableAssetsBulk"
     assert get_official_schema("HTB").xml_root == "NonMovableAssetsBulk"
-
-
-def test_piutang_and_lainnya_xml_stay_unclaimed_without_reference():
-    assert get_official_schema("PIUTANG").has_xml_reference is False
-    assert get_official_schema("LAINNYA").has_xml_reference is False
+    assert get_official_schema("PIUTANG").xml_root == "AccountReceivablesBulk"
+    assert get_official_schema("LAINNYA").xml_root == "OtherAssetsBulk"
+    assert all(schema.has_xml_reference for schema in OFFICIAL_CORETAX_SCHEMAS.values())
