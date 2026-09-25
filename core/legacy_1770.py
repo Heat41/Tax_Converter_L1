@@ -102,6 +102,22 @@ class Legacy1770DocumentService:
         except (TypeError, ValueError):
             return 0.0
 
+    @classmethod
+    def _first_number(cls, *candidates) -> float:
+        """Ambil angka dari source pertama yang benar-benar menyediakan key.
+
+        Nilai 0 tetap dianggap nilai eksplisit; fallback hanya dipakai jika key
+        tidak ada atau nilainya None/kosong.
+        """
+        for mapping, key in candidates:
+            if not isinstance(mapping, dict) or key not in mapping:
+                continue
+            value = mapping.get(key)
+            if value in (None, ""):
+                continue
+            return cls._float(value)
+        return 0.0
+
     def build_active_final(self, npwp: str, tahun_pajak: int) -> Legacy1770Document:
         clean_npwp = "".join(ch for ch in str(npwp or "") if ch.isdigit())
         document = Legacy1770Document(npwp=clean_npwp, tahun_pajak=int(tahun_pajak or 0))
@@ -148,19 +164,72 @@ class Legacy1770DocumentService:
         umkm = payload.get("umkm_state") or {}
 
         document.status_ptkp = str(payload.get("status_ptkp") or components.get("status_ptkp") or "")
-        document.total_netto_bupot = self._float(pph.get("total_netto_bupot"))
-        document.penghasilan_neto_lainnya = self._float(pph.get("penghasilan_neto_lainnya"))
-        document.zakat = self._float(payload.get("zakat", pph.get("pengurang_penghasilan_neto")))
-        document.penghasilan_neto_gabungan = self._float(pph.get("penghasilan_neto_gabungan"))
-        document.ptkp = self._float(pph.get("ptkp"))
-        document.pkp = self._float(pph.get("pkp"))
-        document.pph_terutang = self._float(pph.get("pph_terutang"))
-        document.kredit_pajak = self._float(pph.get("kredit_pajak"))
-        document.pph25 = self._float(pph.get("pph25"))
+
+        raw_bupot = payload.get("bupot_rows") or []
+        bupot_netto_total = sum(
+            self._float(item.get("bruto")) - self._float(item.get("pengurang"))
+            for item in raw_bupot
+            if isinstance(item, dict)
+        )
+        bupot_pph_total = sum(
+            self._float(item.get("pph_dipotong", item.get("jumlah_pph")))
+            for item in raw_bupot
+            if isinstance(item, dict)
+        )
+
+        document.total_netto_bupot = self._first_number(
+            (pph, "total_netto_bupot"),
+            (components, "total_netto_bupot"),
+        )
+        if (
+            "total_netto_bupot" not in pph
+            and "total_netto_bupot" not in components
+        ):
+            document.total_netto_bupot = bupot_netto_total
+
+        document.penghasilan_neto_lainnya = self._first_number(
+            (pph, "penghasilan_neto_lainnya"),
+            (components, "penghasilan_neto_lainnya"),
+            (other, "domestic_other_dpp"),
+        )
+        document.zakat = self._first_number(
+            (payload, "zakat"),
+            (pph, "pengurang_penghasilan_neto"),
+            (components, "pengurang_penghasilan_neto"),
+            (other, "zakat"),
+        )
+        document.penghasilan_neto_gabungan = self._first_number(
+            (pph, "penghasilan_neto_gabungan"),
+            (components, "penghasilan_neto_gabungan_imported"),
+        )
+        document.ptkp = self._first_number(
+            (pph, "ptkp"),
+            (components, "ptkp"),
+        )
+        document.pkp = self._first_number(
+            (pph, "pkp"),
+            (components, "pkp_imported"),
+        )
+        document.pph_terutang = self._first_number(
+            (pph, "pph_terutang"),
+            (components, "pph_terutang"),
+            (components, "pph_terutang_imported"),
+        )
+        document.kredit_pajak = self._first_number(
+            (pph, "kredit_pajak"),
+            (components, "kredit_pajak"),
+        )
+        if "kredit_pajak" not in pph and "kredit_pajak" not in components:
+            document.kredit_pajak = bupot_pph_total
+        document.pph25 = self._first_number(
+            (pph, "pph25"),
+            (components, "pph25"),
+        )
 
         # Form 1770 lama menampilkan nilai rupiah aktual pada angka 16/19.
-        document.kurang_lebih_bayar = self._float(
-            pph.get("kurang_lebih_bayar", pph.get("kurang_lebih_bayar_pembulatan"))
+        document.kurang_lebih_bayar = self._first_number(
+            (pph, "kurang_lebih_bayar"),
+            (pph, "kurang_lebih_bayar_pembulatan"),
         )
 
         document.umkm_bruto = sum(self._float(v) for v in (umkm.get("bruto_bulanan") or []))
@@ -172,12 +241,17 @@ class Legacy1770DocumentService:
                 continue
             dpp = self._float(item.get("dpp"))
             tarif = self._float(item.get("tarif"))
+            explicit_pph = (
+                self._float(item.get("pph"))
+                if "pph" in item and item.get("pph") not in (None, "")
+                else round(dpp * tarif)
+            )
             document.penghasilan_final_lainnya.append(
                 Legacy1770FinalIncomeRow(
                     keterangan=str(item.get("keterangan") or ""),
                     dpp=dpp,
                     tarif=tarif,
-                    pph=round(dpp * tarif),
+                    pph=explicit_pph,
                 )
             )
 
@@ -204,7 +278,6 @@ class Legacy1770DocumentService:
                 )
             )
 
-        raw_bupot = payload.get("bupot_rows") or []
         for index, item in enumerate(raw_bupot, start=1):
             if not isinstance(item, dict):
                 continue
