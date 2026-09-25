@@ -8,6 +8,7 @@ ROOT = Path(__file__).resolve().parents[1]
 if str(ROOT) not in sys.path:
     sys.path.insert(0, str(ROOT))
 
+from core.coretax_official_schema import get_official_schema
 from core.real_wp_preflight import (
     RealWpPreflightService,
     list_final_snapshots,
@@ -93,9 +94,7 @@ def main() -> int:
 
     for category in result.active_categories:
         count = result.category_counts.get(category, 0)
-        schema_xml = "YA" if category in {
-            "KAS", "INVESTASI", "BERGERAK", "HTB"
-        } else "TIDAK"
+        schema_xml = "YA" if get_official_schema(category).has_xml_reference else "TIDAK"
         template = result.template_files.get(category)
 
         print(
