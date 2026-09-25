@@ -28,6 +28,7 @@ from ui.worksheet_export_actions import WorksheetExportActions
 
 class MainWindow(QMainWindow):
     SIDEBAR_WIDTH = 250
+    SIDEBAR_COLLAPSED_WIDTH = 76
     CONTENT_MARGIN_X = 28
     CONTENT_MARGIN_Y = 26
 
@@ -46,7 +47,9 @@ class MainWindow(QMainWindow):
             self.setWindowIcon(self.app_icon)
 
         self.nav_buttons = {}
+        self.nav_labels = {}
         self.pages = {}
+        self.sidebar_collapsed = False
         self._build_ui()
         self.refresh_dashboard()
         self._show_page("dashboard")
@@ -62,6 +65,14 @@ class MainWindow(QMainWindow):
         side = QVBoxLayout(self.sidebar)
         side.setContentsMargins(18, 22, 18, 18)
         side.setSpacing(6)
+
+        self.sidebar_toggle = QPushButton("‹")
+        self.sidebar_toggle.setObjectName("sidebarToggle")
+        self.sidebar_toggle.setCursor(Qt.PointingHandCursor)
+        self.sidebar_toggle.setFixedSize(30, 30)
+        self.sidebar_toggle.setToolTip("Kecilkan sidebar")
+        self.sidebar_toggle.clicked.connect(self._toggle_sidebar)
+        side.addWidget(self.sidebar_toggle, alignment=Qt.AlignRight)
 
         brand_row = QHBoxLayout()
         brand_row.setContentsMargins(0, 0, 0, 0)
@@ -92,18 +103,18 @@ class MainWindow(QMainWindow):
         brand_name_row.addStretch()
         brand_text.addLayout(brand_name_row)
 
-        sub = QLabel(f"v{APP_VERSION}")
-        sub.setObjectName("brandSub")
-        brand_text.addWidget(sub)
+        self.brand_version = QLabel(f"v{APP_VERSION}")
+        self.brand_version.setObjectName("brandSub")
+        brand_text.addWidget(self.brand_version)
         brand_text.addStretch()
         brand_row.addLayout(brand_text, 1)
 
         side.addLayout(brand_row)
 
-        product_desc = QLabel("Converter Harta & Kertas Kerja SPT")
-        product_desc.setObjectName("sidebarCaption")
-        product_desc.setWordWrap(True)
-        side.addWidget(product_desc)
+        self.product_desc = QLabel("Converter Harta & Kertas Kerja SPT")
+        self.product_desc.setObjectName("sidebarCaption")
+        self.product_desc.setWordWrap(True)
+        side.addWidget(self.product_desc)
         side.addSpacing(20)
 
         navigation = (
@@ -114,6 +125,15 @@ class MainWindow(QMainWindow):
             ("pengaturan", "Pengaturan"),
         )
 
+        self.nav_labels = dict(navigation)
+        self.nav_compact_labels = {
+            "dashboard": "D",
+            "import": "I",
+            "worksheet": "W",
+            "finalisasi": "F",
+            "pengaturan": "P",
+        }
+
         for key, text in navigation:
             button = QPushButton(text)
             button.setObjectName("navButton")
@@ -122,15 +142,16 @@ class MainWindow(QMainWindow):
             button.clicked.connect(
                 lambda checked=False, page=key: self._show_page(page)
             )
+            button.setToolTip(text)
             side.addWidget(button)
             self.nav_buttons[key] = button
 
         side.addStretch()
 
-        version = QLabel("Internal Desktop Application")
-        version.setObjectName("brandSub")
-        version.setWordWrap(True)
-        side.addWidget(version)
+        self.sidebar_footer = QLabel("Internal Desktop Application")
+        self.sidebar_footer.setObjectName("brandSub")
+        self.sidebar_footer.setWordWrap(True)
+        side.addWidget(self.sidebar_footer)
 
         self.stack = QStackedWidget()
         self.pages["dashboard"] = self._build_dashboard_page()
@@ -171,6 +192,50 @@ class MainWindow(QMainWindow):
         layout.addWidget(self.sidebar)
         layout.addWidget(self.content, 1)
         self.setCentralWidget(root)
+
+    def _toggle_sidebar(self):
+        self.set_sidebar_collapsed(not self.sidebar_collapsed)
+
+    def set_sidebar_collapsed(self, collapsed: bool):
+        self.sidebar_collapsed = bool(collapsed)
+        width = (
+            self.SIDEBAR_COLLAPSED_WIDTH
+            if self.sidebar_collapsed
+            else self.SIDEBAR_WIDTH
+        )
+        self.sidebar.setFixedWidth(width)
+
+        side = self.sidebar.layout()
+        if side is not None:
+            margins = (10, 14, 10, 14) if self.sidebar_collapsed else (18, 22, 18, 18)
+            side.setContentsMargins(*margins)
+
+        self.brand_main.setVisible(not self.sidebar_collapsed)
+        self.brand_accent.setVisible(not self.sidebar_collapsed)
+        self.brand_version.setVisible(not self.sidebar_collapsed)
+        self.product_desc.setVisible(not self.sidebar_collapsed)
+        self.sidebar_footer.setVisible(not self.sidebar_collapsed)
+
+        logo_size = 40 if self.sidebar_collapsed else 46
+        self.brand_logo.setFixedSize(logo_size, logo_size)
+        if not self.app_icon.isNull():
+            self.brand_logo.setPixmap(self.app_icon.pixmap(logo_size, logo_size))
+
+        for key, button in self.nav_buttons.items():
+            button.setText(
+                self.nav_compact_labels[key]
+                if self.sidebar_collapsed
+                else self.nav_labels[key]
+            )
+            button.setProperty("collapsed", self.sidebar_collapsed)
+            button.style().unpolish(button)
+            button.style().polish(button)
+            button.update()
+
+        self.sidebar_toggle.setText("›" if self.sidebar_collapsed else "‹")
+        self.sidebar_toggle.setToolTip(
+            "Besarkan sidebar" if self.sidebar_collapsed else "Kecilkan sidebar"
+        )
 
     def _on_worksheet_workbook_imported(self, import_result):
         worksheet = self.pages.get("worksheet")
