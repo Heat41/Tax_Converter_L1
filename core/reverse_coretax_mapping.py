@@ -150,6 +150,46 @@ class ReverseCoretaxMappingService:
         )
         return None
 
+    @staticmethod
+    def _worksheet_metadata_bridge(
+        item: dict,
+        category: str,
+        kode_ct: str,
+        year: int,
+        value: float,
+    ) -> Dict[str, object]:
+        """Bangun metadata minimal hanya dari field worksheet yang pasti maknanya.
+
+        Dipakai untuk snapshot lama yang belum menyimpan coretax_metadata.
+        Field kategori-spesifik yang tidak pasti sengaja tidak diisi.
+        """
+        meta: Dict[str, object] = {
+            "category": category,
+            "code": kode_ct,
+            "year": year,
+            "metadata_origin": "worksheet_bridge",
+        }
+
+        if category == KategoriL1.KAS.value:
+            meta["balance"] = value
+            atas_nama = str(item.get("atas_nama") or "").strip()
+            nama_bank = str(item.get("nama_bank") or "").strip()
+            if atas_nama and atas_nama != "-":
+                meta["account_on_behalf_of"] = atas_nama
+            if nama_bank and nama_bank != "-":
+                meta["bank_name"] = nama_bank
+        elif category == KategoriL1.PIUTANG.value:
+            meta["receivable_balance"] = value
+        elif category == KategoriL1.INVESTASI.value:
+            meta["current_balance"] = value
+        elif category == KategoriL1.BERGERAK.value:
+            meta["fair_market_value"] = value
+        elif category == KategoriL1.HTB.value:
+            meta["fair_market_value"] = value
+        elif category == KategoriL1.LAINNYA.value:
+            meta["current_value"] = value
+
+        return meta
     def build_active_final(self, npwp: str, tahun_pajak: int) -> ReverseCoretaxPackage:
         clean_npwp = self._digits(npwp)
         package = ReverseCoretaxPackage(
@@ -278,7 +318,14 @@ class ReverseCoretaxMappingService:
                     official_metadata=(
                         dict(item.get("coretax_metadata") or {})
                         if isinstance(item.get("coretax_metadata"), dict)
-                        else {}
+                        and item.get("coretax_metadata")
+                        else self._worksheet_metadata_bridge(
+                            item,
+                            category,
+                            kode_ct,
+                            year,
+                            value,
+                        )
                     ),
                 )
             )
