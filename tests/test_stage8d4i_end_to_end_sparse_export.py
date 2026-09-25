@@ -15,6 +15,7 @@ from core.reverse_coretax_official_package_validator import (
 
 
 ACTIVE_CATEGORIES = ("KAS", "HTB", "LAINNYA")
+ALL_CATEGORIES = tuple(OFFICIAL_CORETAX_SCHEMAS)
 
 
 def _analysis():
@@ -137,7 +138,7 @@ def _finalization_input():
 def _create_active_templates(directory: Path):
     directory.mkdir(parents=True, exist_ok=True)
 
-    for category in ACTIVE_CATEGORIES:
+    for category in ALL_CATEGORIES:
         schema = OFFICIAL_CORETAX_SCHEMAS[category]
         path = directory / f"{schema.excel_filename_hint}.xlsx"
 
@@ -180,9 +181,9 @@ def test_stage8d4i_end_to_end_sparse_final_to_validated_official_package(tmp_pat
     )
 
     assert export_result.ok
-    assert set(export_result.excel_result.files) == set(ACTIVE_CATEGORIES)
-    assert set(export_result.xml_result.files) == {"KAS", "HTB"}
-    assert export_result.xml_result.unsupported_categories == ["LAINNYA"]
+    assert set(export_result.excel_result.files) == set(ALL_CATEGORIES)
+    assert set(export_result.xml_result.files) == set(ALL_CATEGORIES)
+    assert export_result.xml_result.unsupported_categories == []
 
     validation = OfficialCoretaxPackageValidator().validate(output)
 
@@ -236,7 +237,7 @@ def test_stage8d4i_missing_values_remain_blank_through_final_and_export(tmp_path
     lainnya.close()
 
 
-def test_stage8d4i_does_not_require_unused_templates(tmp_path):
+def test_stage8d4i_requires_complete_six_template_contract(tmp_path):
     db_path = tmp_path / "stage8d4i_templates.db"
     init_database(db_path)
     assert FinalizationService(
@@ -250,13 +251,10 @@ def test_stage8d4i_does_not_require_unused_templates(tmp_path):
 
     template_names = {path.stem for path in templates.glob("*.xlsx")}
 
-    assert OFFICIAL_CORETAX_SCHEMAS["PIUTANG"].excel_filename_hint not in template_names
-    assert OFFICIAL_CORETAX_SCHEMAS["INVESTASI"].excel_filename_hint not in template_names
-    assert OFFICIAL_CORETAX_SCHEMAS["BERGERAK"].excel_filename_hint not in template_names
-
-    assert OFFICIAL_CORETAX_SCHEMAS["KAS"].excel_filename_hint in template_names
-    assert OFFICIAL_CORETAX_SCHEMAS["HTB"].excel_filename_hint in template_names
-    assert OFFICIAL_CORETAX_SCHEMAS["LAINNYA"].excel_filename_hint in template_names
+    assert template_names == {
+        schema.excel_filename_hint
+        for schema in OFFICIAL_CORETAX_SCHEMAS.values()
+    }
 
     result = OfficialCoretaxPackageExporter(
         templates
@@ -268,4 +266,5 @@ def test_stage8d4i_does_not_require_unused_templates(tmp_path):
     )
 
     assert result.ok
-    assert set(result.excel_result.files) == set(ACTIVE_CATEGORIES)
+    assert set(result.excel_result.files) == set(ALL_CATEGORIES)
+    assert set(result.xml_result.files) == set(ALL_CATEGORIES)
