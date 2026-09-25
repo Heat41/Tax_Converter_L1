@@ -175,7 +175,9 @@ def test_document_induk_uses_explicit_component_sources_when_calc_field_missing(
         "1234567890123456", 2025
     )
 
-    assert document.status_ptkp == "K/1"
+    # status_ptkp top-level pada snapshot FINAL adalah canonical dan
+    # harus tetap menang atas fallback components.
+    assert document.status_ptkp == "TK/0"
     assert document.total_netto_bupot == 100_000_000.0
     assert document.penghasilan_neto_lainnya == 12_000_000.0
     assert document.zakat == 2_000_000.0
