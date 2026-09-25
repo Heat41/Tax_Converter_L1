@@ -14,6 +14,16 @@ if (-not (Test-Path $template)) {
     throw "Template 1770 tidak ditemukan: $template"
 }
 
+$coretaxTemplateDir = Join-Path $root "resources\templates\coretax"
+if (-not (Test-Path $coretaxTemplateDir)) {
+    throw "Folder template Coretax tidak ditemukan: $coretaxTemplateDir"
+}
+
+$coretaxTemplates = Get-ChildItem $coretaxTemplateDir -Recurse -File -Filter *.xlsx
+if ($coretaxTemplates.Count -lt 6) {
+    throw "Template Coretax belum lengkap. Ditemukan $($coretaxTemplates.Count) file XLSX; minimal 6 file resmi wajib tersedia di: $coretaxTemplateDir"
+}
+
 $schemaFiles = @(
     "sql\schema_sqlite.sql",
     "sql\schema_pph_state.sql",
@@ -68,7 +78,8 @@ Write-Host "[3/3] Verifikasi struktur build..."
 $required = @(
     $exe,
     (Join-Path $root "dist\TaxConverterL1\_internal\sql\schema_sqlite.sql"),
-    (Join-Path $root "dist\TaxConverterL1\_internal\resources\templates\1770\1770_master_bersih_6_halaman.pdf")
+    (Join-Path $root "dist\TaxConverterL1\_internal\resources\templates\1770\1770_master_bersih_6_halaman.pdf"),
+    (Join-Path $root "dist\TaxConverterL1\_internal\resources\templates\coretax")
 )
 foreach ($path in $required) {
     if (-not (Test-Path $path)) {
