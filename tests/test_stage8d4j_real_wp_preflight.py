@@ -178,7 +178,7 @@ def test_stage8d4j_missing_active_template_is_blocking_error(tmp_path):
     )
 
 
-def test_stage8d4j_entire_missing_metadata_blocks_official_export(tmp_path):
+def test_stage8d4j_legacy_snapshot_uses_safe_metadata_bridge(tmp_path):
     db_path = tmp_path / "legacy_snapshot.db"
     init_database(db_path)
 
@@ -213,10 +213,25 @@ def test_stage8d4j_entire_missing_metadata_blocks_official_export(tmp_path):
         2025,
     )
 
-    assert not result.ready
-    assert result.empty_metadata_rows == {"HTB": [1]}
+    assert result.ready
+    assert result.empty_metadata_rows == {}
+    assert result.package.rows_by_category["HTB"][0].official_metadata[
+        "metadata_origin"
+    ] == "worksheet_bridge"
+    assert result.package.rows_by_category["HTB"][0].official_metadata[
+        "fair_market_value"
+    ] == 100_000_000.0
+    assert result.missing_metadata["HTB"][1] == [
+        "location_of_asset",
+        "property_size_land",
+        "property_size_building",
+        "source_of_ownership",
+        "certificate_number",
+        "cost_of_acquisition",
+    ]
     assert any(
-        issue.code == "RCX4J_102"
-        and issue.severity == "ERROR"
+        issue.code == "RCX4J_101"
+        and issue.severity == "WARNING"
         for issue in result.issues
     )
+    assert not any(issue.code == "RCX4J_102" for issue in result.issues)
