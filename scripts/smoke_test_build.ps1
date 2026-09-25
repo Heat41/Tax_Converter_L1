@@ -18,7 +18,8 @@ $required = @(
     (Join-Path $dist "_internal\sql\schema_pph_state.sql"),
     (Join-Path $dist "_internal\sql\schema_finalization.sql"),
     (Join-Path $dist "_internal\sql\schema_export_audit.sql"),
-    (Join-Path $dist "_internal\resources\templates\1770\1770_master_bersih_6_halaman.pdf")
+    (Join-Path $dist "_internal\resources\templates\1770\1770_master_bersih_6_halaman.pdf"),
+    (Join-Path $dist "_internal\resources\templates\coretax")
 )
 
 foreach ($path in $required) {
@@ -29,7 +30,13 @@ foreach ($path in $required) {
 
 Write-Host "[PASS] EXE tersedia"
 Write-Host "[PASS] Semua schema SQLite tersedia"
+$coretaxBuilt = Get-ChildItem (Join-Path $dist "_internal\resources\templates\coretax") -Recurse -File -Filter *.xlsx
+if ($coretaxBuilt.Count -lt 6) {
+    throw "FAIL - bundle Coretax hanya berisi $($coretaxBuilt.Count) file XLSX"
+}
+
 Write-Host "[PASS] Template 1770 tersedia"
+Write-Host "[PASS] Enam template Coretax tersedia"
 Write-Host ""
 Write-Host "Jalankan EXE untuk smoke test UI:"
 Write-Host "  $exe"
