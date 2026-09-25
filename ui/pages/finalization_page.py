@@ -63,6 +63,9 @@ class FinalizationPage(QWidget):
         self._preview_bupot_rows = []
         self._preview_identity = None
         self._original_bupot_rows = []
+        # Ringkasan revisi Excel terakhir dipertahankan sampai finalisasi berikutnya,
+        # agar WARNING rekonsiliasi dapat dijelaskan sebagai konsekuensi revisi.
+        self._last_excel_revision_summary = None
 
         self._build_ui()
         self.toast_notification = ToastNotification(self)
@@ -560,6 +563,29 @@ class FinalizationPage(QWidget):
             return
 
         source = self.worksheet_source
+
+        # Snapshot angka sebelum revisi, dipakai untuk menjelaskan dampak
+        # workbook revisi kepada user setelah full recalculation selesai.
+        before_reconciliation = getattr(self.current_input, "analisis_result", None)
+        before_harta_total = sum(
+            float(getattr(item, "nilai_tahun_berjalan", 0) or 0)
+            for item in (self.current_input.harta_current_rows or [])
+        )
+        before_utang_rows = (
+            (self.current_input.pph_components or {}).get("utang_rows", [])
+            if isinstance(self.current_input.pph_components, dict)
+            else []
+        )
+        before_utang_total = sum(
+            float(item.get("jumlah", 0) or 0)
+            for item in before_utang_rows
+            if isinstance(item, dict)
+        )
+        before_bupot_pph = sum(
+            float(getattr(item, "pph_dipotong", 0) or 0)
+            for item in (self.current_input.bupot_rows or [])
+        )
+
         try:
             source.harta_current_rows = list(self._preview_harta_rows)
             if hasattr(source, "harta_origin_indices") and (
@@ -1041,11 +1067,19 @@ class FinalizationPage(QWidget):
         if not warnings:
             return True
         detail = "\n".join(f"• {item.message}" for item in warnings)
+
+        revision_note = ""
+        if self._last_excel_revision_summary:
+            revision_note = (
+                "\n\nHasil revisi Excel terakhir:\n"
+                f"{self._last_excel_revision_summary}"
+            )
+
         result = QMessageBox.warning(
             self,
             "Konfirmasi Finalisasi",
             "Terdapat peringatan pada Worksheet.\n\n"
-            f"{detail}\n\nTetap finalisasi?",
+            f"{detail}{revision_note}\n\nTetap finalisasi?",
             QMessageBox.Cancel | QMessageBox.Yes,
             QMessageBox.Cancel,
         )
@@ -1292,20 +1326,55 @@ class FinalizationPage(QWidget):
             # yang benar-benar sudah tersimpan.
             recalculated = self._recalculate_after_excel_revision(source) or recalculated
 
-            detail = ""
-            if recalculated is not None:
-                try:
-                    detail = (
-                        f" • Selisih rekonsiliasi: "
-                        f"{self._money(recalculated.selisih_pengeluaran_vs_penghasilan)}"
-                    )
-                except (AttributeError, TypeError, ValueError):
-                    detail = ""
+            after_harta_total = sum(
+                float(getattr(item, "nilai_tahun_berjalan", 0) or 0)
+                for item in (result.harta_rows or [])
+            )
+            after_utang_total = sum(
+                float(item.get("jumlah", 0) or 0)
+                for item in (result.utang_rows or [])
+                if isinstance(item, dict)
+            )
+            after_bupot_pph = sum(
+                float(getattr(item, "pph_dipotong", 0) or 0)
+                for item in (result.bupot_rows or [])
+            )
+
+            before_selisih = (
+                float(before_reconciliation.selisih_pengeluaran_vs_penghasilan)
+                if before_reconciliation is not None
+                else 0.0
+            )
+            after_selisih = (
+                float(recalculated.selisih_pengeluaran_vs_penghasilan)
+                if recalculated is not None
+                else before_selisih
+            )
+
+            self._last_excel_revision_summary = (
+                f"Revision sumber: {result.base_revision}\n"
+                f"Total Harta: {self._money(before_harta_total)} → {self._money(after_harta_total)}\n"
+                f"Total Utang: {self._money(before_utang_total)} → {self._money(after_utang_total)}\n"
+                f"Total PPh Bupot: {self._money(before_bupot_pph)} → {self._money(after_bupot_pph)}\n"
+                f"Selisih Rekonsiliasi: {self._money(before_selisih)} → {self._money(after_selisih)}"
+            )
+
+            QMessageBox.information(
+                self,
+                "Hasil Revisi Excel",
+                (
+                    "Revisi Excel berhasil diterapkan ke Edited / Current dan "
+                    "rekonsiliasi sudah dihitung ulang.\n\n"
+                    f"{self._last_excel_revision_summary}\n\n"
+                    "Jika selisih rekonsiliasi bukan 0, status tersebut akan tetap "
+                    "ditampilkan sebagai WARNING saat finalisasi."
+                ),
+            )
 
             self.toast_notification.show_message(
-                f"Revisi Excel dari Revision {result.base_revision} diterapkan ke Edited / Current{detail}.",
+                f"Revisi Excel dari Revision {result.base_revision} berhasil diterapkan.",
                 "success",
-                5200,
+                4200,
             )
             self.refresh_page()
         except Exception as exc:
