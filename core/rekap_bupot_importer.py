@@ -103,27 +103,32 @@ class RekapBupotImporter:
             result.errors.append("Rekap Bupot harus berupa file Excel .xlsx/.xls.")
             return result
 
-        try:
-            excel = pd.ExcelFile(path)
-        except Exception as exc:
-            result.errors.append(f"Workbook Rekap Bupot tidak dapat dibaca: {exc}")
-            return result
-
         best_rows: List[WorksheetBupotRow] = []
         best_sheet = ""
         best_warning = ""
 
-        for sheet in excel.sheet_names:
-            try:
-                df = pd.read_excel(path, sheet_name=sheet, header=None, dtype=object)
-            except Exception:
-                continue
+        try:
+            with pd.ExcelFile(path) as excel:
+                sheet_names = list(excel.sheet_names)
+                for sheet in sheet_names:
+                    try:
+                        df = pd.read_excel(
+                            excel,
+                            sheet_name=sheet,
+                            header=None,
+                            dtype=object,
+                        )
+                    except Exception:
+                        continue
 
-            parsed, warning = self._parse_sheet(df)
-            if len(parsed) > len(best_rows):
-                best_rows = parsed
-                best_sheet = str(sheet)
-                best_warning = warning
+                    parsed, warning = self._parse_sheet(df)
+                    if len(parsed) > len(best_rows):
+                        best_rows = parsed
+                        best_sheet = str(sheet)
+                        best_warning = warning
+        except Exception as exc:
+            result.errors.append(f"Workbook Rekap Bupot tidak dapat dibaca: {exc}")
+            return result
 
         if not best_rows:
             result.errors.append(
