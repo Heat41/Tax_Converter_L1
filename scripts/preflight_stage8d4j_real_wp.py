@@ -8,6 +8,7 @@ ROOT = Path(__file__).resolve().parents[1]
 if str(ROOT) not in sys.path:
     sys.path.insert(0, str(ROOT))
 
+from config.settings import CORETAX_TEMPLATE_DIR
 from core.coretax_official_schema import get_official_schema
 from core.real_wp_preflight import (
     RealWpPreflightService,
@@ -45,10 +46,10 @@ def main() -> int:
     parser.add_argument("tahun", nargs="?", type=int)
     parser.add_argument(
         "--template-dir",
-        default=None,
+        default=str(CORETAX_TEMPLATE_DIR),
         help=(
-            "Folder template Coretax asli. Jika diberikan, preflight juga "
-            "mengecek template yang dibutuhkan oleh kategori aktif."
+            "Folder template Coretax resmi. Default memakai resource bawaan "
+            "resources/templates/coretax."
         ),
     )
     parser.add_argument(
@@ -141,7 +142,7 @@ def main() -> int:
         return 2
 
     print(
-        "\nSIAP - WP dapat diekspor secara fleksibel sesuai data yang tersedia."
+        "\nSIAP - WP dapat diekspor sebagai paket resmi 6 Excel + 6 XML."
     )
     if result.warnings:
         print(
