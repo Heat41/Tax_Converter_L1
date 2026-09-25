@@ -1,7 +1,7 @@
 import pandas as pd
 
 from core.worksheet_workbook_importer import WorksheetWorkbookImportResult
-from core.worksheet_workbook_importer_repeated_headers import WorksheetWorkbookImporter
+from core.worksheet_workbook_importer import WorksheetWorkbookImporter
 
 
 def test_duplicate_bupot_headers_choose_left_populated_block(tmp_path):
