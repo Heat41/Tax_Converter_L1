@@ -94,9 +94,22 @@ class TestLegacyLampiranIIIXlsx(unittest.TestCase):
             self.assertIn(1000000, numeric_values)
             self.assertIn(150000000, numeric_values)
             self.assertIn(750000, numeric_values)
-            self.assertIn(160000000, numeric_values)
-            self.assertIn(1750000, numeric_values)
             self.assertIn(6832000, numeric_values)
+
+            jumlah_a_row = next(
+                row
+                for row in range(1, check.max_row + 1)
+                if check.cell(row, 1).value == "17. JUMLAH (1 s.d. 16)"
+            )
+            self.assertTrue(str(check.cell(jumlah_a_row, 7).value).startswith("=SUM(G"))
+            self.assertTrue(str(check.cell(jumlah_a_row, 9).value).startswith("=SUM(I"))
+
+            jumlah_b_row = next(
+                row
+                for row in range(1, check.max_row + 1)
+                if check.cell(row, 1).value == "JUMLAH BAGIAN B"
+            )
+            self.assertTrue(str(check.cell(jumlah_b_row, 8).value).startswith("=SUM(H"))
 
             self.assertEqual(str(check.page_setup.paperSize), str(check.PAPERSIZE_LEGAL))
             self.assertEqual(check.page_setup.orientation, "portrait")
