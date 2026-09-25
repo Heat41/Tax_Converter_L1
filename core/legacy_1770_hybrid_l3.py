@@ -115,6 +115,58 @@ class LegacyLampiranIIIXlsxRenderer:
             return 15
         return 16
 
+    @staticmethod
+    def _classify_non_object_income(keterangan) -> int:
+        """Klasifikasi konservatif Bagian B berdasarkan label eksplisit.
+
+        Label ambigu/tidak dikenal masuk baris 6 (penghasilan lainnya) agar
+        renderer tidak menebak kategori pajak yang lebih spesifik.
+        """
+        text = " ".join(str(keterangan or "").upper().split())
+        if any(key in text for key in ("BANTUAN", "SUMBANGAN", "HIBAH")) and "WARISAN" not in text:
+            return 1
+        if "WARISAN" in text and "HIBAH" not in text:
+            return 2
+        if any(key in text for key in ("PERSEROAN KOMANDITER", "PERSEKUTUAN", "FIRMA", "KONGSI")):
+            return 3
+        if "KLAIM ASURANSI" in text:
+            return 4
+        if "BEASISWA" in text and "ASURANSI" not in text:
+            return 5
+        return 6
+
+    def _map_non_object_rows(self, data):
+        buckets = defaultdict(float)
+        other = data.penghasilan_lainnya or {}
+        rows = []
+        if isinstance(other, dict):
+            for key in ("non_object_rows", "penghasilan_bukan_objek_rows"):
+                value = other.get(key)
+                if isinstance(value, (list, tuple)):
+                    rows.extend(value)
+
+        for item in rows:
+            label = self._value(item, "keterangan", "jenis", "uraian", "nama")
+            amount = self._number(
+                self._value(item, "dpp", "bruto", "penghasilan_bruto", "jumlah", "nilai")
+            )
+            if abs(amount) <= 0.000001:
+                continue
+            buckets[self._classify_non_object_income(label)] += amount
+
+        aggregate = self._non_object_total(data)
+        detailed_total = sum(buckets.values())
+
+        # Agregat tetap menjadi fallback/residual, bukan duplikasi detail.
+        # Bila detail lebih besar dari agregat, jangan membuat residual negatif.
+        residual = aggregate - detailed_total
+        if residual > 0.000001:
+            buckets[6] += residual
+        elif not rows and abs(aggregate) > 0.000001:
+            buckets[6] += aggregate
+
+        return buckets
+
     @classmethod
     def _sum_values(cls, value) -> float:
         if isinstance(value, dict):
@@ -346,10 +398,10 @@ class LegacyLampiranIIIXlsxRenderer:
                 ws.cell(row, col).border = self.BORDER
         row += 1
 
-        total = self._non_object_total(data)
+        buckets = self._map_non_object_rows(data)
         first_data_row = row
         for no, label in enumerate(self.NON_OBJECT_LABELS, start=1):
-            value = total if no == 6 else 0
+            value = buckets[no]
             values = (no, label, self._money(value))
             for item, (c1, c2) in zip(values, spans):
                 if c1 != c2:
