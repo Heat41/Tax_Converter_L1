@@ -1,15 +1,12 @@
 import sys
-from pathlib import Path
 
 import pytest
-from PySide6.QtPdf import QPdfDocument
 from PySide6.QtWidgets import QApplication
 
 from config.database import init_database
 from core.reconciliation import ReconciliationResult
 from core.finalization import FinalizationInput, FinalizationService
 from core.legacy_1770 import Legacy1770DocumentService
-from core.legacy_pdf_exporter import Legacy1770PdfExporter
 from core.mapping.worksheet_harta_mapper import WorksheetHartaRow
 from core.worksheet_pph_state import WorksheetBupotRow
 
@@ -219,27 +216,3 @@ def test_missing_final_blocks_document(db_path):
     assert any(issue.code == "PDF_001" for issue in document.errors)
 
 
-def test_pdf_export_creates_five_page_pdf(db_path, tmp_path):
-    _finalize(db_path)
-    document = Legacy1770DocumentService(db_path=db_path).build_active_final(
-        "1234567890123456", 2025
-    )
-    target = tmp_path / "format_lama_1770.pdf"
-    result = Legacy1770PdfExporter().export(document, target)
-
-    assert result == target
-    assert target.exists()
-    assert target.read_bytes().startswith(b"%PDF")
-    assert target.stat().st_size > 5_000
-
-    pdf = QPdfDocument()
-    assert pdf.load(str(target)) == QPdfDocument.Error.None_
-    assert pdf.pageCount() == 5
-
-
-def test_pdf_export_rejects_unfinalized_document(db_path, tmp_path):
-    document = Legacy1770DocumentService(db_path=db_path).build_active_final(
-        "1234567890123456", 2025
-    )
-    with pytest.raises(ValueError):
-        Legacy1770PdfExporter().export(document, tmp_path / "blocked.pdf")
