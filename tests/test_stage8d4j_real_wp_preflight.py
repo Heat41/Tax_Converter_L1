@@ -210,7 +210,7 @@ def test_stage8d4j_legacy_snapshot_uses_safe_metadata_bridge(tmp_path):
     assert FinalizationService(db_path=db_path).finalize(data).success
 
     templates = tmp_path / "templates"
-    _template(templates, "HTB")
+    _all_templates(templates)
 
     result = RealWpPreflightService(
         db_path=db_path,
