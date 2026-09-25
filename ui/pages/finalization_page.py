@@ -23,6 +23,7 @@ from PySide6.QtWidgets import (
     QWidget,
 )
 
+from config.settings import CORETAX_TEMPLATE_DIR
 from core.finalization import FinalizationService, ValidationSeverity
 from core.finalization_adapter import FinalizationAdapter
 from core.export_audit import ExportAuditRecord, ExportAuditService
@@ -1673,11 +1674,18 @@ class FinalizationPage(QWidget):
             )
             return
 
-        template_dir = QFileDialog.getExistingDirectory(
-            self,
-            "Pilih Folder Template Excel Coretax Asli",
-        )
-        if not template_dir:
+        template_dir = CORETAX_TEMPLATE_DIR
+        templates = list(template_dir.glob("*.xlsx")) if template_dir.is_dir() else []
+        if len(templates) < 6:
+            QMessageBox.warning(
+                self,
+                "Template Coretax Tidak Lengkap",
+                (
+                    "Resource template Coretax bawaan aplikasi belum lengkap.\n\n"
+                    f"Lokasi: {template_dir}\n"
+                    f"Ditemukan: {len(templates)} file XLSX; dibutuhkan 6."
+                ),
+            )
             return
 
         output_parent = QFileDialog.getExistingDirectory(
