@@ -1274,6 +1274,29 @@ class FinalizationPage(QWidget):
             return
 
         source = self.worksheet_source
+
+        # Tangkap baseline sebelum revisi diterapkan. Nilai ini hanya untuk
+        # ringkasan dampak revisi Excel dan tidak mengubah data Worksheet.
+        before_reconciliation = getattr(self.current_input, "analisis_result", None)
+        before_harta_total = sum(
+            float(getattr(item, "nilai_tahun_berjalan", 0) or 0)
+            for item in (self.current_input.harta_current_rows or [])
+        )
+        before_utang_rows = (
+            (self.current_input.pph_components or {}).get("utang_rows", [])
+            if isinstance(self.current_input.pph_components, dict)
+            else []
+        )
+        before_utang_total = sum(
+            float(item.get("jumlah", 0) or 0)
+            for item in before_utang_rows
+            if isinstance(item, dict)
+        )
+        before_bupot_pph = sum(
+            float(getattr(item, "pph_dipotong", 0) or 0)
+            for item in (self.current_input.bupot_rows or [])
+        )
+
         try:
             old_count = len(getattr(source, "harta_current_rows", []) or [])
             source.harta_current_rows = list(result.harta_rows)
