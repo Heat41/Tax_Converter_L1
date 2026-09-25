@@ -131,6 +131,74 @@ def test_document_built_from_active_final(db_path):
     assert document.harta_rows[0].nilai_tahun_berjalan == 15_000_000.0
 
 
+
+def test_document_induk_uses_explicit_component_sources_when_calc_field_missing(db_path):
+    data = _input()
+    data.bupot_rows = [
+        WorksheetBupotRow(
+            jenis="PPh Pasal 21",
+            npwp_pemberi_kerja="123456789012345",
+            no_bupot="BP-001",
+            bruto=120_000_000.0,
+            pengurang=20_000_000.0,
+            pph_dipotong=7_500_000.0,
+        )
+    ]
+    data.pph_calc_result = {}
+    data.pph_components = {
+        "status_ptkp": "K/1",
+        "penghasilan_neto_lainnya": 12_000_000.0,
+        "pengurang_penghasilan_neto": 2_000_000.0,
+        "ptkp": 63_000_000.0,
+        "pkp_imported": 49_000_000.0,
+        "pph_terutang": 8_000_000.0,
+        "pph25": 1_250_000.0,
+    }
+    data.penghasilan_lainnya = {
+        "domestic_other_dpp": 12_000_000.0,
+        "zakat": 2_000_000.0,
+        "final_other_rows": [
+            {
+                "keterangan": "Bunga Deposito",
+                "dpp": 10_000_000.0,
+                "tarif": 0.20,
+                "pph": 1_900_000.0,
+            }
+        ],
+    }
+    data.zakat = 2_000_000.0
+
+    result = FinalizationService(db_path=db_path).finalize(data)
+    assert result.success is True
+
+    document = Legacy1770DocumentService(db_path=db_path).build_active_final(
+        "1234567890123456", 2025
+    )
+
+    assert document.status_ptkp == "K/1"
+    assert document.total_netto_bupot == 100_000_000.0
+    assert document.penghasilan_neto_lainnya == 12_000_000.0
+    assert document.zakat == 2_000_000.0
+    assert document.ptkp == 63_000_000.0
+    assert document.pkp == 49_000_000.0
+    assert document.pph_terutang == 8_000_000.0
+    assert document.kredit_pajak == 7_500_000.0
+    assert document.pph25 == 1_250_000.0
+
+    mapping = __import__(
+        "core.legacy_1770_induk", fromlist=["Legacy1770IndukService"]
+    ).Legacy1770IndukService().map_document(document)
+    assert mapping.fields["JumlahBagianCinduk"] == "100000000"
+    assert mapping.fields["JumlahBagianD"] == "12000000"
+    assert mapping.fields["ZakatSumbanganWajib"] == "2000000"
+    assert mapping.fields["PTKP"] == "63000000"
+    assert mapping.fields["PhKP"] == "49000000"
+    assert mapping.fields["PPhTerutang"] == "8000000"
+    assert mapping.fields["IIJBAinduk"] == "7500000"
+    assert mapping.fields["PPh25"] == "1250000"
+
+    assert document.penghasilan_final_lainnya[0].pph == 1_900_000.0
+
 def test_document_preserves_known_gaps_as_warnings(db_path):
     _finalize(db_path)
     document = Legacy1770DocumentService(db_path=db_path).build_active_final(
