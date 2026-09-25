@@ -89,6 +89,8 @@ QPushButton#sidebarToggle:hover {
 QPushButton#navButton[collapsed="true"] {
     text-align: center;
     padding: 13px 4px;
+    font-size: 20px;
+    font-weight: 700;
 }
 QPushButton#navButton {
     color: #D9E2EC;
