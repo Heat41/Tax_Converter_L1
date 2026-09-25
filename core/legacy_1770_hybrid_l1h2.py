@@ -31,7 +31,7 @@ class LegacyLampiranIH2XlsxRenderer:
 
     def render(self, ws, data) -> None:
         row = self._header(ws, data)
-        row = self._bagian_b(ws, row)
+        row = self._bagian_b(ws, row, data)
         row = self._bagian_c(ws, row, data)
         row = self._bagian_d(ws, row, data)
         self._finish(ws, row)
@@ -135,7 +135,7 @@ class LegacyLampiranIH2XlsxRenderer:
             for col in range(c1, c2 + 1):
                 ws.cell(row, col).border = self.BORDER
 
-    def _bagian_b(self, ws, row: int) -> int:
+    def _bagian_b(self, ws, row: int, data) -> int:
         row = self._section(
             ws, row,
             "BAGIAN B : PENGHASILAN NETO DALAM NEGERI DARI USAHA DAN/ATAU PEKERJAAN BEBAS",
@@ -147,9 +147,47 @@ class LegacyLampiranIH2XlsxRenderer:
             ("NO.", "JENIS USAHA", "PEREDARAN USAHA (Rupiah)", "NORMA (%)", "PENGHASILAN NETO (Rupiah)"),
             spans,
         )
+
+        # Stage 8E.4B: hanya sumber eksplisit yang boleh diisi.
+        # Workbook sumber saat ini memiliki nilai agregat Pekerjaan Bebas,
+        # tetapi belum memiliki klasifikasi Dagang/Industri/Jasa, Norma (%),
+        # maupun Penghasilan Neto non-final. Karena itu jangan menebak field
+        # yang belum mempunyai source contract.
+        other = data.penghasilan_lainnya or {}
+        if not isinstance(other, dict):
+            other = {}
+        component_other = (data.pph_components or {}).get("other_income", {})
+        if not isinstance(component_other, dict):
+            component_other = {}
+
+        pekerjaan_bebas_dpp = self._num(
+            other.get(
+                "pekerjaan_bebas_dpp",
+                component_other.get("pekerjaan_bebas_dpp", 0),
+            )
+        )
+
+        rows = (
+            ("DAGANG", "", "", ""),
+            ("INDUSTRI", "", "", ""),
+            ("JASA", "", "", ""),
+            (
+                "PEKERJAAN BEBAS",
+                self._money(pekerjaan_bebas_dpp) if pekerjaan_bebas_dpp else "",
+                "",
+                "",
+            ),
+        )
+
         first_data_row = row
-        for idx, jenis in enumerate(("DAGANG", "INDUSTRI", "JASA", "PEKERJAAN BEBAS"), start=1):
-            self._write_spanned(ws, row, (idx, jenis, 0, "", 0), spans, {5, 9})
+        for idx, (jenis, peredaran, norma, neto) in enumerate(rows, start=1):
+            self._write_spanned(
+                ws,
+                row,
+                (idx, jenis, peredaran, norma, neto),
+                spans,
+                {5, 9},
+            )
             row += 1
 
         ws.merge_cells(start_row=row, start_column=1, end_row=row, end_column=8)
