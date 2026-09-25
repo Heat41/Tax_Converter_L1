@@ -250,22 +250,65 @@ class WorksheetWorkbookImporter:
                         break
 
     def _parse_bupot(self, df, result):
+        required = (
+            "jenis",
+            "npwp pemberi kerja",
+            "no bupot",
+            "bruto",
+            "pengurang",
+        )
         header_row = None
+        headers = None
+
+        # Pilih blok header Bupot yang benar-benar memiliki data. Ini juga
+        # menangani workbook lama yang memiliki header duplikat/berulang.
         for row in range(len(df)):
-            labels = [self._label(df.iat[row, col]) for col in range(min(df.shape[1], 10))]
-            if "jenis" in labels and "npwp pemberi kerja" in labels and "no bupot" in labels:
-                header_row = row
+            positions = {}
+            for col in range(df.shape[1]):
+                label = self._label(df.iat[row, col])
+                if label:
+                    positions.setdefault(label, []).append(col)
+
+            if not all(key in positions for key in required):
+                continue
+
+            for jenis_col in positions["jenis"]:
+                candidate = {}
+                for key in required:
+                    nearby = [
+                        col
+                        for col in positions[key]
+                        if abs(col - jenis_col) <= 6
+                    ]
+                    if not nearby:
+                        candidate = {}
+                        break
+                    candidate[key] = min(
+                        nearby,
+                        key=lambda col: abs(col - jenis_col),
+                    )
+                if not candidate:
+                    continue
+                if self._bupot_block_has_data(df, row, candidate):
+                    header_row = row
+                    headers = candidate
+                    break
+
+            if headers is not None:
                 break
-        if header_row is None:
-            result.issues.append(WorksheetWorkbookImportIssue("WKI_104", "WARNING", "Tabel Bupot tidak ditemukan pada sheet tahun."))
+
+        if header_row is None or headers is None:
+            result.issues.append(
+                WorksheetWorkbookImportIssue(
+                    "WKI_104",
+                    "WARNING",
+                    "Tabel Bupot tidak ditemukan atau tidak memiliki baris data pada sheet tahun.",
+                )
+            )
             return
 
-        headers = {self._label(df.iat[header_row, col]): col for col in range(df.shape[1]) if self._text(df.iat[header_row, col])}
-        required = ("jenis", "npwp pemberi kerja", "no bupot", "bruto", "pengurang")
-        if any(key not in headers for key in required):
-            result.issues.append(WorksheetWorkbookImportIssue("WKI_007", "ERROR", "Kolom tabel Bupot tidak lengkap."))
-            return
-
+        # Tambahkan optional PPh column dari blok header yang sama, bukan dari
+        # header duplikat di sisi lain workbook.
         pph_column = None
         for alias in (
             "pph dipotong",
@@ -275,14 +318,24 @@ class WorksheetWorkbookImporter:
             "pph dipotong/dipungut",
             "pph yang dipotong/dipungut",
         ):
-            if alias in headers:
-                pph_column = headers[alias]
+            for col in positions.get(alias, []):
+                if abs(col - headers["jenis"]) <= 8:
+                    pph_column = col
+                    break
+            if pph_column is not None:
                 break
 
         for row in range(header_row + 1, len(df)):
-            first_values = [self._label(df.iat[row, col]) for col in range(min(df.shape[1], 3))]
-            if "total" in first_values:
+            row_labels = {
+                self._label(df.iat[row, col])
+                for col in range(
+                    max(0, min(headers.values()) - 1),
+                    min(df.shape[1], max(headers.values()) + 2),
+                )
+            }
+            if "total" in row_labels:
                 break
+
             jenis = self._text(df.iat[row, headers["jenis"]])
             npwp = self._digits(df.iat[row, headers["npwp pemberi kerja"]])
             no_bupot = self._text(df.iat[row, headers["no bupot"]])
@@ -293,8 +346,10 @@ class WorksheetWorkbookImporter:
                 if pph_column is not None
                 else 0.0
             )
+
             if not any((jenis, npwp, no_bupot, bruto, pengurang, pph_dipotong)):
                 continue
+
             result.bupot_rows.append(
                 WorksheetBupotRow(
                     jenis=jenis,
@@ -305,6 +360,28 @@ class WorksheetWorkbookImporter:
                     pph_dipotong=pph_dipotong,
                 )
             )
+
+    def _bupot_block_has_data(self, df, header_row, columns) -> bool:
+        end_row = min(len(df), header_row + 35)
+        for row in range(header_row + 1, end_row):
+            row_labels = {
+                self._label(df.iat[row, col])
+                for col in range(
+                    max(0, min(columns.values()) - 1),
+                    min(df.shape[1], max(columns.values()) + 2),
+                )
+            }
+            if "total" in row_labels:
+                return False
+
+            jenis = self._text(df.iat[row, columns["jenis"]])
+            npwp = self._digits(df.iat[row, columns["npwp pemberi kerja"]])
+            no_bupot = self._text(df.iat[row, columns["no bupot"]])
+            bruto = self._number(df.iat[row, columns["bruto"]])
+            pengurang = self._number(df.iat[row, columns["pengurang"]])
+            if any((jenis, npwp, no_bupot, bruto, pengurang)):
+                return True
+        return False
 
     def _value_right_of_label(self, df, label: str, preferred_col: Optional[int] = None, default=0.0):
         row = self._find_label_row(df, label, columns=range(min(df.shape[1], 10)))
