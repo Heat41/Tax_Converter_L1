@@ -447,6 +447,16 @@ class WorksheetWorkbookImporter:
             "hibah_warisan_note": self._text(self._value_right_of_label(df, "Hibah / Warisan", preferred_col=7, default="")),
             "zakat": zakat,
         }
+        if abs(other["hibah_warisan_dpp"]) > 0.000001:
+            # Label sumber memang gabungan "Hibah / Warisan"; jangan memecah
+            # ke kategori Hibah atau Warisan tanpa source yang lebih rinci.
+            other["non_object_rows"] = [
+                {
+                    "keterangan": "HIBAH / WARISAN",
+                    "dpp": other["hibah_warisan_dpp"],
+                    "catatan": other["hibah_warisan_note"],
+                }
+            ]
         final_rows = []
         final_row = self._find_label_row(df, "Penghasilan Final Lainnya", columns=range(min(df.shape[1], 10)))
         if final_row is not None:
@@ -458,7 +468,14 @@ class WorksheetWorkbookImporter:
                 pph = self._number(df.iat[row, 6]) if df.shape[1] > 6 else 0.0
                 if not any((description, dpp, pph)):
                     continue
-                final_rows.append({"keterangan": description or "Final Lainnya", "dpp": dpp, "tarif": (pph / dpp) if dpp else 0.0})
+                final_rows.append(
+                    {
+                        "keterangan": description or "Final Lainnya",
+                        "dpp": dpp,
+                        "pph": pph,
+                        "tarif": (pph / dpp) if dpp else 0.0,
+                    }
+                )
 
         umkm_bruto = [0.0] * 12
         umkm_pph_setor = [0.0] * 12
