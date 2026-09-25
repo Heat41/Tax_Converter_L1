@@ -4,17 +4,14 @@ from pathlib import Path
 
 from PySide6.QtGui import QIcon
 
+from config.settings import BRANDING_DIR
+
 
 APP_ICON_FILENAME = "tax_converter_l1.ico"
 
 
 def app_icon_path() -> Path:
-    return (
-        Path(__file__).resolve().parents[1]
-        / "resources"
-        / "branding"
-        / APP_ICON_FILENAME
-    )
+    return BRANDING_DIR / APP_ICON_FILENAME
 
 
 def load_app_icon() -> QIcon:
