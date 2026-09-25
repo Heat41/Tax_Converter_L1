@@ -84,12 +84,12 @@ class OfficialCoretaxXmlExporter:
             return {
                 "Code": row.kode_harta,
                 "AccountNumber": cls._meta(
-                    row, "account_number", row.nomor_akun_keterangan
+                    row, "account_number"
                 ),
                 "AccountOnBehalfOf": cls._meta(
-                    row, "account_on_behalf_of", row.atas_nama
+                    row, "account_on_behalf_of"
                 ),
-                "BankName": cls._meta(row, "bank_name", row.nama_bank),
+                "BankName": cls._meta(row, "bank_name"),
                 "Country": cls._meta(row, "country"),
                 "Year": cls._meta(row, "year", row.tahun_perolehan),
                 "Balance": cls._meta(row, "balance", row.nilai),
@@ -101,7 +101,7 @@ class OfficialCoretaxXmlExporter:
                 "Country": cls._meta(row, "country"),
                 "TinNikRecipient": cls._meta(row, "identity_number"),
                 "RecipientOfReceivable": cls._meta(
-                    row, "receivable_name", row.atas_nama
+                    row, "receivable_name"
                 ),
                 "ReceivableValue": cls._meta(row, "receivable_value"),
                 "Year": cls._meta(row, "year", row.tahun_perolehan),
@@ -117,10 +117,10 @@ class OfficialCoretaxXmlExporter:
                 "Country": cls._meta(row, "country"),
                 "BankTIN": cls._meta(row, "institution_tin"),
                 "BankName": cls._meta(
-                    row, "institution_name", row.atas_nama or row.nama_bank
+                    row, "institution_name"
                 ),
                 "AccountNumber": cls._meta(
-                    row, "account_number", row.nomor_akun_keterangan
+                    row, "account_number"
                 ),
                 "CostOfAcquisition": cls._meta(
                     row, "cost_of_acquisition"
@@ -135,16 +135,15 @@ class OfficialCoretaxXmlExporter:
         if category == "BERGERAK":
             return {
                 "Code": row.kode_harta,
-                "AssetModel": cls._meta(row, "asset_model", row.nama_harta),
+                "AssetModel": cls._meta(row, "asset_model"),
                 "PoliceRegistrationNumber": cls._meta(
                     row,
                     "police_registration_number",
-                    row.nomor_akun_keterangan,
                 ),
                 "OwnershipType": cls._meta(row, "ownership_type"),
                 "OwnershipTIN": cls._meta(row, "ownership_tin"),
                 "OwnershipName": cls._meta(
-                    row, "ownership_name", row.atas_nama
+                    row, "ownership_name"
                 ),
                 "Year": cls._meta(row, "year", row.tahun_perolehan),
                 "CostOfAcquisition": cls._meta(
@@ -161,7 +160,6 @@ class OfficialCoretaxXmlExporter:
                 "LocationOfAsset": cls._meta(
                     row,
                     "location_of_asset",
-                    row.nomor_akun_keterangan,
                 ),
                 "PropertySizeLand": cls._meta(row, "property_size_land"),
                 "PropertySizeBuilding": cls._meta(
@@ -187,10 +185,10 @@ class OfficialCoretaxXmlExporter:
                 "Code": row.kode_harta,
                 "Year": cls._meta(row, "year", row.tahun_perolehan),
                 "ProofOfOwnership": cls._meta(
-                    row, "account_number", row.nomor_akun_keterangan
+                    row, "account_number"
                 ),
                 "AdditionalInformation": cls._meta(
-                    row, "additional_information", row.nama_harta
+                    row, "additional_information"
                 ),
                 "CostOfAcquisition": cls._meta(row, "cost_of_acquisition"),
                 "FairMarketValue": cls._meta(
