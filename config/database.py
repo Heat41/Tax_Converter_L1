@@ -2,14 +2,14 @@ import os
 import sqlite3
 from pathlib import Path
 from typing import Optional
-from config.settings import SQLITE_DB_PATH
+from config.settings import SQL_DIR, SQLITE_DB_PATH
 from core.seeder import seed_ref_kode_harta
 
-SCHEMA_FILE_PATH = Path(__file__).resolve().parent.parent / "sql" / "schema_sqlite.sql"
+SCHEMA_FILE_PATH = SQL_DIR / "schema_sqlite.sql"
 EXTRA_SCHEMA_FILES = (
-    Path(__file__).resolve().parent.parent / "sql" / "schema_pph_state.sql",
-    Path(__file__).resolve().parent.parent / "sql" / "schema_finalization.sql",
-    Path(__file__).resolve().parent.parent / "sql" / "schema_export_audit.sql",
+    SQL_DIR / "schema_pph_state.sql",
+    SQL_DIR / "schema_finalization.sql",
+    SQL_DIR / "schema_export_audit.sql",
 )
 
 
