@@ -21,8 +21,17 @@ class TestUiLayoutBranding(unittest.TestCase):
 
     def test_main_layout_uses_readable_proportions(self):
         self.assertEqual(MainWindow.SIDEBAR_WIDTH, 250)
+        self.assertEqual(MainWindow.SIDEBAR_COLLAPSED_WIDTH, 76)
         self.assertEqual(MainWindow.CONTENT_MARGIN_X, 28)
         self.assertEqual(MainWindow.CONTENT_MARGIN_Y, 26)
+
+
+    def test_sidebar_has_collapsible_navigation(self):
+        source = inspect.getsource(MainWindow.set_sidebar_collapsed)
+        self.assertIn("SIDEBAR_COLLAPSED_WIDTH", source)
+        self.assertIn("nav_compact_labels", source)
+        self.assertIn("setVisible", source)
+        self.assertIn("Kecilkan sidebar", inspect.getsource(MainWindow._build_ui))
 
     def test_sidebar_branding_matches_global_theme(self):
         self.assertIn("QLabel#brandLogo", STYLESHEET)
