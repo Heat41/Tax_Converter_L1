@@ -91,7 +91,7 @@ def test_stage8d4f_accepts_clean_official_package(tmp_path):
     result = OfficialCoretaxPackageValidator().validate(output)
 
     assert result.ok
-    assert len(result.checked_files) == 3
+    assert len(result.checked_files) == 1 + (2 * len(CATEGORIES))
     assert not result.errors
 
 
