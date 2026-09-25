@@ -26,8 +26,8 @@ class SelectableWorksheetWorkbookImporter(GenericWorksheetWorkbookImporter):
 
     def list_sheets(self, file_path: str | Path) -> List[str]:
         path = Path(file_path)
-        excel = pd.ExcelFile(path)
-        return [str(name) for name in excel.sheet_names]
+        with pd.ExcelFile(path) as excel:
+            return [str(name) for name in excel.sheet_names]
 
     @staticmethod
     def suggested_sheet(sheet_names: List[str]) -> str:
@@ -58,28 +58,49 @@ class SelectableWorksheetWorkbookImporter(GenericWorksheetWorkbookImporter):
             return result
 
         try:
-            excel = pd.ExcelFile(path)
-        except Exception as exc:
-            result.issues.append(
-                WorksheetWorkbookImportIssue("WKI_003", "ERROR", f"Workbook tidak dapat dibaca: {exc}")
-            )
-            return result
+            with pd.ExcelFile(path) as excel:
+                sheet_names = list(excel.sheet_names)
+                if sheet_name not in sheet_names:
+                    result.issues.append(
+                        WorksheetWorkbookImportIssue(
+                            "WKI_004",
+                            "ERROR",
+                            f"Sheet '{sheet_name}' tidak ditemukan pada workbook.",
+                        )
+                    )
+                    return result
 
-        if sheet_name not in excel.sheet_names:
+                annual = pd.read_excel(
+                    excel,
+                    sheet_name=sheet_name,
+                    header=None,
+                    dtype=object,
+                )
+                simulasi_name = next(
+                    (
+                        name
+                        for name in sheet_names
+                        if str(name).strip().casefold() == "simulasi i"
+                    ),
+                    None,
+                )
+                simulasi = (
+                    pd.read_excel(
+                        excel,
+                        sheet_name=simulasi_name,
+                        header=None,
+                        dtype=object,
+                    )
+                    if simulasi_name is not None
+                    else None
+                )
+        except Exception as exc:
             result.issues.append(
                 WorksheetWorkbookImportIssue(
-                    "WKI_004",
+                    "WKI_003",
                     "ERROR",
-                    f"Sheet '{sheet_name}' tidak ditemukan pada workbook.",
+                    f"Workbook/sheet tidak dapat dibaca: {exc}",
                 )
-            )
-            return result
-
-        try:
-            annual = pd.read_excel(path, sheet_name=sheet_name, header=None, dtype=object)
-        except Exception as exc:
-            result.issues.append(
-                WorksheetWorkbookImportIssue("WKI_003", "ERROR", f"Sheet tidak dapat dibaca: {exc}")
             )
             return result
 
@@ -98,12 +119,7 @@ class SelectableWorksheetWorkbookImporter(GenericWorksheetWorkbookImporter):
         # Kertas Kerja tidak lagi menjadi sumber Bupot utama.
         self._parse_pph_components(annual, result)
 
-        simulasi_name = next(
-            (name for name in excel.sheet_names if str(name).strip().casefold() == "simulasi i"),
-            None,
-        )
-        if simulasi_name is not None:
-            simulasi = pd.read_excel(path, sheet_name=simulasi_name, header=None, dtype=object)
+        if simulasi is not None:
             self._parse_simulasi_identity(simulasi, result)
             self._parse_harta(simulasi, result)
             self._parse_reconciliation(simulasi, result)
