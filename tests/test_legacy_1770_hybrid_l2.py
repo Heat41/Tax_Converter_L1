@@ -102,7 +102,12 @@ class TestLegacyLampiranIIXlsx(unittest.TestCase):
             self.assertIn("HOKINDA CITRALESTARI", text)
             self.assertIn("2503ADYB7", text)
             self.assertIn("JUMLAH BAGIAN A", text)
-            self.assertIn("67869", text)
+            total_cell = next(
+                check.cell(row, 9)
+                for row in range(1, check.max_row + 1)
+                if check.cell(row, 1).value == "JUMLAH BAGIAN A"
+            )
+            self.assertEqual(total_cell.value, "=SUM(I14:I28)")
             self.assertEqual(str(check.page_setup.paperSize), str(check.PAPERSIZE_LEGAL))
             self.assertEqual(check.page_setup.orientation, "portrait")
             self.assertEqual(check.page_setup.fitToWidth, 1)
