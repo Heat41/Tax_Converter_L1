@@ -972,30 +972,52 @@ class FinalizationPage(QWidget):
 
     def _render_validation(self):
         validation = self.current_validation
+        revision_issue_codes = {"ANL_001"} if self._last_excel_revision_summary else set()
         issues = sorted(
             validation.issues,
-            key=lambda issue: {
-                ValidationSeverity.ERROR: 0,
-                ValidationSeverity.WARNING: 1,
-                ValidationSeverity.INFO: 2,
-            }[issue.severity],
+            key=lambda issue: (
+                1 if issue.code in revision_issue_codes else {
+                    ValidationSeverity.ERROR: 0,
+                    ValidationSeverity.WARNING: 2,
+                    ValidationSeverity.INFO: 3,
+                }[issue.severity]
+            ),
         )
+        revision_count = 0
         with suspended_updates(self.validation_table):
             self.validation_table.setRowCount(len(issues))
             for row, issue in enumerate(issues):
+                if issue.code in revision_issue_codes:
+                    status_text = "🔵 REVISI"
+                    revision_count += 1
+                    message = (
+                        "Rekonsiliasi berubah sebagai dampak revisi Excel. "
+                        "Lihat ringkasan Hasil Revisi Excel."
+                    )
+                else:
+                    status_text = self._severity_text(issue.severity)
+                    message = issue.message
+
                 values = (
-                    self._severity_text(issue.severity),
+                    status_text,
                     issue.code,
                     issue.field or "Pemeriksaan umum",
-                    issue.message,
+                    message,
                 )
                 for column, value in enumerate(values):
                     self.validation_table.setItem(
                         row, column, QTableWidgetItem(str(value or "-"))
                     )
 
+        visible_warning_count = len(
+            [
+                item for item in validation.warnings
+                if item.code not in revision_issue_codes
+            ]
+        )
         self.validation_status.setText(
-            f"{len(validation.errors)} Error • {len(validation.warnings)} Warning • {len(validation.infos)} Info"
+            f"{len(validation.errors)} Error • {revision_count} Revisi • "
+            f"{visible_warning_count} Warning • {len(validation.infos)} Info"
         )
 
     def _render_actions(self):
@@ -1019,13 +1041,26 @@ class FinalizationPage(QWidget):
 
         errors = self.current_validation.errors if self.current_validation else []
         warnings = self.current_validation.warnings if self.current_validation else []
+        visible_warnings = [
+            item for item in warnings
+            if not (self._last_excel_revision_summary and item.code == "ANL_001")
+        ]
+        has_excel_revision = bool(
+            self._last_excel_revision_summary
+            and any(item.code == "ANL_001" for item in warnings)
+        )
         if errors:
             self.final_state_label.setText(
                 "Finalisasi diblokir. Selesaikan seluruh ERROR pada Worksheet lalu simpan perubahan."
             )
-        elif warnings:
+        elif visible_warnings:
             self.final_state_label.setText(
                 "Worksheet dapat difinalisasi, tetapi terdapat WARNING yang perlu dikonfirmasi."
+            )
+        elif has_excel_revision:
+            self.final_state_label.setText(
+                "Revisi Excel sudah diterapkan dan rekonsiliasi telah dihitung ulang. "
+                "Status REVISI ditampilkan sebagai informasi perubahan."
             )
         else:
             self.final_state_label.setText(
@@ -1064,22 +1099,20 @@ class FinalizationPage(QWidget):
 
     def _warning_confirmation(self) -> bool:
         warnings = self.current_validation.warnings if self.current_validation else []
+        if self._last_excel_revision_summary:
+            warnings = [
+                item for item in warnings
+                if item.code != "ANL_001"
+            ]
         if not warnings:
             return True
+
         detail = "\n".join(f"• {item.message}" for item in warnings)
-
-        revision_note = ""
-        if self._last_excel_revision_summary:
-            revision_note = (
-                "\n\nHasil revisi Excel terakhir:\n"
-                f"{self._last_excel_revision_summary}"
-            )
-
         result = QMessageBox.warning(
             self,
             "Konfirmasi Finalisasi",
             "Terdapat peringatan pada Worksheet.\n\n"
-            f"{detail}{revision_note}\n\nTetap finalisasi?",
+            f"{detail}\n\nTetap finalisasi?",
             QMessageBox.Cancel | QMessageBox.Yes,
             QMessageBox.Cancel,
         )
