@@ -37,4 +37,10 @@ if IS_FROZEN:
 else:
     APP_DATA_DIR = BASE_DIR
 
+RESOURCE_DIR = BASE_DIR / "resources"
+SQL_DIR = BASE_DIR / "sql"
+LEGACY_1770_TEMPLATE_DIR = RESOURCE_DIR / "templates" / "1770"
+CORETAX_TEMPLATE_DIR = RESOURCE_DIR / "templates" / "coretax"
+BRANDING_DIR = RESOURCE_DIR / "branding"
+
 SQLITE_DB_PATH = APP_DATA_DIR / "data" / "tax_converter.db"
