@@ -52,8 +52,8 @@ class RealWpPreflightResult:
 class RealWpPreflightService:
     """Stage 8D.4J - audit snapshot FINAL nyata sebelum export.
 
-    Missing metadata dilaporkan, bukan diisi otomatis. Template hanya wajib untuk
-    kategori yang memiliki data.
+    Missing metadata dilaporkan, bukan diisi otomatis. Paket resmi selalu
+    menghasilkan 6 Excel + 6 XML, sehingga keenam template Excel wajib tersedia.
     """
 
     METADATA_KEYS = {
@@ -185,6 +185,22 @@ class RealWpPreflightService:
                     )
                 )
 
+        if self.template_dir is not None:
+            for category in CATEGORY_ORDER:
+                template = self._find_template(category)
+                if template is None:
+                    result.missing_templates.append(category)
+                    result.issues.append(
+                        RealWpPreflightIssue(
+                            "RCX4J_001",
+                            "ERROR",
+                            "Template Excel resmi tidak ditemukan.",
+                            category,
+                        )
+                    )
+                else:
+                    result.template_files[category] = template
+
         for category in CATEGORY_ORDER:
             rows = package.rows_by_category.get(category, [])
             if not rows:
@@ -192,24 +208,6 @@ class RealWpPreflightService:
 
             result.active_categories.append(category)
             result.category_counts[category] = len(rows)
-
-            template = self._find_template(category)
-            if self.template_dir is not None:
-                if template is None:
-                    result.missing_templates.append(category)
-                    result.issues.append(
-                        RealWpPreflightIssue(
-                            "RCX4J_001",
-                            "ERROR",
-                            (
-                                "Template Excel untuk kategori berdata tidak "
-                                "ditemukan."
-                            ),
-                            category,
-                        )
-                    )
-                else:
-                    result.template_files[category] = template
 
             required_keys = self.METADATA_KEYS.get(category, ())
             for row in rows:
@@ -274,8 +272,8 @@ class RealWpPreflightService:
                     "RCX4J_INFO",
                     "INFO",
                     (
-                        "Preflight siap: hanya kategori yang memiliki data "
-                        "yang akan diekspor."
+                        "Preflight siap: keenam template resmi tersedia; "
+                        "paket akan dibuat sebagai 6 Excel + 6 XML."
                     ),
                 )
             )
