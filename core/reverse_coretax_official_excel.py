@@ -313,9 +313,9 @@ class OfficialCoretaxExcelExporter:
         if category == "KAS":
             return (
                 row.kode_harta,
-                cls._meta(row, "account_number", row.nomor_akun_keterangan),
-                cls._meta(row, "account_on_behalf_of", row.atas_nama),
-                cls._meta(row, "bank_name", row.nama_bank),
+                cls._meta(row, "account_number"),
+                cls._meta(row, "account_on_behalf_of"),
+                cls._meta(row, "bank_name"),
                 cls._meta(row, "country"),
                 cls._meta(row, "year", row.tahun_perolehan),
                 cls._meta(row, "balance", row.nilai),
@@ -327,7 +327,7 @@ class OfficialCoretaxExcelExporter:
                 row.kode_harta,
                 cls._meta(row, "country"),
                 cls._meta(row, "identity_number"),
-                cls._meta(row, "receivable_name", row.atas_nama),
+                cls._meta(row, "receivable_name"),
                 cls._meta(row, "receivable_value"),
                 cls._meta(row, "year", row.tahun_perolehan),
                 cls._meta(row, "receivable_balance", row.nilai),
@@ -339,8 +339,8 @@ class OfficialCoretaxExcelExporter:
                 row.kode_harta,
                 cls._meta(row, "country"),
                 cls._meta(row, "institution_tin"),
-                cls._meta(row, "institution_name", row.atas_nama or row.nama_bank),
-                cls._meta(row, "account_number", row.nomor_akun_keterangan),
+                cls._meta(row, "institution_name"),
+                cls._meta(row, "account_number"),
                 cls._meta(row, "cost_of_acquisition"),
                 cls._meta(row, "year", row.tahun_perolehan),
                 cls._meta(row, "current_balance", row.nilai),
@@ -350,15 +350,14 @@ class OfficialCoretaxExcelExporter:
         if category == "BERGERAK":
             return (
                 row.kode_harta,
-                cls._meta(row, "asset_model", row.nama_harta),
+                cls._meta(row, "asset_model"),
                 cls._meta(
                     row,
                     "police_registration_number",
-                    row.nomor_akun_keterangan,
                 ),
                 cls._meta(row, "ownership_type"),
                 cls._meta(row, "ownership_tin"),
-                cls._meta(row, "ownership_name", row.atas_nama),
+                cls._meta(row, "ownership_name"),
                 cls._meta(row, "year", row.tahun_perolehan),
                 cls._meta(row, "cost_of_acquisition"),
                 cls._meta(row, "fair_market_value", row.nilai),
@@ -368,7 +367,7 @@ class OfficialCoretaxExcelExporter:
         if category == "HTB":
             return (
                 row.kode_harta,
-                cls._meta(row, "location_of_asset", row.nomor_akun_keterangan),
+                cls._meta(row, "location_of_asset"),
                 cls._meta(row, "property_size_land"),
                 cls._meta(row, "property_size_building"),
                 cls._meta(row, "source_of_ownership"),
@@ -383,8 +382,8 @@ class OfficialCoretaxExcelExporter:
             return (
                 row.kode_harta,
                 cls._meta(row, "year", row.tahun_perolehan),
-                cls._meta(row, "account_number", row.nomor_akun_keterangan),
-                cls._meta(row, "additional_information", row.nama_harta),
+                cls._meta(row, "account_number"),
+                cls._meta(row, "additional_information"),
                 cls._meta(row, "cost_of_acquisition"),
                 cls._meta(row, "current_value", row.nilai),
                 cls._meta(row, "remarks"),
