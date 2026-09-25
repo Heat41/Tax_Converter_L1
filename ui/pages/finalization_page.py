@@ -1142,6 +1142,24 @@ class FinalizationPage(QWidget):
             4200,
         )
 
+    @staticmethod
+    def _recalculate_after_excel_revision(source):
+        """Hitung ulang seluruh rekonsiliasi setelah data revisi Excel diterapkan.
+
+        Revisi Excel dapat mengubah Harta, Utang, dan Bupot sekaligus. Rekonsiliasi
+        harus dihitung dari state Edited / Current terbaru sebelum state tersebut
+        disimpan/finalisasi kembali.
+        """
+        render = getattr(source, "_render_reconciliation", None)
+        if callable(render):
+            render()
+            return getattr(source, "_last_reconciliation", None)
+
+        calculate = getattr(source, "_calculate_reconciliation", None)
+        if callable(calculate):
+            return calculate()
+        return None
+
     def _import_legacy_xlsx_revision(self):
         if self.active_snapshot is not None:
             self.toast_notification.show_message(
@@ -1255,6 +1273,13 @@ class FinalizationPage(QWidget):
 
             if hasattr(source, "_render_bupot_rows"):
                 source._render_bupot_rows(result.bupot_rows)
+
+            # Harta/Utang/Bupot dari workbook revisi harus langsung menjadi
+            # sumber perhitungan Edited / Current. Hitung ulang sebelum save
+            # supaya nilai naik/turun Harta-Utang, total pengeluaran, dan
+            # selisih rekonsiliasi tidak tertinggal dari snapshot sebelumnya.
+            recalculated = self._recalculate_after_excel_revision(source)
+
             if hasattr(source, "save_bupot_changes"):
                 saved = source.save_bupot_changes()
                 if saved is None and result.bupot_rows:
@@ -1262,10 +1287,25 @@ class FinalizationPage(QWidget):
                         "Bupot revisi belum lolos validasi Worksheet."
                     )
 
+            # Beberapa stage save melakukan refresh state internal. Render ulang
+            # sekali lagi agar UI dan _last_reconciliation merepresentasikan data
+            # yang benar-benar sudah tersimpan.
+            recalculated = self._recalculate_after_excel_revision(source) or recalculated
+
+            detail = ""
+            if recalculated is not None:
+                try:
+                    detail = (
+                        f" • Selisih rekonsiliasi: "
+                        f"{self._money(recalculated.selisih_pengeluaran_vs_penghasilan)}"
+                    )
+                except (AttributeError, TypeError, ValueError):
+                    detail = ""
+
             self.toast_notification.show_message(
-                f"Revisi Excel dari Revision {result.base_revision} diterapkan ke Edited / Current.",
+                f"Revisi Excel dari Revision {result.base_revision} diterapkan ke Edited / Current{detail}.",
                 "success",
-                4200,
+                5200,
             )
             self.refresh_page()
         except Exception as exc:
