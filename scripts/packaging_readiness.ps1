@@ -34,8 +34,16 @@ else {
 }
 
 try {
-    $pythonInfo = python -c "import platform,struct,sys; print(f'{sys.version_info.major}.{sys.version_info.minor}.{sys.version_info.micro}|{struct.calcsize("P")*8}|{platform.machine()}')"
+    $pythonInfo = python -c 'import platform,sys; print("{}.{}.{}|{}|{}".format(sys.version_info.major, sys.version_info.minor, sys.version_info.micro, 64 if sys.maxsize > 2**32 else 32, platform.machine()))'
+    if ($LASTEXITCODE -ne 0 -or -not $pythonInfo) {
+        throw "Perintah Python runtime audit gagal dengan exit code $LASTEXITCODE"
+    }
+
     $parts = $pythonInfo.Trim().Split("|")
+    if ($parts.Count -ne 3) {
+        throw "Format informasi runtime Python tidak valid: $pythonInfo"
+    }
+
     Write-Host "       Python : $($parts[0])"
     Write-Host "       Bitness: $($parts[1])-bit"
     Write-Host "       Arch   : $($parts[2])"
