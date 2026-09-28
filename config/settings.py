@@ -7,7 +7,7 @@ BASE_DIR = Path(__file__).resolve().parent.parent
 
 # Application Settings
 APP_NAME = "TAX_CONVERTER L-1"
-APP_VERSION = "1.0.0"
+APP_VERSION = "1.0.1"
 APP_SLUG = "TaxConverterL1"
 DEFAULT_TAHUN_PAJAK = 2025
 
