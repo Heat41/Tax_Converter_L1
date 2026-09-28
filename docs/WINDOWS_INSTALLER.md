@@ -32,8 +32,8 @@ Output:
 
 ```text
 installer_output/
-  TaxConverterL1-Setup-v1.0.0-win64.exe
-  TaxConverterL1-Setup-v1.0.0-win64.sha256.txt
+  TaxConverterL1-Setup-v1.0.1-win64.exe
+  TaxConverterL1-Setup-v1.0.1-win64.sha256.txt
 ```
 
 ## Perilaku installer
@@ -57,7 +57,7 @@ Karena itu update atau uninstall aplikasi tidak otomatis menghapus database user
 
 Setelah build installer:
 
-1. Jalankan `TaxConverterL1-Setup-v1.0.0-win64.exe`.
+1. Jalankan `TaxConverterL1-Setup-v1.0.1-win64.exe`.
 2. Selesaikan wizard instalasi.
 3. Jalankan aplikasi dari Start Menu atau shortcut Desktop.
 4. Verifikasi Dashboard, Import, Worksheet, Finalisasi, Preview, dan Export.
