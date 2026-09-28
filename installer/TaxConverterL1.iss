@@ -1,3 +1,17 @@
+; One-click build from Inno Setup Compiler GUI.
+; When this script is opened in Inno Setup and Compile is pressed, ISPP
+; runs the PyInstaller build first. Command-line packaging can define
+; SkipAppBuild because scripts/build_installer.ps1 already builds dist.
+#define ProjectRoot AddBackslash(SourcePath) + ".."
+#define BuildScript AddBackslash(ProjectRoot) + "scripts\build_windows.ps1"
+
+#ifndef SkipAppBuild
+  #define BuildExitCode Exec("powershell.exe", "-NoProfile -ExecutionPolicy Bypass -File " + AddQuotes(BuildScript), ProjectRoot, 1, SW_SHOWNORMAL)
+  #if BuildExitCode != 0
+    #error "PyInstaller build gagal. Periksa output build_windows.ps1 di Compiler Output."
+  #endif
+#endif
+
 #define MyAppName "TAX_CONVERTER L-1"
 #ifndef MyAppVersion
   #define MyAppVersion "1.0.0"
