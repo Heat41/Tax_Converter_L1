@@ -32,6 +32,25 @@ Database tidak dimasukkan ke bundle dan tidak disimpan di folder aplikasi.
 - `sql/schema_finalization.sql`
 - `sql/schema_export_audit.sql`
 - `resources/templates/1770/1770_master_bersih_6_halaman.pdf`
+- `resources/templates/coretax/*.xlsx` — tepat 6 template resmi L-1
+
+## Packaging readiness audit
+
+Sebelum PyInstaller dijalankan:
+
+```powershell
+powershell -ExecutionPolicy Bypass -File .\scripts\packaging_readiness.ps1
+```
+
+Audit memeriksa entry point, Python 64-bit, dependency runtime/build, schema SQL,
+template 1770, 6 template Coretax, kontrak path, writable LOCALAPPDATA,
+hard-coded absolute path pada source produksi, dan kebocoran database user.
+
+Target:
+
+```text
+PACKAGING READINESS BAGIAN 3 : PASS
+```
 
 ## Build
 
