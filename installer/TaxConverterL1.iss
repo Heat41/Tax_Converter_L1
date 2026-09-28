@@ -14,10 +14,10 @@
 
 #define MyAppName "TAX_CONVERTER L-1"
 #ifndef MyAppVersion
-  #define MyAppVersion "1.0.0"
+  #define MyAppVersion "1.0.1"
 #endif
 #ifndef MyAppVersionQuad
-  #define MyAppVersionQuad "1.0.0.0"
+  #define MyAppVersionQuad "1.0.1.0"
 #endif
 
 #define MyAppExeName "TaxConverterL1.exe"
