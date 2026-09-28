@@ -96,7 +96,7 @@ New-Item -ItemType Directory -Force -Path $installerOutput | Out-Null
 
 Write-Host "[4/5] Compile installer v$version..."
 $iss = Join-Path $root "installer\TaxConverterL1.iss"
-& $iscc "/DMyAppVersion=$version" "/DMyAppVersionQuad=$versionQuad" $iss
+& $iscc "/DSkipAppBuild=1" "/DMyAppVersion=$version" "/DMyAppVersionQuad=$versionQuad" $iss
 if ($LASTEXITCODE -ne 0) {
     throw "Inno Setup compiler gagal dengan exit code $LASTEXITCODE"
 }
