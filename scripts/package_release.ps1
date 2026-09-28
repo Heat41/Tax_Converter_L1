@@ -52,12 +52,22 @@ $required = @(
     (Join-Path $releaseDir "_internal\sql\schema_pph_state.sql"),
     (Join-Path $releaseDir "_internal\sql\schema_finalization.sql"),
     (Join-Path $releaseDir "_internal\sql\schema_export_audit.sql"),
-    (Join-Path $releaseDir "_internal\resources\templates\1770\1770_master_bersih_6_halaman.pdf")
+    (Join-Path $releaseDir "_internal\resources\templates\1770\1770_master_bersih_6_halaman.pdf"),
+    (Join-Path $releaseDir "_internal\resources\templates\coretax")
 )
 foreach ($path in $required) {
     if (-not (Test-Path $path)) {
         throw "Artifact wajib release tidak ditemukan: $path"
     }
+}
+
+$coretaxTemplates = @(
+    Get-ChildItem (
+        Join-Path $releaseDir "_internal\resources\templates\coretax"
+    ) -File -Filter *.xlsx
+)
+if ($coretaxTemplates.Count -ne 6) {
+    throw "Release harus memuat tepat 6 template Coretax; ditemukan $($coretaxTemplates.Count)."
 }
 
 $forbidden = Get-ChildItem $releaseDir -Recurse -File | Where-Object {
