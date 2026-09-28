@@ -34,20 +34,30 @@ else {
 }
 
 try {
-    $pythonInfo = python -c 'import platform,sys; print("{}.{}.{}|{}|{}".format(sys.version_info.major, sys.version_info.minor, sys.version_info.micro, 64 if sys.maxsize > 2**32 else 32, platform.machine()))'
-    if ($LASTEXITCODE -ne 0 -or -not $pythonInfo) {
-        throw "Perintah Python runtime audit gagal dengan exit code $LASTEXITCODE"
+    $pythonVersion = python --version 2>&1
+    if ($LASTEXITCODE -ne 0 -or -not $pythonVersion) {
+        throw "Perintah python --version gagal dengan exit code $LASTEXITCODE"
     }
 
-    $parts = $pythonInfo.Trim().Split("|")
-    if ($parts.Count -ne 3) {
-        throw "Format informasi runtime Python tidak valid: $pythonInfo"
+    $pythonBitness = python -c "import sys; print(64 if sys.maxsize > 2**32 else 32)"
+    if ($LASTEXITCODE -ne 0 -or -not $pythonBitness) {
+        throw "Pemeriksaan bitness Python gagal dengan exit code $LASTEXITCODE"
     }
 
-    Write-Host "       Python : $($parts[0])"
-    Write-Host "       Bitness: $($parts[1])-bit"
-    Write-Host "       Arch   : $($parts[2])"
-    if ($parts[1] -ne "64") {
+    $pythonArch = python -c "import platform; print(platform.machine())"
+    if ($LASTEXITCODE -ne 0 -or -not $pythonArch) {
+        throw "Pemeriksaan arsitektur Python gagal dengan exit code $LASTEXITCODE"
+    }
+
+    $versionText = ($pythonVersion -replace '^Python\s+', '').Trim()
+    $bitnessText = $pythonBitness.Trim()
+    $archText = $pythonArch.Trim()
+
+    Write-Host "       Python : $versionText"
+    Write-Host "       Bitness: $bitnessText-bit"
+    Write-Host "       Arch   : $archText"
+
+    if ($bitnessText -ne "64") {
         Fail "Packaging Windows harus memakai Python 64-bit"
     }
     else {
